@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useFilterStore } from '@/stores/filterStore';
+import { useState } from 'react';
+import { useFilterStore, DatePreset } from '@/stores/filterStore';
 import { DEMO_BRANDS, DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,8 +23,10 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
+import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, MapPin, Zap, Calendar, ChevronsUpDown } from 'lucide-react';
+import { Building2, MapPin, Zap, Calendar as CalendarIcon, ChevronsUpDown } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface FilterMultiSelectProps {
@@ -122,64 +124,62 @@ export function GlobalFilters() {
     selectedLocations, 
     selectedEvent, 
     dateRange,
+    datePreset,
     setSelectedBrands,
     setSelectedLocations,
     setSelectedEvent,
-    setDateRange,
+    setDateRangeWithPreset,
   } = useFilterStore();
+
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
 
   const brands = DEMO_BRANDS.map(b => ({ value: b.id, label: b.name }));
   const locations = getAvailableLocations(selectedBrands);
   const events = DEMO_EVENTS.map(e => ({ value: e.id, label: e.name }));
 
-  // Clear invalid locations when brands change
-  useEffect(() => {
-    if (selectedBrands.length > 0) {
-      const availableLocs = locations.map(l => l.value);
+  const handleBrandsChange = (newBrands: string[]) => {
+    setSelectedBrands(newBrands);
+    // Clear invalid locations when brands change
+    if (newBrands.length > 0) {
+      const availableLocs = getAvailableLocations(newBrands).map(l => l.value);
       const validLocations = selectedLocations.filter(l => availableLocs.includes(l));
       if (validLocations.length !== selectedLocations.length) {
         setSelectedLocations(validLocations);
       }
     }
-  }, [selectedBrands]);
-
-  const handleDateRangeChange = (value: string) => {
-    const to = new Date();
-    let from = new Date();
-    
-    switch (value) {
-      case '7':
-        from.setDate(from.getDate() - 7);
-        break;
-      case '30':
-        from.setDate(from.getDate() - 30);
-        break;
-      case '60':
-        from.setDate(from.getDate() - 60);
-        break;
-      case '90':
-        from.setDate(from.getDate() - 90);
-        break;
-      default:
-        from.setDate(from.getDate() - 30);
-    }
-    
-    setDateRange({
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
-    });
   };
 
-  // Calculate current date range value for display
-  const getCurrentDateRangeValue = () => {
-    const fromDate = new Date(dateRange.from);
-    const toDate = new Date(dateRange.to);
-    const diffDays = Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays <= 7) return '7';
-    if (diffDays <= 30) return '30';
-    if (diffDays <= 60) return '60';
-    return '90';
+  const handleDatePresetChange = (value: string) => {
+    if (value === 'custom') {
+      setCustomDateOpen(true);
+    } else {
+      setDateRangeWithPreset(value as DatePreset);
+    }
+  };
+
+  const handleCustomDateApply = () => {
+    if (customFrom && customTo) {
+      setDateRangeWithPreset('custom', {
+        from: format(customFrom, 'yyyy-MM-dd'),
+        to: format(customTo, 'yyyy-MM-dd'),
+      });
+      setCustomDateOpen(false);
+    }
+  };
+
+  const getDateRangeLabel = () => {
+    if (datePreset === 'custom') {
+      return `${format(new Date(dateRange.from), 'MMM d')} - ${format(new Date(dateRange.to), 'MMM d')}`;
+    }
+    switch (datePreset) {
+      case '7': return 'Last 7 days';
+      case '30': return 'Last 30 days';
+      case '60': return 'Last 60 days';
+      case '90': return 'Last 90 days';
+      default: return 'Last 30 days';
+    }
   };
 
   return (
@@ -188,7 +188,7 @@ export function GlobalFilters() {
       <FilterMultiSelect
         options={brands}
         selected={selectedBrands}
-        onChange={setSelectedBrands}
+        onChange={handleBrandsChange}
         placeholder="Brand"
         allLabel="All Brands"
         icon={<Building2 className="h-4 w-4 opacity-70" />}
@@ -226,20 +226,64 @@ export function GlobalFilters() {
       <div className="h-6 w-px bg-topbar-foreground/20 mx-2" />
 
       {/* Date Range */}
-      <Select value={getCurrentDateRangeValue()} onValueChange={handleDateRangeChange}>
-        <SelectTrigger className="h-9 min-w-[130px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 opacity-70" />
-            <SelectValue placeholder="Select range" />
+      <Popover open={customDateOpen} onOpenChange={setCustomDateOpen}>
+        <PopoverTrigger asChild>
+          <div>
+            <Select value={datePreset} onValueChange={handleDatePresetChange}>
+              <SelectTrigger className="h-9 min-w-[150px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 opacity-70" />
+                  <span className="text-sm">{getDateRangeLabel()}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="60">Last 60 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </SelectTrigger>
-        <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
-          <SelectItem value="7">Last 7 days</SelectItem>
-          <SelectItem value="30">Last 30 days</SelectItem>
-          <SelectItem value="60">Last 60 days</SelectItem>
-          <SelectItem value="90">Last 90 days</SelectItem>
-        </SelectContent>
-      </Select>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-4 bg-popover border border-border shadow-lg z-[100]" align="end">
+          <div className="space-y-4">
+            <p className="text-sm font-medium">Select custom date range</p>
+            <div className="flex gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">From</p>
+                <Calendar
+                  mode="single"
+                  selected={customFrom}
+                  onSelect={setCustomFrom}
+                  className={cn("p-3 pointer-events-auto rounded-md border")}
+                />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">To</p>
+                <Calendar
+                  mode="single"
+                  selected={customTo}
+                  onSelect={setCustomTo}
+                  className={cn("p-3 pointer-events-auto rounded-md border")}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCustomDateOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleCustomDateApply}
+                disabled={!customFrom || !customTo}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

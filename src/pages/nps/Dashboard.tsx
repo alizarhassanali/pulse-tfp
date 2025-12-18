@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
@@ -37,16 +38,18 @@ import {
   Minus,
   ThumbsDown,
   AlertTriangle,
-  Download,
   Bell,
   MessageSquare,
   Eye,
   ArrowRight,
+  Ban,
+  Clock,
+  UserX,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays } from 'date-fns';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { SetAlertModal } from '@/components/nps/SetAlertModal';
 
 // Demo data
 const DEMO_PRIMARY_METRICS = {
@@ -92,11 +95,6 @@ const DEMO_CRITICAL_FEEDBACK = [
   { id: '3', date: 'Dec 20, 2025', score: 4, comment: 'The parking situation is terrible and adds stress to visits...', channel: 'sms', consent: false },
   { id: '4', date: 'Dec 19, 2025', score: 1, comment: 'I felt like just a number, no personal attention at all...', channel: 'email', consent: true },
   { id: '5', date: 'Dec 18, 2025', score: 3, comment: 'The billing department made several errors on my account...', channel: 'qr', consent: false },
-  { id: '6', date: 'Dec 17, 2025', score: 2, comment: 'Had to repeat my medical history multiple times to different staff...', channel: 'sms', consent: true },
-  { id: '7', date: 'Dec 16, 2025', score: 4, comment: 'The online portal is confusing and hard to navigate...', channel: 'email', consent: false },
-  { id: '8', date: 'Dec 15, 2025', score: 3, comment: 'Appointment was rescheduled twice without proper notice...', channel: 'sms', consent: true },
-  { id: '9', date: 'Dec 14, 2025', score: 1, comment: 'The facility felt outdated and not very clean...', channel: 'email', consent: false },
-  { id: '10', date: 'Dec 13, 2025', score: 2, comment: 'My questions were not adequately answered during the consultation...', channel: 'qr', consent: true },
 ];
 
 const PIE_COLORS = ['hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)'];
@@ -110,6 +108,7 @@ export default function NPSDashboard() {
     dateRange, 
   } = useFilterStore();
   const [trendView, setTrendView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
 
   // Fetch survey responses for metrics
   const { data: responses = [], isLoading: loadingResponses } = useQuery({
@@ -126,12 +125,16 @@ export default function NPSDashboard() {
         .lte('completed_at', dateRange.to + 'T23:59:59')
         .order('completed_at', { ascending: false });
 
-      if (selectedEvent !== 'all') {
+      // Only filter by event if a specific one is selected
+      if (selectedEvent && selectedEvent !== 'all') {
         query = query.eq('event_id', selectedEvent);
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching responses:', error);
+        return [];
+      }
       return data || [];
     },
   });
@@ -146,12 +149,15 @@ export default function NPSDashboard() {
         .gte('created_at', dateRange.from)
         .lte('created_at', dateRange.to + 'T23:59:59');
 
-      if (selectedEvent !== 'all') {
+      if (selectedEvent && selectedEvent !== 'all') {
         query = query.eq('event_id', selectedEvent);
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching invitations:', error);
+        return [];
+      }
       return data || [];
     },
   });
@@ -176,6 +182,17 @@ export default function NPSDashboard() {
 
   const totalSent = hasRealData ? invitations.length : DEMO_PRIMARY_METRICS.totalSent;
   const completed = hasRealData ? responses.length : DEMO_PRIMARY_METRICS.completed;
+
+  // Delivery issues from invitations
+  const bounced = hasRealData 
+    ? invitations.filter(i => i.status === 'bounced').length 
+    : DEMO_SECONDARY_METRICS.bounced;
+  const throttled = hasRealData 
+    ? invitations.filter(i => i.status === 'throttled').length 
+    : DEMO_SECONDARY_METRICS.throttled;
+  const unsubscribed = hasRealData 
+    ? invitations.filter(i => i.status === 'unsubscribed').length 
+    : DEMO_SECONDARY_METRICS.unsubscribed;
 
   // Trend data
   const trendData = hasRealData ? Array.from({ length: 7 }, (_, i) => {
@@ -223,10 +240,6 @@ export default function NPSDashboard() {
     { name: 'Detractors', value: hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count, percent: hasRealData && total > 0 ? Math.round((detractors / total) * 100) : DEMO_SECONDARY_METRICS.detractors.percent },
   ];
 
-  const handleExport = (type: 'all' | 'current') => {
-    console.log(`Exporting ${type} data...`);
-  };
-
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -247,16 +260,10 @@ export default function NPSDashboard() {
           <h1 className="text-2xl font-bold text-foreground">NPS Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleExport('current')}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline" size="sm">
-            <Bell className="h-4 w-4 mr-2" />
-            Set Alert
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => setAlertModalOpen(true)}>
+          <Bell className="h-4 w-4 mr-2" />
+          Set Alert
+        </Button>
       </div>
 
       {/* Primary Metric Cards - Single Row */}
@@ -322,7 +329,7 @@ export default function NPSDashboard() {
 
       {/* Score Distribution & Delivery Issues Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Promoters, Passives, Detractors - Cohesive Group */}
+        {/* Score Distribution */}
         <Card className="shadow-soft border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium">Score Distribution</CardTitle>
@@ -334,7 +341,7 @@ export default function NPSDashboard() {
                   <ThumbsUp className="h-5 w-5 text-promoter" />
                 </div>
                 <p className="text-3xl font-bold text-promoter">{hasRealData ? promoters : DEMO_SECONDARY_METRICS.promoters.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">Promoters</p>
+                <p className="text-xs text-muted-foreground mt-1">Promoters (9-10)</p>
                 <p className="text-sm font-semibold text-promoter mt-1">{pieData[0].percent}%</p>
               </div>
 
@@ -343,7 +350,7 @@ export default function NPSDashboard() {
                   <Minus className="h-5 w-5 text-passive" />
                 </div>
                 <p className="text-3xl font-bold text-passive">{hasRealData ? passives : DEMO_SECONDARY_METRICS.passives.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">Passives</p>
+                <p className="text-xs text-muted-foreground mt-1">Passives (7-8)</p>
                 <p className="text-sm font-semibold text-passive mt-1">{pieData[1].percent}%</p>
               </div>
 
@@ -352,14 +359,14 @@ export default function NPSDashboard() {
                   <ThumbsDown className="h-5 w-5 text-detractor" />
                 </div>
                 <p className="text-3xl font-bold text-detractor">{hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">Detractors</p>
+                <p className="text-xs text-muted-foreground mt-1">Detractors (0-6)</p>
                 <p className="text-sm font-semibold text-detractor mt-1">{pieData[2].percent}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Delivery Issues - Combined Card */}
+        {/* Delivery Issues */}
         <Card className="shadow-soft border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -370,19 +377,28 @@ export default function NPSDashboard() {
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-4 rounded-lg bg-warning/5 border border-warning/20">
-                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.bounced}</p>
+                <div className="flex items-center justify-center mb-2">
+                  <Ban className="h-5 w-5 text-warning" />
+                </div>
+                <p className="text-3xl font-bold text-foreground">{bounced}</p>
                 <p className="text-xs text-muted-foreground mt-1">Bounced</p>
                 <p className="text-xs text-warning mt-1">Undelivered</p>
               </div>
 
               <div className="text-center p-4 rounded-lg bg-info/5 border border-info/20">
-                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.throttled}</p>
+                <div className="flex items-center justify-center mb-2">
+                  <Clock className="h-5 w-5 text-info" />
+                </div>
+                <p className="text-3xl font-bold text-foreground">{throttled}</p>
                 <p className="text-xs text-muted-foreground mt-1">Throttled</p>
                 <p className="text-xs text-info mt-1">Rate limited</p>
               </div>
 
               <div className="text-center p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.unsubscribed}</p>
+                <div className="flex items-center justify-center mb-2">
+                  <UserX className="h-5 w-5 text-destructive" />
+                </div>
+                <p className="text-3xl font-bold text-foreground">{unsubscribed}</p>
                 <p className="text-xs text-muted-foreground mt-1">Unsubscribed</p>
                 <p className="text-xs text-destructive mt-1">Opted out</p>
               </div>
@@ -391,7 +407,7 @@ export default function NPSDashboard() {
         </Card>
       </div>
 
-      {/* Charts Section - Full Width */}
+      {/* Charts Section */}
       <section aria-label="Charts" className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -402,7 +418,7 @@ export default function NPSDashboard() {
             </>
           ) : (
             <>
-              {/* NPS Trend Chart - Takes 2/3 width */}
+              {/* NPS Trend Chart */}
               <Card className="shadow-soft border-border/50 lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-base font-medium">NPS Trend</CardTitle>
@@ -454,7 +470,7 @@ export default function NPSDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Score Distribution Pie Chart - Takes 1/3 width */}
+              {/* Score Distribution Pie Chart */}
               <Card className="shadow-soft border-border/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-medium">Distribution</CardTitle>
@@ -487,7 +503,7 @@ export default function NPSDashboard() {
                         <Legend 
                           verticalAlign="bottom"
                           height={36}
-                          formatter={(value, entry: any) => (
+                          formatter={(value) => (
                             <span className="text-xs">{value}: {pieData.find(p => p.name === value)?.percent}%</span>
                           )}
                         />
@@ -501,7 +517,7 @@ export default function NPSDashboard() {
         </div>
       </section>
 
-      {/* Channel Performance Table - Full Width */}
+      {/* Channel Performance Table */}
       <section aria-label="Channel Performance" className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">Channel Performance</h2>
         <Card className="shadow-soft border-border/50">
@@ -538,7 +554,7 @@ export default function NPSDashboard() {
         </Card>
       </section>
 
-      {/* Top Critical Feedback - Full Width */}
+      {/* Top Critical Feedback */}
       <section aria-label="Critical Feedback" className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -581,24 +597,6 @@ export default function NPSDashboard() {
         </Card>
       </section>
 
-      {/* Export and Alert Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center pt-4">
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => handleExport('current')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Current View
-          </Button>
-          <Button variant="outline" onClick={() => handleExport('all')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export All Data
-          </Button>
-        </div>
-        <Button variant="secondary">
-          <Bell className="mr-2 h-4 w-4" />
-          Alert Settings
-        </Button>
-      </div>
-
       {/* Footer */}
       <footer className="border-t border-border pt-6 mt-8 flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-muted-foreground">
         <p>
@@ -606,6 +604,9 @@ export default function NPSDashboard() {
         </p>
         <p>UserPulse v1.1.0</p>
       </footer>
+
+      {/* Set Alert Modal */}
+      <SetAlertModal open={alertModalOpen} onOpenChange={setAlertModalOpen} />
     </div>
   );
 }
