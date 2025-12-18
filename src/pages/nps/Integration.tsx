@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Link,
+  Link2,
   QrCode,
   Mail,
   MessageSquare,
@@ -55,19 +55,23 @@ import {
   CheckCircle2,
   RefreshCw,
   Info,
+  Search,
+  FileText,
+  Calendar,
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { DEMO_CONTACTS, DEMO_EVENTS } from '@/data/demo-data';
+import { DEMO_CONTACTS, DEMO_EVENTS, DEMO_LOCATIONS, DEMO_BRANDS } from '@/data/demo-data';
 
 export default function Integration() {
   const { toast } = useToast();
   const location = useLocation();
   const eventIdFromState = location.state?.eventId;
-  const { selectedEvent: globalEvent } = useFilterStore();
+  const { selectedEvent: globalEvent, selectedBrands, selectedLocations } = useFilterStore();
   
   // Use global event if available, otherwise use state from navigation
   const [selectedEvent, setSelectedEvent] = useState<string>('');
-  const [activeTab, setActiveTab] = useState('link');
+  const [selectedIntegrationLocation, setSelectedIntegrationLocation] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('direct-access');
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState('How was your recent visit?');
   const [emailBody, setEmailBody] = useState('Hi {first_name},\n\nWe hope you had a great experience at our clinic. Please take a moment to share your feedback:\n\n{survey_link}\n\nThank you!');
@@ -75,7 +79,16 @@ export default function Integration() {
   const [sendSchedule, setSendSchedule] = useState('now');
   const [buttonColor, setButtonColor] = useState('#FF887C');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  
+  // Messaging channel selection
+  const [sendEmail, setSendEmail] = useState(true);
+  const [sendSms, setSendSms] = useState(true);
   const [respectPreferredChannel, setRespectPreferredChannel] = useState(true);
+  
+  // Recipient filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterChannel, setFilterChannel] = useState<string>('all');
+  const [filterScoreType, setFilterScoreType] = useState<string>('all');
   
   // SFTP State
   const [sftpHost, setSftpHost] = useState('');
@@ -86,6 +99,9 @@ export default function Integration() {
   const [sftpChannelRule, setSftpChannelRule] = useState('preferred');
   const [sftpLastSync, setSftpLastSync] = useState<string | null>(null);
   const [sftpStatus, setSftpStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
+  const [sftpScheduleDays, setSftpScheduleDays] = useState<string[]>(['monday', 'wednesday', 'friday']);
+  const [sftpScheduleTime, setSftpScheduleTime] = useState('09:00');
+  const [sftpFileFormat, setSftpFileFormat] = useState('csv');
 
   // Initialize selected event from global filter or navigation state
   useEffect(() => {
@@ -122,11 +138,24 @@ export default function Integration() {
     },
   });
 
+  // Get locations for the selected event's brand
+  const eventLocations = useMemo(() => {
+    const selectedEventData = events.find(e => e.id === selectedEvent);
+    if (!selectedEventData?.brand_id) return [];
+    return DEMO_LOCATIONS[selectedEventData.brand_id] || [];
+  }, [selectedEvent, events]);
+
   const selectedEventData = events.find(e => e.id === selectedEvent);
   
-  const surveyUrl = selectedEvent
-    ? `https://survey.userpulse.io/s/${selectedEvent.slice(0, 8)}`
-    : '';
+  // Generate location-aware survey URL
+  const surveyUrl = useMemo(() => {
+    if (!selectedEvent) return '';
+    let url = `https://survey.userpulse.io/s/${selectedEvent.slice(0, 8)}`;
+    if (selectedIntegrationLocation) {
+      url += `?loc=${selectedIntegrationLocation.slice(0, 8)}`;
+    }
+    return url;
+  }, [selectedEvent, selectedIntegrationLocation]);
 
   const handleCopyLink = () => {
     if (!surveyUrl) {
@@ -135,6 +164,10 @@ export default function Integration() {
     }
     navigator.clipboard.writeText(surveyUrl);
     toast({ title: 'Link copied to clipboard' });
+  };
+
+  const handleDownloadQR = (format: 'png' | 'svg') => {
+    toast({ title: `QR Code downloaded as ${format.toUpperCase()}` });
   };
 
   const handleSelectAll = (checked: boolean, contactList: { id: string }[]) => {
@@ -154,13 +187,20 @@ export default function Integration() {
   };
 
   const handleSendConfirm = () => {
+    if (selectedContacts.length === 0) {
+      toast({ title: 'Please select recipients', variant: 'destructive' });
+      return;
+    }
     setConfirmDialogOpen(true);
   };
 
   const handleSend = () => {
+    const channels = [];
+    if (sendEmail) channels.push('Email');
+    if (sendSms) channels.push('SMS');
     const channelInfo = respectPreferredChannel 
-      ? 'via preferred channels (Email/SMS)' 
-      : activeTab === 'messaging' ? 'via Email & SMS' : '';
+      ? 'via preferred channels' 
+      : `via ${channels.join(' & ')}`;
     
     toast({
       title: 'Messages queued',
@@ -172,7 +212,6 @@ export default function Integration() {
 
   const handleSftpTest = () => {
     toast({ title: 'Testing SFTP connection...', description: 'Please wait...' });
-    // Simulate SFTP test
     setTimeout(() => {
       setSftpStatus('connected');
       setSftpLastSync(new Date().toISOString());
@@ -184,10 +223,46 @@ export default function Integration() {
     toast({ title: 'SFTP Configuration Saved', description: 'Integration settings have been saved.' });
   };
 
-  // For messaging tab, show all contacts with their preferred channels
-  const messagingContacts = useMemo(() => {
-    return contacts.filter((c) => c.email || c.phone);
-  }, [contacts]);
+  const handleDownloadSampleTemplate = () => {
+    const headers = ['first_name', 'last_name', 'email', 'phone', 'preferred_channel', 'brand_id', 'location_id', 'external_id', 'event_name'];
+    const sampleRow = ['John', 'Doe', 'john@example.com', '+1234567890', 'email', 'brand-uuid', 'location-uuid', 'ext-123', 'post-visit-nps'];
+    const csv = [headers.join(','), sampleRow.join(',')].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sftp-contact-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Sample template downloaded' });
+  };
+
+  // Filter contacts for messaging
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      // Must have email or phone
+      if (!c.email && !c.phone) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+        if (!fullName.includes(query) && 
+            !c.email?.toLowerCase().includes(query) && 
+            !c.phone?.includes(query)) {
+          return false;
+        }
+      }
+      
+      // Channel filter
+      if (filterChannel !== 'all' && c.preferred_channel !== filterChannel) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [contacts, searchQuery, filterChannel]);
 
   const getChannelBadge = (channel: string | null) => {
     switch (channel) {
@@ -273,16 +348,12 @@ export default function Integration() {
         </CardContent>
       </Card>
 
-      {/* Channel Tabs */}
+      {/* Channel Tabs - Merged Link + QR into Direct Access */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="link" className="flex items-center gap-2">
-            <Link className="h-4 w-4" />
-            Link
-          </TabsTrigger>
-          <TabsTrigger value="qr" className="flex items-center gap-2">
-            <QrCode className="h-4 w-4" />
-            QR Code
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="direct-access" className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Direct Access
           </TabsTrigger>
           <TabsTrigger value="messaging" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
@@ -298,102 +369,104 @@ export default function Integration() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Link Tab */}
-        <TabsContent value="link" className="space-y-4">
+        {/* Direct Access Tab (Merged Link + QR) */}
+        <TabsContent value="direct-access" className="space-y-4">
           <Card className="shadow-soft border-border/50">
             <CardHeader>
-              <CardTitle>Direct Survey Link</CardTitle>
-              <CardDescription>Share this unique URL to collect responses</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={surveyUrl}
-                  className="font-mono text-sm"
-                />
-                <Button variant="outline" onClick={handleCopyLink}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
-              </div>
-
-              <div className="border rounded-lg p-8 flex items-center justify-center bg-muted/30">
-                <div className="h-48 w-48 bg-background rounded-lg border flex items-center justify-center">
-                  <QrCode className="h-32 w-32 text-foreground" />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download PNG
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download SVG
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* QR Code Tab */}
-        <TabsContent value="qr" className="space-y-4">
-          <Card className="shadow-soft border-border/50">
-            <CardHeader>
-              <CardTitle>QR Code Generator</CardTitle>
-              <CardDescription>Create customizable QR codes for print materials</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Direct Survey Link & QR Code
+              </CardTitle>
+              <CardDescription>Share via link or QR code for in-clinic distribution</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              {/* Location Selector */}
+              {eventLocations.length > 1 && (
                 <div className="space-y-2">
-                  <Label>QR Code Size</Label>
-                  <Select defaultValue="256">
-                    <SelectTrigger>
-                      <SelectValue />
+                  <Label>Select Location (for location-specific URL)</Label>
+                  <Select value={selectedIntegrationLocation} onValueChange={setSelectedIntegrationLocation}>
+                    <SelectTrigger className="max-w-[300px]">
+                      <SelectValue placeholder="All Locations (generic URL)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="128">128px (Small)</SelectItem>
-                      <SelectItem value="256">256px (Medium)</SelectItem>
-                      <SelectItem value="512">512px (Large)</SelectItem>
-                      <SelectItem value="1024">1024px (Print)</SelectItem>
+                      <SelectItem value="">All Locations</SelectItem>
+                      {eventLocations.map((loc: any) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecting a location embeds it in the URL for accurate tracking
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Border Text</Label>
-                  <Input placeholder="Scan to rate your visit" />
+              )}
+
+              {/* URL Section */}
+              <div className="space-y-2">
+                <Label>Survey URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={surveyUrl}
+                    className="font-mono text-sm"
+                  />
+                  <Button variant="outline" onClick={handleCopyLink}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
                 </div>
               </div>
 
-              <div className="border rounded-lg p-12 flex items-center justify-center bg-muted/30">
-                <div className="h-64 w-64 bg-background rounded-lg border-2 flex items-center justify-center">
-                  <QrCode className="h-48 w-48 text-foreground" />
+              {/* QR Code */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="border rounded-lg p-8 flex items-center justify-center bg-muted/30">
+                    <div className="h-48 w-48 bg-background rounded-lg border flex items-center justify-center">
+                      <QrCode className="h-32 w-32 text-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => handleDownloadQR('png')}>
+                      <Download className="h-4 w-4 mr-2" />
+                      PNG
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={() => handleDownloadQR('svg')}>
+                      <Download className="h-4 w-4 mr-2" />
+                      SVG
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1">
-                  <Download className="h-4 w-4 mr-2" />
-                  PNG
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <Download className="h-4 w-4 mr-2" />
-                  SVG
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <Download className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>QR Code Size</Label>
+                    <Select defaultValue="256">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="128">128px (Small)</SelectItem>
+                        <SelectItem value="256">256px (Medium)</SelectItem>
+                        <SelectItem value="512">512px (Large)</SelectItem>
+                        <SelectItem value="1024">1024px (Print)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Border Text (optional)</Label>
+                    <Input placeholder="Scan to rate your visit" />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Unified Messaging Tab (Email + SMS) */}
+        {/* Messaging Tab (Email + SMS unified) */}
         <TabsContent value="messaging" className="space-y-4">
-          {/* Channel Settings */}
+          {/* Channel Selection */}
           <Card className="shadow-soft border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -402,15 +475,15 @@ export default function Integration() {
                 Messaging Settings
               </CardTitle>
               <CardDescription>
-                Send surveys via Email and SMS based on contact preferences
+                Send surveys via Email and/or SMS
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
                 <div className="space-y-1">
                   <Label className="text-base font-medium">Respect Preferred Channel</Label>
                   <p className="text-sm text-muted-foreground">
-                    Send via each contact's preferred channel. If not set, send via both Email and SMS.
+                    Send via each contact's preferred channel. If not set, use selected channels below.
                   </p>
                 </div>
                 <Switch 
@@ -418,11 +491,28 @@ export default function Integration() {
                   onCheckedChange={setRespectPreferredChannel} 
                 />
               </div>
+
+              {!respectPreferredChannel && (
+                <div className="flex items-center gap-6 p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={sendEmail} onCheckedChange={(c) => setSendEmail(c as boolean)} />
+                    <Label className="flex items-center gap-1">
+                      <Mail className="h-4 w-4" /> Email
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={sendSms} onCheckedChange={(c) => setSendSms(c as boolean)} />
+                    <Label className="flex items-center gap-1">
+                      <MessageSquare className="h-4 w-4" /> SMS
+                    </Label>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Recipients */}
+            {/* Recipients with Filters */}
             <Card className="shadow-soft border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -430,18 +520,55 @@ export default function Integration() {
                   Select Recipients
                 </CardTitle>
                 <CardDescription>
-                  {selectedContacts.length} of {messagingContacts.length} contacts selected
+                  {selectedContacts.length} of {filteredContacts.length} contacts selected
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg max-h-[400px] overflow-y-auto">
+              <CardContent className="space-y-4">
+                {/* Search & Filters */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search by name, email, phone..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={filterChannel} onValueChange={setFilterChannel}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Channel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Channels</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="sms">SMS</SelectItem>
+                        <SelectItem value="both">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterScoreType} onValueChange={setFilterScoreType}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Score Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="promoters">Promoters</SelectItem>
+                        <SelectItem value="passives">Passives</SelectItem>
+                        <SelectItem value="detractors">Detractors</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-[300px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12">
                           <Checkbox
-                            checked={selectedContacts.length === messagingContacts.length && messagingContacts.length > 0}
-                            onCheckedChange={(checked) => handleSelectAll(checked as boolean, messagingContacts)}
+                            checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
+                            onCheckedChange={(checked) => handleSelectAll(checked as boolean, filteredContacts)}
                           />
                         </TableHead>
                         <TableHead>Name</TableHead>
@@ -450,7 +577,7 @@ export default function Integration() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {messagingContacts.map((contact) => (
+                      {filteredContacts.map((contact) => (
                         <TableRow key={contact.id}>
                           <TableCell>
                             <Checkbox
@@ -752,6 +879,69 @@ function App() {
                 </div>
               </div>
 
+              {/* Schedule */}
+              <div className="border-t pt-6 space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Sync Schedule
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Days</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                        <Badge 
+                          key={day} 
+                          variant={sftpScheduleDays.includes(day) ? 'default' : 'outline'}
+                          className="cursor-pointer capitalize"
+                          onClick={() => {
+                            setSftpScheduleDays(prev => 
+                              prev.includes(day) 
+                                ? prev.filter(d => d !== day)
+                                : [...prev, day]
+                            );
+                          }}
+                        >
+                          {day.slice(0, 3)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Time (Timezone: EST)</Label>
+                    <Input 
+                      type="time" 
+                      value={sftpScheduleTime}
+                      onChange={(e) => setSftpScheduleTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* File Format & Template */}
+              <div className="border-t pt-6 space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  File Format
+                </h4>
+                <div className="flex items-center gap-4">
+                  <Select value={sftpFileFormat} onValueChange={setSftpFileFormat}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="json">JSON</SelectItem>
+                      <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={handleDownloadSampleTemplate}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Sample Template
+                  </Button>
+                </div>
+              </div>
+
               {/* Event & Channel Mapping */}
               <div className="border-t pt-6 space-y-4">
                 <h4 className="font-medium">Event & Channel Mapping</h4>
@@ -838,11 +1028,11 @@ function App() {
               {respectPreferredChannel ? (
                 <span className="block mt-2">
                   Messages will be sent via each contact's preferred channel. 
-                  Contacts without a preference will receive both Email and SMS.
+                  Contacts without a preference will receive {sendEmail && sendSms ? 'both Email and SMS' : sendEmail ? 'Email' : 'SMS'}.
                 </span>
               ) : (
                 <span className="block mt-2">
-                  All selected contacts will receive both Email and SMS.
+                  All selected contacts will receive {sendEmail && sendSms ? 'both Email and SMS' : sendEmail ? 'Email only' : 'SMS only'}.
                 </span>
               )}
             </AlertDialogDescription>

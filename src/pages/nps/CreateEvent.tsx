@@ -26,16 +26,20 @@ import {
   GripVertical,
   Trash2,
   Check,
-  Smartphone,
   Save,
   Eye,
-  Star,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEMO_BRANDS, DEMO_LOCATIONS, getAllLocations } from '@/data/demo-data';
+import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type ThankYouMode = 'same' | 'by-score' | 'by-score-location';
+
+interface LocationThankYouConfig {
+  buttonText: string;
+  buttonUrl: string;
+}
 
 interface EventFormData {
   brandId: string;
@@ -63,7 +67,8 @@ interface EventFormData {
     passives: { message: string; buttonText: string; buttonUrl: string };
     detractors: { message: string; buttonText: string; buttonUrl: string };
   };
-  locationGmbLinks: Record<string, string>;
+  // For by-score-location mode: locationId -> { promoters, passives, detractors } -> { buttonText, buttonUrl }
+  locationThankYouConfig: Record<string, Record<string, LocationThankYouConfig>>;
 }
 
 const steps = [
@@ -75,12 +80,12 @@ const steps = [
   { num: 6, title: 'Review & Save' },
 ];
 
+// Removed 'google_review' from question types
 const questionTypes = [
   { value: 'free_response', label: 'Free Response' },
   { value: 'scale', label: 'Scale' },
   { value: 'select_one', label: 'Single Choice' },
   { value: 'select_multiple', label: 'Multiple Choice' },
-  { value: 'google_review', label: 'Google Review Redirect' },
 ];
 
 const languageOptions = [
@@ -96,7 +101,6 @@ export default function CreateEvent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<Step>(1);
-  const [showPreview, setShowPreview] = useState(false);
   const [formData, setFormData] = useState<EventFormData>({
     brandId: '',
     locationIds: [],
@@ -121,7 +125,7 @@ export default function CreateEvent() {
       passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttonText: '', buttonUrl: '' },
       detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
     },
-    locationGmbLinks: {},
+    locationThankYouConfig: {},
   });
 
   // Fetch brands from DB, fallback to demo
@@ -173,32 +177,34 @@ export default function CreateEvent() {
         return { id: crypto.randomUUID(), status };
       }
 
+      const eventInsert = {
+        brand_id: formData.brandId,
+        name: formData.name,
+        type: 'nps',
+        metric_question: formData.metricQuestion,
+        languages: formData.languages,
+        intro_message: formData.introMessage,
+        throttle_days: formData.throttleDays,
+        consent_config: {
+          collectConsent: formData.collectConsent,
+          consentText: formData.consentText,
+          collectContact: formData.collectContact,
+          contactFields: formData.contactFields,
+        },
+        thank_you_config: {
+          mode: formData.thankYouMode,
+          config: formData.thankYouConfig,
+          locationConfig: formData.locationThankYouConfig,
+        },
+        config: {
+          defaultLanguage: formData.defaultLanguage,
+        },
+        status,
+      };
+
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .insert({
-          brand_id: formData.brandId,
-          name: formData.name,
-          type: 'nps',
-          metric_question: formData.metricQuestion,
-          languages: formData.languages,
-          intro_message: formData.introMessage,
-          throttle_days: formData.throttleDays,
-          consent_config: {
-            collectConsent: formData.collectConsent,
-            consentText: formData.consentText,
-            collectContact: formData.collectContact,
-            contactFields: formData.contactFields,
-          },
-          thank_you_config: {
-            mode: formData.thankYouMode,
-            config: formData.thankYouConfig,
-            locationGmbLinks: formData.locationGmbLinks,
-          },
-          config: {
-            defaultLanguage: formData.defaultLanguage,
-          },
-          status,
-        })
+        .insert(eventInsert)
         .select()
         .single();
 
@@ -320,6 +326,27 @@ export default function CreateEvent() {
     }));
   };
 
+  const updateLocationThankYouConfig = (
+    locationId: string, 
+    group: 'promoters' | 'passives' | 'detractors', 
+    field: 'buttonText' | 'buttonUrl', 
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      locationThankYouConfig: {
+        ...prev.locationThankYouConfig,
+        [locationId]: {
+          ...prev.locationThankYouConfig[locationId],
+          [group]: {
+            ...(prev.locationThankYouConfig[locationId]?.[group] || { buttonText: '', buttonUrl: '' }),
+            [field]: value,
+          },
+        },
+      },
+    }));
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -337,102 +364,26 @@ export default function CreateEvent() {
 
   const selectedBrandName = brands.find(b => b.id === formData.brandId)?.name || '';
 
-  // Live Preview Component
-  const LivePreview = () => (
-    <Card className="border-border/50 bg-muted/30 sticky top-4">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
-            Live Preview
-          </CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-background rounded-lg border p-4 space-y-4 max-h-[500px] overflow-y-auto">
-          {/* Intro */}
-          {formData.introMessage && (
-            <p className="text-sm text-muted-foreground">{formData.introMessage}</p>
-          )}
-          
-          {/* NPS Question */}
-          <div className="space-y-3">
-            <p className="font-medium text-sm">
-              {formData.metricQuestion.replace('[Brand]', selectedBrandName || 'our clinic')}
-            </p>
-            <div className="flex gap-1">
-              {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                <div 
-                  key={n} 
-                  className={cn(
-                    "w-7 h-7 rounded text-xs flex items-center justify-center border",
-                    n <= 6 ? "bg-destructive/10 border-destructive/20" :
-                    n <= 8 ? "bg-warning/10 border-warning/20" : "bg-success/10 border-success/20"
-                  )}
-                >
-                  {n}
-                </div>
-              ))}
-            </div>
-          </div>
+  // Generate preview URL
+  const previewUrl = useMemo(() => {
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams({
+      preview: 'true',
+      brand: formData.brandId || '',
+      event: formData.name || 'preview',
+    });
+    return `${baseUrl}/survey-preview?${params.toString()}`;
+  }, [formData.brandId, formData.name]);
 
-          {/* Follow-up Questions Preview */}
-          {formData.questions.slice(0, 2).map((q, idx) => (
-            <div key={q.id} className="space-y-2 pt-2 border-t">
-              <p className="text-sm font-medium">{q.config.question || `Question ${idx + 1}`}</p>
-              {q.type === 'free_response' && (
-                <div className="h-16 border rounded bg-muted/50" />
-              )}
-              {q.type === 'scale' && (
-                <div className="flex gap-1">
-                  {Array.from({ length: (q.config.scaleMax || 10) - (q.config.scaleMin || 1) + 1 }).map((_, i) => (
-                    <div key={i} className="w-6 h-6 rounded border text-xs flex items-center justify-center">
-                      {(q.config.scaleMin || 1) + i}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(q.type === 'select_one' || q.type === 'select_multiple') && (
-                <div className="space-y-1">
-                  {(q.config.options || []).slice(0, 3).map((opt: string, i: number) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className={cn("w-4 h-4 border rounded", q.type === 'select_one' ? "rounded-full" : "")} />
-                      <span className="text-xs">{opt || `Option ${i + 1}`}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {q.type === 'google_review' && (
-                <div className="flex items-center gap-2 p-2 bg-muted rounded">
-                  <Star className="h-4 w-4 text-warning" />
-                  <span className="text-xs">Redirect to Google Review</span>
-                </div>
-              )}
-            </div>
-          ))}
-          {formData.questions.length > 2 && (
-            <p className="text-xs text-muted-foreground">+{formData.questions.length - 2} more questions</p>
-          )}
-
-          {/* Consent Preview */}
-          {formData.collectConsent && (
-            <div className="pt-2 border-t">
-              <div className="flex items-start gap-2">
-                <Checkbox disabled className="mt-0.5" />
-                <span className="text-xs">{formData.consentText}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Thank You Preview */}
-          <div className="pt-2 border-t bg-success/10 rounded p-3">
-            <p className="text-xs font-medium text-success">Thank You Page</p>
-            <p className="text-xs mt-1">{formData.thankYouConfig.promoters.message.slice(0, 60)}...</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const handlePreviewEvent = () => {
+    // Open preview in new tab - this would show the survey flow
+    toast({
+      title: 'Preview Mode',
+      description: 'In production, this would open the full survey preview in a new tab.',
+    });
+    // In a real implementation:
+    // window.open(previewUrl, '_blank');
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -449,7 +400,7 @@ export default function CreateEvent() {
                     ...prev,
                     brandId: value,
                     locationIds: [],
-                    locationGmbLinks: {},
+                    locationThankYouConfig: {},
                   }));
                 }}
               >
@@ -670,29 +621,18 @@ export default function CreateEvent() {
                       </div>
                     </div>
 
-                    {question.type !== 'google_review' && (
-                      <div className="space-y-2">
-                        <Label>Question Text</Label>
-                        <Input
-                          placeholder="Enter your question..."
-                          value={question.config.question || ''}
-                          onChange={(e) =>
-                            updateQuestion(question.id, {
-                              config: { ...question.config, question: e.target.value },
-                            })
-                          }
-                        />
-                      </div>
-                    )}
-
-                    {question.type === 'google_review' && (
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">
-                          This will redirect promoters to leave a Google Review based on their location.
-                          Configure Google My Business links in the Thank You page settings.
-                        </p>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label>Question Text</Label>
+                      <Input
+                        placeholder="Enter your question..."
+                        value={question.config.question || ''}
+                        onChange={(e) =>
+                          updateQuestion(question.id, {
+                            config: { ...question.config, question: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
 
                     {/* Scale options */}
                     {question.type === 'scale' && (
@@ -982,7 +922,7 @@ export default function CreateEvent() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
+            ) : formData.thankYouMode === 'by-score' ? (
               <>
                 {(['promoters', 'passives', 'detractors'] as const).map((group) => (
                   <Card key={group} className="border-border/50">
@@ -1048,41 +988,73 @@ export default function CreateEvent() {
                   </Card>
                 ))}
               </>
-            )}
-
-            {/* Google Review Links by Location */}
-            {(formData.thankYouMode === 'by-score-location' || formData.thankYouConfig.promoters.buttonText.toLowerCase().includes('google')) && formData.locationIds.length > 0 && (
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-base">Google Review Links by Location</CardTitle>
-                  <CardDescription>
-                    Configure Google My Business review links for each location to redirect promoters appropriately
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {formData.locationIds.map((locId) => {
-                    const loc = locations.find((l: any) => l.id === locId);
-                    return (
-                      <div key={locId} className="flex items-center gap-3">
-                        <span className="text-sm font-medium min-w-[120px]">{loc?.name || locId}</span>
-                        <Input
-                          placeholder="https://g.page/r/your-location/review"
-                          value={formData.locationGmbLinks[locId] || loc?.gmb_link || ''}
+            ) : (
+              // by-score-location mode
+              <>
+                {(['promoters', 'passives', 'detractors'] as const).map((group) => (
+                  <Card key={group} className="border-border/50">
+                    <CardHeader>
+                      <CardTitle className={cn(
+                        'text-base capitalize',
+                        group === 'promoters' ? 'text-success' : group === 'passives' ? 'text-warning' : 'text-destructive'
+                      )}>
+                        {group} (Score {group === 'promoters' ? '9-10' : group === 'passives' ? '7-8' : '0-6'})
+                      </CardTitle>
+                      <CardDescription>
+                        Default message for all locations
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Default Message</Label>
+                        <Textarea
+                          value={formData.thankYouConfig[group].message}
                           onChange={(e) =>
                             setFormData((prev) => ({
                               ...prev,
-                              locationGmbLinks: {
-                                ...prev.locationGmbLinks,
-                                [locId]: e.target.value,
+                              thankYouConfig: {
+                                ...prev.thankYouConfig,
+                                [group]: { ...prev.thankYouConfig[group], message: e.target.value },
                               },
                             }))
                           }
                         />
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
+                      
+                      {/* Per-location configuration */}
+                      {formData.locationIds.length > 0 && (
+                        <div className="border-t pt-4 space-y-3">
+                          <Label className="text-sm font-medium">Per-Location CTA (optional)</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Configure different button text and URLs for each location. Leave empty to use default or no button.
+                          </p>
+                          {formData.locationIds.map((locId) => {
+                            const loc = locations.find((l: any) => l.id === locId);
+                            const locConfig = formData.locationThankYouConfig[locId]?.[group] || { buttonText: '', buttonUrl: '' };
+                            return (
+                              <div key={locId} className="p-3 bg-muted/50 rounded-lg space-y-2">
+                                <p className="text-sm font-medium">{loc?.name || locId}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Input
+                                    placeholder="Button Text"
+                                    value={locConfig.buttonText}
+                                    onChange={(e) => updateLocationThankYouConfig(locId, group, 'buttonText', e.target.value)}
+                                  />
+                                  <Input
+                                    placeholder="Button URL (e.g., GMB link)"
+                                    value={locConfig.buttonUrl}
+                                    onChange={(e) => updateLocationThankYouConfig(locId, group, 'buttonUrl', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
             )}
           </div>
         );
@@ -1154,11 +1126,12 @@ export default function CreateEvent() {
 
             <Button 
               variant="outline" 
-              onClick={() => setShowPreview(!showPreview)}
+              onClick={handlePreviewEvent}
               className="w-full"
             >
               <Eye className="h-4 w-4 mr-2" />
-              {showPreview ? 'Hide Preview' : 'Show Full Preview'}
+              Preview Event
+              <ExternalLink className="h-3 w-3 ml-2" />
             </Button>
           </div>
         );
@@ -1207,62 +1180,53 @@ export default function CreateEvent() {
         ))}
       </div>
 
-      {/* Main Content with Preview */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="shadow-soft border-border/50">
-            <CardContent className="pt-6">{renderStep()}</CardContent>
-          </Card>
+      {/* Main Content - No live preview panel */}
+      <Card className="shadow-soft border-border/50">
+        <CardContent className="pt-6">{renderStep()}</CardContent>
+      </Card>
 
-          {/* Navigation Buttons */}
-          <div className="flex items-center justify-between mt-6">
-            <Button variant="outline" onClick={() => navigate('/nps/manage-events')}>
-              Cancel
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between">
+        <Button variant="outline" onClick={() => navigate('/nps/manage-events')}>
+          Cancel
+        </Button>
+
+        <div className="flex items-center gap-2">
+          {currentStep > 1 && (
+            <Button variant="outline" onClick={() => setCurrentStep((prev) => (prev - 1) as Step)}>
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back
             </Button>
+          )}
 
-            <div className="flex items-center gap-2">
-              {currentStep > 1 && (
-                <Button variant="outline" onClick={() => setCurrentStep((prev) => (prev - 1) as Step)}>
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Back
-                </Button>
-              )}
-
-              {currentStep === 6 ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => createEventMutation.mutate('draft')}
-                    disabled={createEventMutation.isPending}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save as Draft
-                  </Button>
-                  <Button
-                    className="btn-coral"
-                    onClick={() => createEventMutation.mutate('active')}
-                    disabled={createEventMutation.isPending}
-                  >
-                    Publish Event
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  className="btn-coral"
-                  onClick={() => setCurrentStep((prev) => (prev + 1) as Step)}
-                  disabled={!canProceed()}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Live Preview Panel */}
-        <div className="hidden lg:block">
-          <LivePreview />
+          {currentStep === 6 ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => createEventMutation.mutate('draft')}
+                disabled={createEventMutation.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save as Draft
+              </Button>
+              <Button
+                className="btn-coral"
+                onClick={() => createEventMutation.mutate('active')}
+                disabled={createEventMutation.isPending}
+              >
+                Publish Event
+              </Button>
+            </>
+          ) : (
+            <Button
+              className="btn-coral"
+              onClick={() => setCurrentStep((prev) => (prev + 1) as Step)}
+              disabled={!canProceed()}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
