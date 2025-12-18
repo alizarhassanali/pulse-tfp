@@ -384,12 +384,15 @@ export default function Integration() {
               {eventLocations.length > 1 && (
                 <div className="space-y-2">
                   <Label>Select Location (for location-specific URL)</Label>
-                  <Select value={selectedIntegrationLocation} onValueChange={setSelectedIntegrationLocation}>
+                  <Select 
+                    value={selectedIntegrationLocation || 'all'} 
+                    onValueChange={(val) => setSelectedIntegrationLocation(val === 'all' ? '' : val)}
+                  >
                     <SelectTrigger className="max-w-[300px]">
                       <SelectValue placeholder="All Locations (generic URL)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Locations</SelectItem>
+                      <SelectItem value="all">All Locations</SelectItem>
                       {eventLocations.map((loc: any) => (
                         <SelectItem key={loc.id} value={loc.id}>
                           {loc.name}
