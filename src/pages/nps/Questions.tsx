@@ -9,6 +9,8 @@ import { ResponseCardSkeleton } from '@/components/ui/loading-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { ResponseDetailModal } from '@/components/nps/ResponseDetailModal';
+import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect';
+import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -54,6 +56,8 @@ import {
   CheckCircle,
   MessageSquareText,
   ChevronDown,
+  Tag,
+  User,
 } from 'lucide-react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { getScoreCategory, type ScoreCategory } from '@/types/database';
@@ -274,6 +278,7 @@ export default function NPSQuestions() {
   const [search, setSearch] = useState('');
   const [scoreFilter, setScoreFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedResponses, setSelectedResponses] = useState<string[]>([]);
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [selectedResponse, setSelectedResponse] = useState<any>(null);
@@ -281,6 +286,34 @@ export default function NPSQuestions() {
   const [expandedAnswers, setExpandedAnswers] = useState<ExpandedAnswers>({});
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedDetailResponse, setSelectedDetailResponse] = useState<any>(null);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+
+  // Fetch feedback categories for filter
+  const { data: feedbackCategories = [] } = useQuery({
+    queryKey: ['feedback-categories-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('feedback_categories')
+        .select('*')
+        .eq('archived', false)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch response category assignments
+  const { data: categoryAssignments = [] } = useQuery({
+    queryKey: ['response-category-assignments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('response_category_assignments')
+        .select('response_id, category_id');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['nps-questions-responses', selectedBrands, selectedEvent, dateRange, scoreFilter, channelFilter],
@@ -310,6 +343,13 @@ export default function NPSQuestions() {
   // Use demo data if no real data
   const displayData = responses.length > 0 ? responses : demoResponses;
 
+  // Helper to get categories for a response
+  const getResponseCategories = (responseId: string): string[] => {
+    return categoryAssignments
+      .filter((a: any) => a.response_id === responseId)
+      .map((a: any) => a.category_id);
+  };
+
   // Filter responses
   const filteredResponses = useMemo(() => {
     return displayData.filter((response) => {
@@ -336,9 +376,15 @@ export default function NPSQuestions() {
         if (channel !== channelFilter) return false;
       }
 
+      // Category filter
+      if (categoryFilter !== 'all') {
+        const responseCats = getResponseCategories(response.id);
+        if (!responseCats.includes(categoryFilter)) return false;
+      }
+
       return true;
     });
-  }, [displayData, search, scoreFilter, channelFilter]);
+  }, [displayData, search, scoreFilter, channelFilter, categoryFilter, categoryAssignments]);
 
   // Pagination
   const totalPages = Math.ceil(filteredResponses.length / ITEMS_PER_PAGE);
@@ -350,7 +396,7 @@ export default function NPSQuestions() {
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [search, scoreFilter, channelFilter]);
+  }, [search, scoreFilter, channelFilter, categoryFilter]);
 
   const handleSelectAll = () => {
     if (selectedResponses.length === paginatedResponses.length) {
@@ -382,32 +428,40 @@ export default function NPSQuestions() {
   const handleExport = (type: 'current' | 'all', format: 'csv' | 'excel') => {
     const dataToExport = type === 'current' ? filteredResponses : displayData;
     
+    // Get category names map
+    const categoryNameMap = new Map(feedbackCategories.map((c: any) => [c.id, c.name]));
+    
     // Create CSV content
-    const headers = ['Name', 'Date', 'Score', 'Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given'];
+    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given', 'Feedback Categories'];
     const rows = dataToExport.flatMap((response) => {
       const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.trim();
       const date = response.completed_at ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy') : '';
       const score = response.nps_score?.toString() || '';
-      const category = response.nps_score !== null ? getScoreCategory(response.nps_score) : '';
+      const scoreCategory = response.nps_score !== null ? getScoreCategory(response.nps_score) : '';
       const channel = response.invitation?.channel || 'link';
       const email = response.contact?.email || '';
       const consent = response.consent_given ? 'Yes' : 'No';
       
+      // Get feedback categories for this response
+      const responseCatIds = getResponseCategories(response.id);
+      const responseCatNames = responseCatIds.map(id => categoryNameMap.get(id) || '').filter(Boolean).join(', ');
+      
       const answers = Array.isArray(response.answers) ? response.answers : [];
       if (answers.length === 0) {
-        return [[name, date, score, category, channel, '', '', email, consent]];
+        return [[name, date, score, scoreCategory, channel, '', '', email, consent, responseCatNames]];
       }
       
       return answers.map((answer: any) => [
         name,
         date,
         score,
-        category,
+        scoreCategory,
         channel,
         answer.question || '',
         typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer),
         email,
         consent,
+        responseCatNames,
       ]);
     });
 
@@ -512,6 +566,19 @@ export default function NPSQuestions() {
             <SelectItem value="qr">QR Code</SelectItem>
             <SelectItem value="web">Web Embed</SelectItem>
             <SelectItem value="link">Link</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[180px]">
+            <Tag className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {feedbackCategories.map((cat: any) => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -650,17 +717,43 @@ export default function NPSQuestions() {
                   )}
                 </div>
 
+                {/* Feedback Categories */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Tag className="h-4 w-4" />
+                    Categories:
+                  </span>
+                  <FeedbackCategorySelect
+                    responseId={response.id}
+                    selectedCategories={getResponseCategories(response.id)}
+                    size="sm"
+                  />
+                </div>
+
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                   {response.consent_given && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSendMessage(response)}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Send Message
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSendMessage(response)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Send Message
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContactId(response.contact?.id);
+                          setContactModalOpen(true);
+                        }}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        View Contact
+                      </Button>
+                    </>
                   )}
                   <Button 
                     variant="ghost" 
@@ -798,6 +891,13 @@ export default function NPSQuestions() {
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
         response={selectedDetailResponse}
+      />
+
+      {/* Contact Details Modal */}
+      <ContactDetailsModal
+        contactId={selectedContactId}
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
       />
     </div>
   );
