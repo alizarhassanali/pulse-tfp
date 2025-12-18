@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/page-header';
@@ -27,13 +27,14 @@ import {
   Trash2,
   Check,
   Smartphone,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface EventFormData {
-  brandId: string;
+  brandIds: string[];
   locationIds: string[];
   name: string;
   metricQuestion: string;
@@ -46,34 +47,37 @@ interface EventFormData {
     showFor: string[];
     required: boolean;
   }>;
+  triggers: {
+    recipients: string[];
+    throttleDays: number;
+    sendDelay: string;
+  };
   collectConsent: boolean;
   consentText: string;
   collectContact: boolean;
-  contactFields: string[];
+  contactFields: { field: string; required: boolean }[];
   thankYouSame: boolean;
   thankYouConfig: {
     promoters: { message: string; buttonText: string; buttonUrl: string };
     passives: { message: string; buttonText: string; buttonUrl: string };
     detractors: { message: string; buttonText: string; buttonUrl: string };
   };
-  throttleDays: number;
 }
 
 const steps = [
   { num: 1, title: 'Basic Configuration' },
   { num: 2, title: 'Additional Questions' },
-  { num: 3, title: 'Consent & Contact' },
-  { num: 4, title: 'Thank You Pages' },
-  { num: 5, title: 'Throttle Settings' },
-  { num: 6, title: 'Review & Activate' },
+  { num: 3, title: 'Triggers & Distribution' },
+  { num: 4, title: 'Consent & Personal Info' },
+  { num: 5, title: 'Thank-You Page' },
+  { num: 6, title: 'Review & Save' },
 ];
 
 const questionTypes = [
   { value: 'free_response', label: 'Free Response' },
-  { value: 'scale', label: 'Scale with Labels' },
-  { value: 'select_one', label: 'Select One' },
-  { value: 'select_multiple', label: 'Select Multiple' },
-  { value: 'google_redirect', label: 'Redirect to Google Review' },
+  { value: 'scale', label: 'Scale' },
+  { value: 'select_one', label: 'Single Choice' },
+  { value: 'select_multiple', label: 'Multiple Choice' },
 ];
 
 const languageOptions = [
@@ -90,24 +94,32 @@ export default function CreateEvent() {
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [formData, setFormData] = useState<EventFormData>({
-    brandId: '',
+    brandIds: [],
     locationIds: [],
     name: '',
-    metricQuestion: 'How likely are you to recommend us to a friend or colleague?',
+    metricQuestion: 'How likely are you to recommend [Brand] to a friend or colleague?',
     languages: ['en'],
     introMessage: '',
     questions: [],
+    triggers: {
+      recipients: ['promoters', 'passives', 'detractors'],
+      throttleDays: 90,
+      sendDelay: 'immediate',
+    },
     collectConsent: true,
     consentText: 'I consent to being contacted for feedback purposes.',
     collectContact: true,
-    contactFields: ['name', 'email'],
+    contactFields: [
+      { field: 'name', required: false },
+      { field: 'email', required: false },
+      { field: 'phone', required: false },
+    ],
     thankYouSame: true,
     thankYouConfig: {
-      promoters: { message: 'Thank you for your feedback!', buttonText: '', buttonUrl: '' },
-      passives: { message: 'Thank you for your feedback!', buttonText: '', buttonUrl: '' },
-      detractors: { message: 'Thank you for your feedback!', buttonText: '', buttonUrl: '' },
+      promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttonText: 'Leave a Google Review', buttonUrl: '' },
+      passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttonText: '', buttonUrl: '' },
+      detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
     },
-    throttleDays: 90,
   });
 
   const { data: brands = [] } = useQuery({
@@ -120,33 +132,33 @@ export default function CreateEvent() {
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations', formData.brandId],
+    queryKey: ['locations', formData.brandIds],
     queryFn: async () => {
-      if (!formData.brandId) return [];
+      if (formData.brandIds.length === 0) return [];
       const { data, error } = await supabase
         .from('locations')
         .select('*')
-        .eq('brand_id', formData.brandId)
+        .in('brand_id', formData.brandIds)
         .order('name');
       if (error) throw error;
       return data;
     },
-    enabled: !!formData.brandId,
+    enabled: formData.brandIds.length > 0,
   });
 
   const createEventMutation = useMutation({
-    mutationFn: async () => {
-      // Create event
+    mutationFn: async (status: 'draft' | 'active') => {
+      const brandId = formData.brandIds[0] || null;
       const { data: event, error: eventError } = await supabase
         .from('events')
         .insert({
-          brand_id: formData.brandId,
+          brand_id: brandId,
           name: formData.name,
           type: 'nps',
           metric_question: formData.metricQuestion,
           languages: formData.languages,
           intro_message: formData.introMessage,
-          throttle_days: formData.throttleDays,
+          throttle_days: formData.triggers.throttleDays,
           consent_config: {
             collectConsent: formData.collectConsent,
             consentText: formData.consentText,
@@ -156,14 +168,16 @@ export default function CreateEvent() {
           thank_you_config: formData.thankYouSame
             ? { same: formData.thankYouConfig.promoters }
             : formData.thankYouConfig,
-          status: 'active',
+          config: {
+            triggers: formData.triggers,
+          },
+          status,
         })
         .select()
         .single();
 
       if (eventError) throw eventError;
 
-      // Add event locations
       if (formData.locationIds.length > 0) {
         const { error: locError } = await supabase.from('event_locations').insert(
           formData.locationIds.map((locId) => ({
@@ -174,7 +188,6 @@ export default function CreateEvent() {
         if (locError) throw locError;
       }
 
-      // Add questions
       if (formData.questions.length > 0) {
         const { error: qError } = await supabase.from('event_questions').insert(
           formData.questions.map((q, idx) => ({
@@ -191,41 +204,13 @@ export default function CreateEvent() {
 
       return event;
     },
-    onSuccess: (event) => {
+    onSuccess: (event, status) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: 'Event created successfully!' });
-      navigate('/nps/integration', { state: { eventId: event.id } });
+      toast({ title: status === 'active' ? 'Event published!' : 'Draft saved' });
+      navigate('/nps/manage-events');
     },
     onError: (error: any) => {
-      toast({
-        title: 'Failed to create event',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const saveDraftMutation = useMutation({
-    mutationFn: async () => {
-      const insertData = {
-        brand_id: formData.brandId || null,
-        name: formData.name || `draft-${Date.now()}`,
-        type: 'nps',
-        config: formData as unknown as Record<string, unknown>,
-        status: 'draft',
-      };
-      
-      const { data, error } = await supabase
-        .from('events')
-        .insert(insertData as any)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: 'Draft saved' });
+      toast({ title: 'Failed to save event', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -237,7 +222,7 @@ export default function CreateEvent() {
         {
           id: crypto.randomUUID(),
           type: 'free_response',
-          config: { question: '', categories: [] },
+          config: { question: '', options: [], scaleMin: 1, scaleMax: 10, leftLabel: '', rightLabel: '' },
           showFor: ['promoters', 'passives', 'detractors'],
           required: false,
         },
@@ -259,18 +244,62 @@ export default function CreateEvent() {
     }));
   };
 
+  const addQuestionOption = (questionId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? { ...q, config: { ...q.config, options: [...(q.config.options || []), ''] } }
+          : q
+      ),
+    }));
+  };
+
+  const updateQuestionOption = (questionId: string, optionIdx: number, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              config: {
+                ...q.config,
+                options: q.config.options.map((opt: string, idx: number) =>
+                  idx === optionIdx ? value : opt
+                ),
+              },
+            }
+          : q
+      ),
+    }));
+  };
+
+  const removeQuestionOption = (questionId: string, optionIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      questions: prev.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              config: {
+                ...q.config,
+                options: q.config.options.filter((_: any, idx: number) => idx !== optionIdx),
+              },
+            }
+          : q
+      ),
+    }));
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return formData.brandId && formData.locationIds.length > 0 && formData.name && formData.metricQuestion;
+        return formData.brandIds.length > 0 && formData.name && formData.metricQuestion;
       case 2:
-        return true;
       case 3:
-        return true;
       case 4:
-        return true;
       case 5:
-        return formData.throttleDays >= 1 && formData.throttleDays <= 365;
+        return true;
       case 6:
         return true;
       default:
@@ -284,31 +313,44 @@ export default function CreateEvent() {
         return (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label>Brand *</Label>
-              <Select
-                value={formData.brandId}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, brandId: value, locationIds: [] }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>
+              <Label>Brands *</Label>
+              <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg max-h-40 overflow-y-auto">
+                {brands.map((brand) => (
+                  <div key={brand.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`brand-${brand.id}`}
+                      checked={formData.brandIds.includes(brand.id)}
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          brandIds: checked
+                            ? [...prev.brandIds, brand.id]
+                            : prev.brandIds.filter((id) => id !== brand.id),
+                          locationIds: checked ? prev.locationIds : prev.locationIds.filter(locId => {
+                            const loc = locations.find(l => l.id === locId);
+                            return loc && loc.brand_id !== brand.id;
+                          }),
+                        }));
+                      }}
+                    />
+                    <label htmlFor={`brand-${brand.id}`} className="text-sm cursor-pointer">
                       {brand.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </label>
+                  </div>
+                ))}
+                {brands.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-2">No brands available</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Locations * (select at least one)</Label>
-              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border rounded-lg">
+              <Label>Locations</Label>
+              <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg max-h-40 overflow-y-auto">
                 {locations.map((location) => (
                   <div key={location.id} className="flex items-center gap-2">
                     <Checkbox
-                      id={location.id}
+                      id={`loc-${location.id}`}
                       checked={formData.locationIds.includes(location.id)}
                       onCheckedChange={(checked) => {
                         setFormData((prev) => ({
@@ -319,21 +361,21 @@ export default function CreateEvent() {
                         }));
                       }}
                     />
-                    <label htmlFor={location.id} className="text-sm cursor-pointer">
+                    <label htmlFor={`loc-${location.id}`} className="text-sm cursor-pointer">
                       {location.name}
                     </label>
                   </div>
                 ))}
                 {locations.length === 0 && (
                   <p className="text-sm text-muted-foreground col-span-2">
-                    {formData.brandId ? 'No locations found for this brand' : 'Select a brand first'}
+                    {formData.brandIds.length > 0 ? 'No locations for selected brands' : 'Select a brand first'}
                   </p>
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Event Name *</Label>
+              <Label>Event Name * (slug format)</Label>
               <Input
                 placeholder="e.g., first-consult-nps"
                 value={formData.name}
@@ -348,9 +390,9 @@ export default function CreateEvent() {
             </div>
 
             <div className="space-y-2">
-              <Label>Metric Question *</Label>
+              <Label>Metric Question * (max 200 characters)</Label>
               <Textarea
-                placeholder="How likely are you to recommend us..."
+                placeholder="How likely are you to recommend [Brand]..."
                 value={formData.metricQuestion}
                 onChange={(e) => setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }))}
                 maxLength={200}
@@ -359,7 +401,7 @@ export default function CreateEvent() {
             </div>
 
             <div className="space-y-2">
-              <Label>Languages *</Label>
+              <Label>Languages</Label>
               <div className="flex flex-wrap gap-2">
                 {languageOptions.map((lang) => (
                   <Badge
@@ -389,7 +431,6 @@ export default function CreateEvent() {
                 onChange={(e) => setFormData((prev) => ({ ...prev, introMessage: e.target.value }))}
                 maxLength={300}
               />
-              <p className="text-xs text-muted-foreground">{formData.introMessage.length}/300</p>
             </div>
           </div>
         );
@@ -397,13 +438,13 @@ export default function CreateEvent() {
       case 2:
         return (
           <div className="space-y-4">
-            <Button variant="outline" onClick={addQuestion} disabled={formData.questions.length >= 10}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Question
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              {formData.questions.length}/10 questions added
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{formData.questions.length}/10 questions</p>
+              <Button variant="outline" onClick={addQuestion} disabled={formData.questions.length >= 10}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Question
+              </Button>
+            </div>
 
             <div className="space-y-4">
               {formData.questions.map((question, idx) => (
@@ -414,11 +455,7 @@ export default function CreateEvent() {
                         <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                         <span className="text-sm font-medium">Question {idx + 1}</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeQuestion(question.id)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => removeQuestion(question.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -426,12 +463,10 @@ export default function CreateEvent() {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Question Type</Label>
+                        <Label>Type</Label>
                         <Select
                           value={question.type}
-                          onValueChange={(value) =>
-                            updateQuestion(question.id, { type: value })
-                          }
+                          onValueChange={(value) => updateQuestion(question.id, { type: value })}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -481,18 +516,104 @@ export default function CreateEvent() {
                       />
                     </div>
 
+                    {/* Scale options */}
+                    {question.type === 'scale' && (
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>Min</Label>
+                          <Input
+                            type="number"
+                            value={question.config.scaleMin || 1}
+                            onChange={(e) =>
+                              updateQuestion(question.id, {
+                                config: { ...question.config, scaleMin: parseInt(e.target.value) },
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Max</Label>
+                          <Input
+                            type="number"
+                            value={question.config.scaleMax || 10}
+                            onChange={(e) =>
+                              updateQuestion(question.id, {
+                                config: { ...question.config, scaleMax: parseInt(e.target.value) },
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Left Label</Label>
+                          <Input
+                            placeholder="Very Unlikely"
+                            value={question.config.leftLabel || ''}
+                            onChange={(e) =>
+                              updateQuestion(question.id, {
+                                config: { ...question.config, leftLabel: e.target.value },
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Right Label</Label>
+                          <Input
+                            placeholder="Very Likely"
+                            value={question.config.rightLabel || ''}
+                            onChange={(e) =>
+                              updateQuestion(question.id, {
+                                config: { ...question.config, rightLabel: e.target.value },
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Choice options */}
+                    {(question.type === 'select_one' || question.type === 'select_multiple') && (
+                      <div className="space-y-2">
+                        <Label>Options</Label>
+                        {(question.config.options || []).map((opt: string, optIdx: number) => (
+                          <div key={optIdx} className="flex gap-2">
+                            <Input
+                              value={opt}
+                              onChange={(e) => updateQuestionOption(question.id, optIdx, e.target.value)}
+                              placeholder={`Option ${optIdx + 1}`}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeQuestionOption(question.id, optIdx)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button variant="outline" size="sm" onClick={() => addQuestionOption(question.id)}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Option
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={question.required}
-                        onCheckedChange={(checked) =>
-                          updateQuestion(question.id, { required: checked })
-                        }
+                        onCheckedChange={(checked) => updateQuestion(question.id, { required: checked })}
                       />
-                      <Label>Required</Label>
+                      <Label>Mandatory</Label>
                     </div>
                   </CardContent>
                 </Card>
               ))}
+
+              {formData.questions.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No additional questions yet.</p>
+                  <p className="text-sm">Click "Add Question" to create follow-up questions.</p>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -500,78 +621,77 @@ export default function CreateEvent() {
       case 3:
         return (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">Collect Consent?</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Ask for permission to contact the respondent
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.collectConsent}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, collectConsent: checked }))
-                  }
-                />
+            <div className="space-y-2">
+              <Label>Who receives follow-up questions?</Label>
+              <div className="flex gap-2">
+                {['promoters', 'passives', 'detractors'].map((group) => (
+                  <Badge
+                    key={group}
+                    variant={formData.triggers.recipients.includes(group) ? 'default' : 'outline'}
+                    className={cn(
+                      'cursor-pointer capitalize px-4 py-2',
+                      formData.triggers.recipients.includes(group) &&
+                        (group === 'promoters' ? 'bg-success' : group === 'passives' ? 'bg-warning' : 'bg-destructive')
+                    )}
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        triggers: {
+                          ...prev.triggers,
+                          recipients: prev.triggers.recipients.includes(group)
+                            ? prev.triggers.recipients.filter((g) => g !== group)
+                            : [...prev.triggers.recipients, group],
+                        },
+                      }));
+                    }}
+                  >
+                    {group}
+                  </Badge>
+                ))}
               </div>
-
-              {formData.collectConsent && (
-                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                  <Label>Consent Text</Label>
-                  <Textarea
-                    value={formData.consentText}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, consentText: e.target.value }))
-                    }
-                    placeholder="I consent to..."
-                  />
-                </div>
-              )}
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">Collect Contact Info?</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Request contact details from respondents
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.collectContact}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, collectContact: checked }))
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Throttle Period (days)</Label>
+              <p className="text-sm text-muted-foreground">
+                Minimum days before the same contact can receive this event again
+              </p>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={formData.triggers.throttleDays}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    triggers: { ...prev.triggers, throttleDays: parseInt(e.target.value) || 90 },
+                  }))
+                }
+                className="max-w-[200px]"
+              />
+            </div>
 
-              {formData.collectContact && (
-                <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                  <Label>Fields to collect (at least one required)</Label>
-                  <div className="flex gap-4">
-                    {['name', 'email', 'phone'].map((field) => (
-                      <div key={field} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`field-${field}`}
-                          checked={formData.contactFields.includes(field)}
-                          onCheckedChange={(checked) => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              contactFields: checked
-                                ? [...prev.contactFields, field]
-                                : prev.contactFields.filter((f) => f !== field),
-                            }));
-                          }}
-                        />
-                        <label htmlFor={`field-${field}`} className="text-sm capitalize cursor-pointer">
-                          {field}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label>Notification Rules</Label>
+              <Select
+                value={formData.triggers.sendDelay}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    triggers: { ...prev.triggers, sendDelay: value },
+                  }))
+                }
+              >
+                <SelectTrigger className="max-w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="immediate">Send immediate follow-up</SelectItem>
+                  <SelectItem value="24h">Send after 24 hours</SelectItem>
+                  <SelectItem value="48h">Send after 48 hours</SelectItem>
+                  <SelectItem value="7d">Send after 7 days</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         );
@@ -579,262 +699,316 @@ export default function CreateEvent() {
       case 4:
         return (
           <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant={formData.thankYouSame ? 'default' : 'outline'}
-                onClick={() => setFormData((prev) => ({ ...prev, thankYouSame: true }))}
-              >
-                Same for All
-              </Button>
-              <Button
-                variant={!formData.thankYouSame ? 'default' : 'outline'}
-                onClick={() => setFormData((prev) => ({ ...prev, thankYouSame: false }))}
-              >
-                Different per Score
-              </Button>
-            </div>
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Ask for Consent</CardTitle>
+                  <Switch
+                    checked={formData.collectConsent}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, collectConsent: checked }))
+                    }
+                  />
+                </div>
+                <CardDescription>Request permission to follow up about their feedback</CardDescription>
+              </CardHeader>
+              {formData.collectConsent && (
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label>Consent Text</Label>
+                    <Textarea
+                      value={formData.consentText}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, consentText: e.target.value }))}
+                      placeholder="I consent to being contacted..."
+                    />
+                  </div>
+                </CardContent>
+              )}
+            </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                {formData.thankYouSame ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Thank You Message</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Message</Label>
-                        <Textarea
-                          value={formData.thankYouConfig.promoters.message}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              thankYouConfig: {
-                                promoters: { ...prev.thankYouConfig.promoters, message: e.target.value },
-                                passives: { ...prev.thankYouConfig.passives, message: e.target.value },
-                                detractors: { ...prev.thankYouConfig.detractors, message: e.target.value },
-                              },
-                            }))
-                          }
-                          maxLength={300}
-                        />
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Collect Contact Information</CardTitle>
+                  <Switch
+                    checked={formData.collectContact}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, collectContact: checked }))
+                    }
+                  />
+                </div>
+                <CardDescription>Ask for personal details to follow up</CardDescription>
+              </CardHeader>
+              {formData.collectContact && (
+                <CardContent>
+                  <div className="space-y-3">
+                    {formData.contactFields.map((cf, idx) => (
+                      <div key={cf.field} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <span className="capitalize font-medium">{cf.field === 'name' ? 'Full Name' : cf.field === 'email' ? 'Email' : 'Phone Number'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Required</span>
+                          <Switch
+                            checked={cf.required}
+                            onCheckedChange={(checked) => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                contactFields: prev.contactFields.map((f, i) =>
+                                  i === idx ? { ...f, required: checked } : f
+                                ),
+                              }));
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Button Text (optional)</Label>
-                        <Input
-                          value={formData.thankYouConfig.promoters.buttonText}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              thankYouConfig: {
-                                promoters: { ...prev.thankYouConfig.promoters, buttonText: e.target.value },
-                                passives: { ...prev.thankYouConfig.passives, buttonText: e.target.value },
-                                detractors: { ...prev.thankYouConfig.detractors, buttonText: e.target.value },
-                              },
-                            }))
-                          }
-                          placeholder="Leave a Review"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Button URL (optional)</Label>
-                        <Input
-                          value={formData.thankYouConfig.promoters.buttonUrl}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              thankYouConfig: {
-                                promoters: { ...prev.thankYouConfig.promoters, buttonUrl: e.target.value },
-                                passives: { ...prev.thankYouConfig.passives, buttonUrl: e.target.value },
-                                detractors: { ...prev.thankYouConfig.detractors, buttonUrl: e.target.value },
-                              },
-                            }))
-                          }
-                          placeholder="https://..."
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <>
-                    {(['promoters', 'passives', 'detractors'] as const).map((group) => (
-                      <Card
-                        key={group}
-                        className={cn(
-                          'border-2',
-                          group === 'promoters' && 'border-promoter/30',
-                          group === 'passives' && 'border-passive/30',
-                          group === 'detractors' && 'border-detractor/30'
-                        )}
-                      >
-                        <CardHeader>
-                          <CardTitle className="text-lg capitalize">{group}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="space-y-2">
-                            <Label>Message</Label>
-                            <Textarea
-                              value={formData.thankYouConfig[group].message}
-                              onChange={(e) =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  thankYouConfig: {
-                                    ...prev.thankYouConfig,
-                                    [group]: { ...prev.thankYouConfig[group], message: e.target.value },
-                                  },
-                                }))
-                              }
-                              maxLength={300}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Button Text</Label>
-                            <Input
-                              value={formData.thankYouConfig[group].buttonText}
-                              onChange={(e) =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  thankYouConfig: {
-                                    ...prev.thankYouConfig,
-                                    [group]: { ...prev.thankYouConfig[group], buttonText: e.target.value },
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
                     ))}
-                  </>
-                )}
-              </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
 
-              {/* Mobile Preview */}
-              <div className="hidden lg:block">
-                <div className="sticky top-6">
-                  <p className="text-sm font-medium mb-4 flex items-center gap-2">
-                    <Smartphone className="h-4 w-4" />
-                    Mobile Preview
-                  </p>
-                  <div className="w-[280px] h-[500px] border-8 border-secondary rounded-[2rem] bg-card shadow-medium overflow-hidden">
-                    <div className="p-6 text-center space-y-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
-                        <Check className="h-6 w-6 text-primary" />
-                      </div>
-                      <p className="text-sm">{formData.thankYouConfig.promoters.message}</p>
-                      {formData.thankYouConfig.promoters.buttonText && (
-                        <Button className="btn-coral w-full">
-                          {formData.thankYouConfig.promoters.buttonText}
-                        </Button>
-                      )}
+            {/* Preview */}
+            {formData.collectConsent && (
+              <Card className="border-border/50 bg-muted/30">
+                <CardHeader>
+                  <CardTitle className="text-base">Preview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 bg-background rounded-lg border">
+                    <div className="flex items-start gap-3">
+                      <Checkbox id="preview-consent" />
+                      <label htmlFor="preview-consent" className="text-sm">
+                        {formData.consentText}
+                      </label>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         );
 
       case 5:
         return (
-          <div className="space-y-6 max-w-md">
-            <Card>
-              <CardHeader>
-                <CardTitle>Throttle Settings</CardTitle>
-                <CardDescription>
-                  Prevent sending duplicate surveys to the same contact
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Days between sends</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={formData.throttleDays}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        throttleDays: parseInt(e.target.value) || 90,
-                      }))
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Contacts won't receive this survey again within {formData.throttleDays} days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Badge
+                variant={formData.thankYouSame ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setFormData((prev) => ({ ...prev, thankYouSame: true }))}
+              >
+                Same for Everyone
+              </Badge>
+              <Badge
+                variant={!formData.thankYouSame ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setFormData((prev) => ({ ...prev, thankYouSame: false }))}
+              >
+                Different by Score
+              </Badge>
+            </div>
+
+            {formData.thankYouSame ? (
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-base">Thank You Message</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Message</Label>
+                    <Textarea
+                      value={formData.thankYouConfig.promoters.message}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          thankYouConfig: {
+                            ...prev.thankYouConfig,
+                            promoters: { ...prev.thankYouConfig.promoters, message: e.target.value },
+                            passives: { ...prev.thankYouConfig.passives, message: e.target.value },
+                            detractors: { ...prev.thankYouConfig.detractors, message: e.target.value },
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Button Text (optional)</Label>
+                      <Input
+                        placeholder="Leave a Google Review"
+                        value={formData.thankYouConfig.promoters.buttonText}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            thankYouConfig: {
+                              ...prev.thankYouConfig,
+                              promoters: { ...prev.thankYouConfig.promoters, buttonText: e.target.value },
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Button URL</Label>
+                      <Input
+                        placeholder="https://google.com/review/..."
+                        value={formData.thankYouConfig.promoters.buttonUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            thankYouConfig: {
+                              ...prev.thankYouConfig,
+                              promoters: { ...prev.thankYouConfig.promoters, buttonUrl: e.target.value },
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {(['promoters', 'passives', 'detractors'] as const).map((group) => (
+                  <Card key={group} className="border-border/50">
+                    <CardHeader>
+                      <CardTitle className={cn(
+                        'text-base capitalize',
+                        group === 'promoters' ? 'text-success' : group === 'passives' ? 'text-warning' : 'text-destructive'
+                      )}>
+                        {group} (Score {group === 'promoters' ? '9-10' : group === 'passives' ? '7-8' : '0-6'})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Message</Label>
+                        <Textarea
+                          value={formData.thankYouConfig[group].message}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              thankYouConfig: {
+                                ...prev.thankYouConfig,
+                                [group]: { ...prev.thankYouConfig[group], message: e.target.value },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Button Text</Label>
+                          <Input
+                            placeholder={group === 'promoters' ? 'Leave a Google Review' : ''}
+                            value={formData.thankYouConfig[group].buttonText}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                thankYouConfig: {
+                                  ...prev.thankYouConfig,
+                                  [group]: { ...prev.thankYouConfig[group], buttonText: e.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Button URL</Label>
+                          <Input
+                            placeholder="https://..."
+                            value={formData.thankYouConfig[group].buttonUrl}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                thankYouConfig: {
+                                  ...prev.thankYouConfig,
+                                  [group]: { ...prev.thankYouConfig[group], buttonUrl: e.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
           </div>
         );
 
       case 6:
         return (
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Basic Configuration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Brand:</span>
-                    <span>{brands.find((b) => b.id === formData.brandId)?.name || '-'}</span>
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle>Review Your Event</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Event Name</p>
+                    <p className="font-medium font-mono">{formData.name || '-'}</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Locations:</span>
-                    <span>{formData.locationIds.length} selected</span>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Brands</p>
+                    <p className="font-medium">
+                      {formData.brandIds.length > 0
+                        ? brands.filter((b) => formData.brandIds.includes(b.id)).map((b) => b.name).join(', ')
+                        : '-'}
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Event Name:</span>
-                    <span>{formData.name}</span>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Locations</p>
+                    <p className="font-medium">
+                      {formData.locationIds.length > 0
+                        ? `${formData.locationIds.length} selected`
+                        : 'All locations'}
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Languages:</span>
-                    <span>{formData.languages.join(', ')}</span>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Languages</p>
+                    <p className="font-medium">{formData.languages.join(', ')}</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Questions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">
-                    {formData.questions.length} additional question(s) configured
-                  </p>
-                </CardContent>
-              </Card>
+                <div className="border-t pt-4">
+                  <p className="text-sm text-muted-foreground">Metric Question</p>
+                  <p className="font-medium">{formData.metricQuestion}</p>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Consent & Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Collect Consent:</span>
-                    <span>{formData.collectConsent ? 'Yes' : 'No'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Collect Contact:</span>
-                    <span>{formData.collectContact ? 'Yes' : 'No'}</span>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="border-t pt-4">
+                  <p className="text-sm text-muted-foreground">Additional Questions</p>
+                  <p className="font-medium">{formData.questions.length} questions</p>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Throttle</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">{formData.throttleDays} days between sends</p>
-                </CardContent>
-              </Card>
-            </div>
+                <div className="border-t pt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Throttle Period</p>
+                    <p className="font-medium">{formData.triggers.throttleDays} days</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Send Delay</p>
+                    <p className="font-medium capitalize">{formData.triggers.sendDelay.replace('h', ' hours').replace('d', ' days')}</p>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Consent</p>
+                    <p className="font-medium">{formData.collectConsent ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Contact Collection</p>
+                    <p className="font-medium">{formData.collectContact ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         );
+
+      default:
+        return null;
     }
   };
 
@@ -842,43 +1016,39 @@ export default function CreateEvent() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Create NPS Event"
-        description="Set up a new survey event to collect patient feedback"
+        description="Set up a new survey event with customizable questions and triggers"
       />
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-2">
+      {/* Step Navigation */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {steps.map((step, idx) => (
-          <div key={step.num} className="flex items-center">
-            <button
-              onClick={() => setCurrentStep(step.num as Step)}
+          <button
+            key={step.num}
+            onClick={() => setCurrentStep(step.num as Step)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all',
+              currentStep === step.num
+                ? 'bg-primary text-primary-foreground'
+                : currentStep > step.num
+                ? 'bg-success/20 text-success'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            )}
+          >
+            <span
               className={cn(
-                'h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all',
+                'h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium',
                 currentStep === step.num
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-primary-foreground text-primary'
                   : currentStep > step.num
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-muted text-muted-foreground'
+                  ? 'bg-success text-success-foreground'
+                  : 'bg-muted-foreground/20'
               )}
             >
-              {currentStep > step.num ? <Check className="h-4 w-4" /> : step.num}
-            </button>
-            {idx < steps.length - 1 && (
-              <div
-                className={cn(
-                  'w-12 h-0.5 mx-1',
-                  currentStep > step.num ? 'bg-primary/50' : 'bg-muted'
-                )}
-              />
-            )}
-          </div>
+              {currentStep > step.num ? <Check className="h-3 w-3" /> : step.num}
+            </span>
+            {step.title}
+          </button>
         ))}
-      </div>
-
-      {/* Step Title */}
-      <div className="text-center">
-        <h2 className="text-lg font-semibold">
-          Step {currentStep}: {steps[currentStep - 1].title}
-        </h2>
       </div>
 
       {/* Step Content */}
@@ -888,41 +1058,44 @@ export default function CreateEvent() {
 
       {/* Navigation Buttons */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/nps/manage-events')}>
-            Cancel
-          </Button>
-          <Button variant="outline" onClick={() => saveDraftMutation.mutate()}>
-            Save Draft
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => navigate('/nps/manage-events')}>
+          Cancel
+        </Button>
 
         <div className="flex items-center gap-2">
           {currentStep > 1 && (
-            <Button
-              variant="outline"
-              onClick={() => setCurrentStep((prev) => (prev - 1) as Step)}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setCurrentStep((prev) => (prev - 1) as Step)}>
+              <ChevronLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
           )}
-          {currentStep < 6 ? (
+
+          {currentStep === 6 ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => createEventMutation.mutate('draft')}
+                disabled={createEventMutation.isPending}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save as Draft
+              </Button>
+              <Button
+                className="btn-coral"
+                onClick={() => createEventMutation.mutate('active')}
+                disabled={createEventMutation.isPending}
+              >
+                Publish Event
+              </Button>
+            </>
+          ) : (
             <Button
               className="btn-coral"
               onClick={() => setCurrentStep((prev) => (prev + 1) as Step)}
               disabled={!canProceed()}
             >
               Next
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          ) : (
-            <Button
-              className="btn-coral"
-              onClick={() => createEventMutation.mutate()}
-              disabled={createEventMutation.isPending}
-            >
-              {createEventMutation.isPending ? 'Creating...' : 'Activate Event'}
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
         </div>

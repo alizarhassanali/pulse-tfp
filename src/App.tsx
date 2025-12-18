@@ -7,10 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
-// Layout
 import { MainLayout } from '@/components/layout/MainLayout';
 
-// Pages
 import Auth from './pages/Auth';
 import NPSDashboard from './pages/nps/Dashboard';
 import NPSQuestions from './pages/nps/Questions';
@@ -22,12 +20,15 @@ import Reviews from './pages/Reviews';
 import AllContacts from './pages/contacts/AllContacts';
 import Unsubscribed from './pages/contacts/Unsubscribed';
 import ProfileSettings from './pages/settings/Profile';
+import Templates from './pages/settings/Templates';
+import Brands from './pages/settings/Brands';
+import UsersPage from './pages/settings/Users';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setSession, setProfile, setRoles, setIsLoading, user } = useAuthStore();
+  const { setUser, setSession, setProfile, setRoles, setIsLoading } = useAuthStore();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -92,14 +93,15 @@ const App = () => (
               <Route path="nps/sent-logs" element={<SentLogs />} />
               <Route path="nps/manage-events" element={<ManageEvents />} />
               <Route path="nps/events/create" element={<CreateEvent />} />
+              <Route path="nps/events/:id/edit" element={<CreateEvent />} />
               <Route path="nps/integration" element={<Integration />} />
               <Route path="reviews" element={<Reviews />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
               <Route path="settings/profile" element={<ProfileSettings />} />
-              <Route path="settings/templates" element={<div className="p-6">Templates - Coming Soon</div>} />
-              <Route path="settings/brands" element={<div className="p-6">Brands - Coming Soon</div>} />
-              <Route path="settings/users" element={<div className="p-6">Users - Coming Soon</div>} />
+              <Route path="settings/templates" element={<Templates />} />
+              <Route path="settings/brands" element={<Brands />} />
+              <Route path="settings/users" element={<UsersPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
