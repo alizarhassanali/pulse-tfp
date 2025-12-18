@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
@@ -26,6 +26,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,9 +52,220 @@ import {
   Phone,
   CheckCircle,
   MessageSquareText,
+  ChevronDown,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { getScoreCategory } from '@/types/database';
+import { format as formatDate, parseISO } from 'date-fns';
+import { getScoreCategory, type ScoreCategory } from '@/types/database';
+
+// Demo data for when no real data exists
+const demoResponses = [
+  {
+    id: 'demo-1',
+    nps_score: 6,
+    completed_at: '2025-12-22T10:30:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-1',
+      first_name: 'John',
+      last_name: 'Smith',
+      email: 'john.smith@example.com',
+      phone: '+1 (555) 123-4567',
+    },
+    invitation: { channel: 'sms' },
+    answers: [
+      {
+        question: 'Is there anything we could improve?',
+        answer: 'The wait time was a bit long. I had to wait almost 45 minutes past my scheduled appointment time, which was frustrating. The staff were friendly though.',
+      },
+    ],
+  },
+  {
+    id: 'demo-2',
+    nps_score: 9,
+    completed_at: '2025-12-20T14:15:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-2',
+      first_name: 'Emma',
+      last_name: 'Johnson',
+      email: 'emma.johnson@example.com',
+      phone: '+1 (555) 234-5678',
+    },
+    invitation: { channel: 'email' },
+    answers: [
+      {
+        question: 'Would you recommend us to a friend?',
+        answer: 'Absolutely, great staff! Everyone was so welcoming and professional. Dr. Chen explained everything clearly and made me feel comfortable throughout the entire process.',
+      },
+    ],
+  },
+  {
+    id: 'demo-3',
+    nps_score: 10,
+    completed_at: '2025-12-19T09:00:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-3',
+      first_name: 'Sarah',
+      last_name: 'Williams',
+      email: 'sarah.williams@example.com',
+      phone: null,
+    },
+    invitation: { channel: 'email' },
+    answers: [
+      {
+        question: 'What did you like most about your experience?',
+        answer: 'The personalized care and attention to detail. The team took the time to answer all my questions and made sure I understood every step of my treatment plan.',
+      },
+    ],
+  },
+  {
+    id: 'demo-4',
+    nps_score: 3,
+    completed_at: '2025-12-18T16:45:00Z',
+    consent_given: false,
+    contact: {
+      id: 'contact-4',
+      first_name: 'Michael',
+      last_name: 'Brown',
+      email: 'michael.brown@example.com',
+      phone: '+1 (555) 345-6789',
+    },
+    invitation: { channel: 'sms' },
+    answers: [
+      {
+        question: 'Is there anything we could improve?',
+        answer: 'Communication needs work. I had trouble reaching someone when I had questions about my test results. The phone system is confusing and I was transferred multiple times before getting help.',
+      },
+    ],
+  },
+  {
+    id: 'demo-5',
+    nps_score: 8,
+    completed_at: '2025-12-17T11:30:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-5',
+      first_name: 'Lisa',
+      last_name: 'Davis',
+      email: 'lisa.davis@example.com',
+      phone: '+1 (555) 456-7890',
+    },
+    invitation: { channel: 'qr' },
+    answers: [
+      {
+        question: 'What did you like most about your experience?',
+        answer: 'The facility is beautiful and modern. The waiting area is comfortable and the examination rooms are clean and well-equipped.',
+      },
+    ],
+  },
+  {
+    id: 'demo-6',
+    nps_score: 7,
+    completed_at: '2025-12-16T13:20:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-6',
+      first_name: 'David',
+      last_name: 'Miller',
+      email: 'david.miller@example.com',
+      phone: null,
+    },
+    invitation: { channel: 'web' },
+    answers: [
+      {
+        question: 'Would you recommend us to a friend?',
+        answer: 'Probably yes, but there is room for improvement in scheduling flexibility. It was hard to find appointment times that worked with my schedule.',
+      },
+    ],
+  },
+  {
+    id: 'demo-7',
+    nps_score: 9,
+    completed_at: '2025-12-15T08:45:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-7',
+      first_name: 'Jennifer',
+      last_name: 'Garcia',
+      email: 'jennifer.garcia@example.com',
+      phone: '+1 (555) 567-8901',
+    },
+    invitation: { channel: 'email' },
+    answers: [
+      {
+        question: 'What did you like most about your experience?',
+        answer: 'Dr. Patel was exceptional! She took the time to explain my diagnosis and treatment options in detail. I felt heard and respected throughout my visit.',
+      },
+    ],
+  },
+  {
+    id: 'demo-8',
+    nps_score: 2,
+    completed_at: '2025-12-14T15:00:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-8',
+      first_name: 'Robert',
+      last_name: 'Martinez',
+      email: 'robert.martinez@example.com',
+      phone: '+1 (555) 678-9012',
+    },
+    invitation: { channel: 'sms' },
+    answers: [
+      {
+        question: 'Is there anything we could improve?',
+        answer: 'Very disappointed with the billing department. I received multiple incorrect bills and spent hours on the phone trying to resolve the issues. This was extremely stressful during an already difficult time.',
+      },
+    ],
+  },
+  {
+    id: 'demo-9',
+    nps_score: 10,
+    completed_at: '2025-12-13T10:15:00Z',
+    consent_given: true,
+    contact: {
+      id: 'contact-9',
+      first_name: 'Amanda',
+      last_name: 'Wilson',
+      email: 'amanda.wilson@example.com',
+      phone: null,
+    },
+    invitation: { channel: 'email' },
+    answers: [
+      {
+        question: 'Would you recommend us to a friend?',
+        answer: '100% yes! This clinic changed my life. After years of struggling, the team here finally gave me hope. I cannot thank them enough for their compassion and expertise.',
+      },
+    ],
+  },
+  {
+    id: 'demo-10',
+    nps_score: 5,
+    completed_at: '2025-12-12T14:30:00Z',
+    consent_given: false,
+    contact: {
+      id: 'contact-10',
+      first_name: 'Christopher',
+      last_name: 'Anderson',
+      email: 'chris.anderson@example.com',
+      phone: '+1 (555) 789-0123',
+    },
+    invitation: { channel: 'qr' },
+    answers: [
+      {
+        question: 'Is there anything we could improve?',
+        answer: 'Mixed feelings. The medical care was good but the administrative side needs improvement. Parking is difficult and expensive.',
+      },
+    ],
+  },
+];
+
+const ITEMS_PER_PAGE = 10;
+
+interface ExpandedAnswers {
+  [key: string]: boolean;
+}
 
 export default function NPSQuestions() {
   const { toast } = useToast();
@@ -51,6 +276,8 @@ export default function NPSQuestions() {
   const [selectedResponses, setSelectedResponses] = useState<string[]>([]);
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [selectedResponse, setSelectedResponse] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedAnswers, setExpandedAnswers] = useState<ExpandedAnswers>({});
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['nps-questions-responses', selectedBrands, selectedEvent, dateRange, scoreFilter, channelFilter],
@@ -77,39 +304,56 @@ export default function NPSQuestions() {
     },
   });
 
+  // Use demo data if no real data
+  const displayData = responses.length > 0 ? responses : demoResponses;
+
   // Filter responses
-  const filteredResponses = responses.filter((response) => {
-    // Search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.toLowerCase();
-      const email = (response.contact?.email || '').toLowerCase();
-      const answers = JSON.stringify(response.answers || []).toLowerCase();
-      if (!name.includes(searchLower) && !email.includes(searchLower) && !answers.includes(searchLower)) {
-        return false;
+  const filteredResponses = useMemo(() => {
+    return displayData.filter((response) => {
+      // Search filter
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.toLowerCase();
+        const email = (response.contact?.email || '').toLowerCase();
+        const answers = JSON.stringify(response.answers || []).toLowerCase();
+        if (!name.includes(searchLower) && !email.includes(searchLower) && !answers.includes(searchLower)) {
+          return false;
+        }
       }
-    }
 
-    // Score filter
-    if (scoreFilter !== 'all' && response.nps_score !== null) {
-      const category = getScoreCategory(response.nps_score);
-      if (category !== scoreFilter) return false;
-    }
+      // Score filter
+      if (scoreFilter !== 'all' && response.nps_score !== null) {
+        const category = getScoreCategory(response.nps_score);
+        if (category !== scoreFilter) return false;
+      }
 
-    // Channel filter
-    if (channelFilter !== 'all') {
-      const channel = response.invitation?.channel || 'link';
-      if (channel !== channelFilter) return false;
-    }
+      // Channel filter
+      if (channelFilter !== 'all') {
+        const channel = response.invitation?.channel || 'link';
+        if (channel !== channelFilter) return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [displayData, search, scoreFilter, channelFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredResponses.length / ITEMS_PER_PAGE);
+  const paginatedResponses = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredResponses.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredResponses, currentPage]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, scoreFilter, channelFilter]);
 
   const handleSelectAll = () => {
-    if (selectedResponses.length === filteredResponses.length) {
+    if (selectedResponses.length === paginatedResponses.length) {
       setSelectedResponses([]);
     } else {
-      setSelectedResponses(filteredResponses.map((r) => r.id));
+      setSelectedResponses(paginatedResponses.map((r) => r.id));
     }
   };
 
@@ -124,32 +368,107 @@ export default function NPSQuestions() {
     setMessageModalOpen(true);
   };
 
-  const handleExport = (format: string) => {
-    toast({
-      title: 'Export started',
-      description: `Exporting ${filteredResponses.length} responses as ${format.toUpperCase()}`,
+  const toggleAnswerExpand = (responseId: string, answerIdx: number) => {
+    const key = `${responseId}-${answerIdx}`;
+    setExpandedAnswers((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleExport = (type: 'current' | 'all', format: 'csv' | 'excel') => {
+    const dataToExport = type === 'current' ? filteredResponses : displayData;
+    
+    // Create CSV content
+    const headers = ['Name', 'Date', 'Score', 'Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given'];
+    const rows = dataToExport.flatMap((response) => {
+      const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.trim();
+      const date = response.completed_at ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy') : '';
+      const score = response.nps_score?.toString() || '';
+      const category = response.nps_score !== null ? getScoreCategory(response.nps_score) : '';
+      const channel = response.invitation?.channel || 'link';
+      const email = response.contact?.email || '';
+      const consent = response.consent_given ? 'Yes' : 'No';
+      
+      const answers = Array.isArray(response.answers) ? response.answers : [];
+      if (answers.length === 0) {
+        return [[name, date, score, category, channel, '', '', email, consent]];
+      }
+      
+      return answers.map((answer: any) => [
+        name,
+        date,
+        score,
+        category,
+        channel,
+        answer.question || '',
+        typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer),
+        email,
+        consent,
+      ]);
     });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `survey-responses-${type}-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'csv' : 'csv'}`;
+    link.click();
+
+    toast({
+      title: 'Export complete',
+      description: `Exported ${dataToExport.length} responses as ${format.toUpperCase()}`,
+    });
+  };
+
+  const truncateText = (text: string, maxLength: number = 120) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength).trim() + '...';
+  };
+
+  const getScoreCategoryLabel = (score: number): { label: string; category: ScoreCategory } => {
+    const category = getScoreCategory(score);
+    const labels = {
+      promoters: 'Promoter',
+      passives: 'Passive',
+      detractors: 'Detractor',
+    };
+    return { label: labels[category], category };
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Additional Questions"
-        description="View and manage feedback responses from your surveys"
+        description="View and manage responses to follow-up survey questions"
         actions={
-          <div className="flex items-center gap-2">
-            <Select onValueChange={handleExport}>
-              <SelectTrigger className="w-[120px]">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Export
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="csv">CSV</SelectItem>
-                <SelectItem value="excel">Excel</SelectItem>
-                <SelectItem value="pdf">PDF</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('current', 'csv')}>
+                Export current view (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('current', 'excel')}>
+                Export current view (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('all', 'csv')}>
+                Export all (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('all', 'excel')}>
+                Export all (Excel)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
 
@@ -180,24 +499,30 @@ export default function NPSQuestions() {
         </div>
 
         <Select value={channelFilter} onValueChange={setChannelFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Channel" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All Channels" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Channels</SelectItem>
-            <SelectItem value="email">Email</SelectItem>
             <SelectItem value="sms">SMS</SelectItem>
+            <SelectItem value="email">Email</SelectItem>
             <SelectItem value="qr">QR Code</SelectItem>
-            <SelectItem value="web">Web</SelectItem>
+            <SelectItem value="web">Web Embed</SelectItem>
             <SelectItem value="link">Link</SelectItem>
           </SelectContent>
         </Select>
 
-        {filteredResponses.length > 0 && (
+        {paginatedResponses.length > 0 && (
           <Button variant="outline" size="sm" onClick={handleSelectAll}>
-            {selectedResponses.length === filteredResponses.length ? 'Deselect All' : 'Select All'}
+            {selectedResponses.length === paginatedResponses.length ? 'Deselect All' : 'Select All'}
           </Button>
         )}
+      </div>
+
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
+        Showing {paginatedResponses.length} of {filteredResponses.length} responses
+        {responses.length === 0 && ' (demo data)'}
       </div>
 
       {/* Response Cards */}
@@ -208,34 +533,49 @@ export default function NPSQuestions() {
             <ResponseCardSkeleton />
             <ResponseCardSkeleton />
           </>
-        ) : filteredResponses.length > 0 ? (
-          filteredResponses.map((response) => (
+        ) : paginatedResponses.length > 0 ? (
+          paginatedResponses.map((response) => (
             <Card
               key={response.id}
-              className={`shadow-soft border-border/50 transition-all ${
+              className={`shadow-soft border-border/50 transition-all hover:shadow-md ${
                 selectedResponses.includes(response.id) ? 'ring-2 ring-primary' : ''
               }`}
             >
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Checkbox
                       checked={selectedResponses.includes(response.id)}
                       onCheckedChange={() => handleSelectResponse(response.id)}
                     />
-                    {response.nps_score !== null && (
-                      <ScoreBadge score={response.nps_score} />
-                    )}
-                    <span className="font-medium">
+                    <span className="font-semibold text-foreground">
                       {response.contact?.first_name} {response.contact?.last_name}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {response.completed_at
-                        ? format(parseISO(response.completed_at), 'MMM d, yyyy')
+                        ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy')
                         : '-'}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {response.invitation?.channel && (
                       <ChannelBadge channel={response.invitation.channel as 'email' | 'sms' | 'qr' | 'web' | 'link'} />
+                    )}
+                    {response.nps_score !== null && (
+                      <Badge
+                        className={
+                          getScoreCategoryLabel(response.nps_score).category === 'promoters'
+                            ? 'bg-promoter-bg text-promoter border-promoter/30'
+                            : getScoreCategoryLabel(response.nps_score).category === 'passives'
+                            ? 'bg-passive-bg text-passive border-passive/30'
+                            : 'bg-detractor-bg text-detractor border-detractor/30'
+                        }
+                      >
+                        {getScoreCategoryLabel(response.nps_score).label}
+                      </Badge>
+                    )}
+                    {response.nps_score !== null && (
+                      <ScoreBadge score={response.nps_score} showLabel={false} size="sm" />
                     )}
                   </div>
                 </div>
@@ -244,16 +584,31 @@ export default function NPSQuestions() {
                 {/* Answers */}
                 {Array.isArray(response.answers) && response.answers.length > 0 && (
                   <div className="space-y-3">
-                    {response.answers.map((answer: any, idx: number) => (
-                      <div key={idx} className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Q: {answer.question || `Question ${idx + 1}`}
-                        </p>
-                        <p className="text-foreground">
-                          A: "{typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer)}"
-                        </p>
-                      </div>
-                    ))}
+                    {response.answers.map((answer: any, idx: number) => {
+                      const answerText = typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer);
+                      const isLong = answerText.length > 120;
+                      const expandKey = `${response.id}-${idx}`;
+                      const isExpanded = expandedAnswers[expandKey];
+
+                      return (
+                        <div key={idx} className="space-y-1 bg-muted/30 rounded-lg p-3">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {answer.question || `Question ${idx + 1}`}
+                          </p>
+                          <p className="text-foreground">
+                            "{isExpanded || !isLong ? answerText : truncateText(answerText)}"
+                            {isLong && (
+                              <button
+                                onClick={() => toggleAnswerExpand(response.id, idx)}
+                                className="ml-2 text-primary hover:underline text-sm font-medium"
+                              >
+                                {isExpanded ? 'Show Less' : 'Read More'}
+                              </button>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -271,9 +626,9 @@ export default function NPSQuestions() {
                 )}
 
                 {/* Consent & Contact */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   {response.consent_given && (
-                    <span className="flex items-center gap-1 text-success">
+                    <span className="flex items-center gap-1 text-promoter">
                       <CheckCircle className="h-4 w-4" />
                       Consent given
                     </span>
@@ -293,7 +648,7 @@ export default function NPSQuestions() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t">
+                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                   {response.consent_given && (
                     <Button
                       variant="outline"
@@ -319,6 +674,45 @@ export default function NPSQuestions() {
           />
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+              />
+            </PaginationItem>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((page) => {
+                // Show first, last, current, and adjacent pages
+                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+              })
+              .map((page, idx, arr) => (
+                <PaginationItem key={page}>
+                  {idx > 0 && arr[idx - 1] !== page - 1 && (
+                    <span className="px-2 text-muted-foreground">...</span>
+                  )}
+                  <PaginationLink
+                    onClick={() => setCurrentPage(page)}
+                    isActive={currentPage === page}
+                    className="cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+            <PaginationItem>
+              <PaginationNext
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       {/* Send Message Modal */}
       <Dialog open={messageModalOpen} onOpenChange={setMessageModalOpen}>
