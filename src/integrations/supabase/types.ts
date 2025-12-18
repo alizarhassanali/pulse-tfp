@@ -330,6 +330,7 @@ export type Database = {
           id: string
           name: string | null
           phone: string | null
+          status: string | null
           timezone: string | null
           updated_at: string | null
           user_id: string
@@ -341,6 +342,7 @@ export type Database = {
           id?: string
           name?: string | null
           phone?: string | null
+          status?: string | null
           timezone?: string | null
           updated_at?: string | null
           user_id: string
@@ -352,6 +354,7 @@ export type Database = {
           id?: string
           name?: string | null
           phone?: string | null
+          status?: string | null
           timezone?: string | null
           updated_at?: string | null
           user_id?: string
@@ -641,11 +644,59 @@ export type Database = {
         }
         Relationships: []
       }
+      user_section_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          permission: Database["public"]["Enums"]["permission_level"]
+          section: Database["public"]["Enums"]["app_section"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permission?: Database["public"]["Enums"]["permission_level"]
+          section: Database["public"]["Enums"]["app_section"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permission?: Database["public"]["Enums"]["permission_level"]
+          section?: Database["public"]["Enums"]["app_section"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      can_edit_section: {
+        Args: {
+          _section: Database["public"]["Enums"]["app_section"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      can_view_section: {
+        Args: {
+          _section: Database["public"]["Enums"]["app_section"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      get_user_section_permission: {
+        Args: {
+          _section: Database["public"]["Enums"]["app_section"]
+          _user_id: string
+        }
+        Returns: Database["public"]["Enums"]["permission_level"]
+      }
       has_brand_access: {
         Args: { _brand_id: string; _user_id: string }
         Returns: boolean
@@ -666,6 +717,18 @@ export type Database = {
         | "clinic_manager"
         | "staff"
         | "read_only"
+      app_section:
+        | "dashboard"
+        | "questions"
+        | "sent_logs"
+        | "manage_events"
+        | "integration"
+        | "reviews"
+        | "contacts"
+        | "templates"
+        | "brands"
+        | "users"
+      permission_level: "no_access" | "view" | "edit" | "respond"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -800,6 +863,19 @@ export const Constants = {
         "staff",
         "read_only",
       ],
+      app_section: [
+        "dashboard",
+        "questions",
+        "sent_logs",
+        "manage_events",
+        "integration",
+        "reviews",
+        "contacts",
+        "templates",
+        "brands",
+        "users",
+      ],
+      permission_level: ["no_access", "view", "edit", "respond"],
     },
   },
 } as const

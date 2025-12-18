@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
@@ -29,11 +29,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
+import { AppSection } from '@/types/permissions';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   href: string;
+  section?: AppSection;
 }
 
 interface NavGroup {
@@ -49,20 +52,20 @@ const navigation: (NavItem | NavGroup)[] = [
     label: 'NPS',
     defaultOpen: true,
     items: [
-      { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard' },
-      { icon: MessageSquareText, label: 'Questions', href: '/nps/questions' },
-      { icon: Send, label: 'Sent Logs', href: '/nps/sent-logs' },
-      { icon: Calendar, label: 'Manage Events', href: '/nps/manage-events' },
-      { icon: Plug, label: 'Integration', href: '/nps/integration' },
+      { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard', section: 'dashboard' },
+      { icon: MessageSquareText, label: 'Questions', href: '/nps/questions', section: 'questions' },
+      { icon: Send, label: 'Sent Logs', href: '/nps/sent-logs', section: 'sent_logs' },
+      { icon: Calendar, label: 'Manage Events', href: '/nps/manage-events', section: 'manage_events' },
+      { icon: Plug, label: 'Integration', href: '/nps/integration', section: 'integration' },
     ],
   },
-  { icon: Star, label: 'Reviews', href: '/reviews' },
+  { icon: Star, label: 'Reviews', href: '/reviews', section: 'reviews' },
   {
     icon: Users,
     label: 'Contacts',
     items: [
-      { icon: Users, label: 'All Contacts', href: '/contacts' },
-      { icon: UserX, label: 'Unsubscribed', href: '/contacts/unsubscribe' },
+      { icon: Users, label: 'All Contacts', href: '/contacts', section: 'contacts' },
+      { icon: UserX, label: 'Unsubscribed', href: '/contacts/unsubscribe', section: 'contacts' },
     ],
   },
   {
@@ -70,9 +73,9 @@ const navigation: (NavItem | NavGroup)[] = [
     label: 'Settings',
     items: [
       { icon: User, label: 'Profile', href: '/settings/profile' },
-      { icon: FileText, label: 'Templates', href: '/settings/templates' },
-      { icon: Building2, label: 'Brands', href: '/settings/brands' },
-      { icon: UserCog, label: 'Users', href: '/settings/users' },
+      { icon: FileText, label: 'Templates', href: '/settings/templates', section: 'templates' },
+      { icon: Building2, label: 'Brands', href: '/settings/brands', section: 'brands' },
+      { icon: UserCog, label: 'Users', href: '/settings/users', section: 'users' },
     ],
   },
 ];
@@ -94,9 +97,19 @@ function NavItemComponent({ item, isActive }: { item: NavItem; isActive: boolean
   );
 }
 
-function NavGroupComponent({ group }: { group: NavGroup }) {
+function NavGroupComponent({ group, canViewSection }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean }) {
   const location = useLocation();
-  const isGroupActive = group.items.some((item) => location.pathname === item.href);
+  
+  // Filter items based on permissions
+  const visibleItems = group.items.filter(item => {
+    if (!item.section) return true; // No section means always visible (e.g., Profile)
+    return canViewSection(item.section);
+  });
+
+  // Don't render the group if no items are visible
+  if (visibleItems.length === 0) return null;
+
+  const isGroupActive = visibleItems.some((item) => location.pathname === item.href);
   const [isOpen, setIsOpen] = useState(group.defaultOpen || isGroupActive);
   const Icon = group.icon;
 
@@ -121,7 +134,7 @@ function NavGroupComponent({ group }: { group: NavGroup }) {
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent className="pl-4 mt-1 space-y-1">
-        {group.items.map((item) => (
+        {visibleItems.map((item) => (
           <NavItemComponent
             key={item.href}
             item={item}
@@ -182,14 +195,28 @@ function UserMenu() {
 
 export function Sidebar() {
   const location = useLocation();
+  const { canViewSection, isSuperAdmin, isLoading } = usePermissions();
+
+  // Helper function that handles undefined section
+  const checkCanView = (section?: AppSection): boolean => {
+    if (!section) return true; // No section means always visible
+    if (isSuperAdmin) return true;
+    return canViewSection(section);
+  };
 
   return (
     <aside className="w-60 bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col">
       <nav className="flex-1 p-4 space-y-2">
         {navigation.map((item, index) => {
           if (isNavGroup(item)) {
-            return <NavGroupComponent key={index} group={item} />;
+            return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} />;
           }
+          
+          // For non-group items, check permission
+          if (item.section && !checkCanView(item.section)) {
+            return null;
+          }
+          
           return (
             <NavItemComponent
               key={item.href}
