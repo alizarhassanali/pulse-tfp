@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
 import { PageHeader } from '@/components/ui/page-header';
@@ -10,16 +10,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Search, ExternalLink, MessageSquare, TrendingUp, TrendingDown } from 'lucide-react';
-import { format, parseISO, isWithinInterval } from 'date-fns';
+import { Star, Search, ExternalLink, MessageSquare, TrendingUp, TrendingDown, MapPin, Building2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
 
-// Demo reviews
+// Demo reviews with location data
 const demoReviews = [
   {
     id: 'demo-1',
@@ -29,7 +38,10 @@ const demoReviews = [
     created_at: '2025-12-21T10:00:00Z',
     responded_at: null,
     response_text: null,
-    location: { name: 'NewMarket' },
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
     source_url: 'https://google.com/review/1',
   },
   {
@@ -40,7 +52,10 @@ const demoReviews = [
     created_at: '2025-12-20T14:00:00Z',
     responded_at: null,
     response_text: null,
-    location: { name: 'Downtown' },
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'Vaughan', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
     source_url: 'https://google.com/review/2',
   },
   {
@@ -51,7 +66,10 @@ const demoReviews = [
     created_at: '2025-12-19T09:00:00Z',
     responded_at: '2025-12-19T15:00:00Z',
     response_text: 'Thank you so much for sharing your wonderful news with us! We are thrilled to be part of your journey.',
-    location: { name: 'NewMarket' },
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
     source_url: 'https://google.com/review/3',
   },
   {
@@ -62,7 +80,10 @@ const demoReviews = [
     created_at: '2025-12-18T11:00:00Z',
     responded_at: '2025-12-18T16:00:00Z',
     response_text: 'Thank you for your feedback! We appreciate your kind words and are working on improving parking options.',
-    location: { name: 'Downtown' },
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-333333333333',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'TorontoWest', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
     source_url: 'https://google.com/review/4',
   },
   {
@@ -73,15 +94,31 @@ const demoReviews = [
     created_at: '2025-12-17T08:00:00Z',
     responded_at: null,
     response_text: null,
-    location: { name: 'NewMarket' },
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-444444444444',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'Waterloo', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
     source_url: 'https://google.com/review/5',
+  },
+  {
+    id: 'demo-6',
+    reviewer_name: 'Frank G.',
+    rating: 5,
+    review_text: 'Excellent care at the Downtown location. Everyone was so kind and supportive.',
+    created_at: '2025-12-16T09:00:00Z',
+    responded_at: null,
+    response_text: null,
+    location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111',
+    location: { name: 'Downtown', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
+    brand: { name: 'Conceptia Fertility' },
+    source_url: 'https://google.com/review/6',
   },
 ];
 
 export default function Reviews() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { selectedBrands, selectedLocations, dateRange } = useFilterStore();
+  const { selectedBrands, selectedLocations, dateRange, setSelectedLocations } = useFilterStore();
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [respondedFilter, setRespondedFilter] = useState('all');
@@ -117,7 +154,18 @@ export default function Reviews() {
     },
   });
 
-  const reviews = dbReviews.length > 0 ? dbReviews : demoReviews;
+  // Use demo data if no db reviews and filter by brand/location
+  const reviews = useMemo(() => {
+    const sourceReviews = dbReviews.length > 0 ? dbReviews : demoReviews;
+    return sourceReviews.filter(r => {
+      if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
+      if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
+      if (ratingFilter !== 'all' && r.rating !== parseInt(ratingFilter)) return false;
+      if (respondedFilter === 'responded' && !r.responded_at) return false;
+      if (respondedFilter === 'not_responded' && r.responded_at) return false;
+      return true;
+    });
+  }, [dbReviews, selectedBrands, selectedLocations, ratingFilter, respondedFilter]);
 
   // Apply search filter
   const filteredReviews = useMemo(() => {
@@ -130,8 +178,53 @@ export default function Reviews() {
     });
   }, [reviews, search]);
 
+  // Check if multiple locations are being viewed
+  const isMultiLocationView = selectedLocations.length === 0 || selectedLocations.length > 1;
+  
+  // Calculate location breakdown for multi-location view
+  const locationBreakdown = useMemo(() => {
+    if (!isMultiLocationView) return [];
+    
+    const locationMap = new Map<string, {
+      id: string;
+      name: string;
+      totalReviews: number;
+      avgRating: number;
+      unresponded: number;
+      lastReviewDate: string | null;
+    }>();
+
+    reviews.forEach(review => {
+      const locId = review.location_id;
+      const locName = review.location?.name || 'Unknown';
+      
+      if (!locationMap.has(locId)) {
+        locationMap.set(locId, {
+          id: locId,
+          name: locName,
+          totalReviews: 0,
+          avgRating: 0,
+          unresponded: 0,
+          lastReviewDate: null,
+        });
+      }
+      
+      const loc = locationMap.get(locId)!;
+      loc.totalReviews++;
+      loc.avgRating = (loc.avgRating * (loc.totalReviews - 1) + (review.rating || 0)) / loc.totalReviews;
+      if (!review.responded_at) loc.unresponded++;
+      if (!loc.lastReviewDate || review.created_at > loc.lastReviewDate) {
+        loc.lastReviewDate = review.created_at;
+      }
+    });
+
+    return Array.from(locationMap.values()).sort((a, b) => b.totalReviews - a.totalReviews);
+  }, [reviews, isMultiLocationView]);
+
   // Calculate metrics
-  const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '0.0';
+  const avgRating = reviews.length > 0 
+    ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) 
+    : '0.0';
   const thisMonth = reviews.filter((r) => new Date(r.created_at).getMonth() === new Date().getMonth()).length;
   const lastMonth = reviews.filter((r) => {
     const d = new Date(r.created_at);
@@ -139,7 +232,9 @@ export default function Reviews() {
     return d.getMonth() === now.getMonth() - 1 || (now.getMonth() === 0 && d.getMonth() === 11);
   }).length;
   const monthChange = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : 0;
-  const replyRate = reviews.length > 0 ? Math.round((reviews.filter((r) => r.responded_at).length / reviews.length) * 100) : 0;
+  const replyRate = reviews.length > 0 
+    ? Math.round((reviews.filter((r) => r.responded_at).length / reviews.length) * 100) 
+    : 0;
 
   const toggleExpanded = (id: string) => {
     setExpandedReviews((prev) => {
@@ -162,11 +257,14 @@ export default function Reviews() {
   );
 
   const handleSubmitResponse = () => {
-    // In a real app, this would save to Google via API
     toast({ title: 'Response posted!', description: 'Your response has been submitted.' });
     setRespondModalOpen(false);
     setResponseText('');
     setSelectedReview(null);
+  };
+
+  const handleLocationClick = (locationId: string) => {
+    setSelectedLocations([locationId]);
   };
 
   return (
@@ -184,10 +282,31 @@ export default function Reviews() {
           </>
         ) : (
           <>
-            <MetricCard title="Average Rating" value={avgRating} icon={<Star className="h-6 w-6 fill-warning text-warning" />}>
-              {renderStars(Math.round(parseFloat(avgRating)))}
+            <MetricCard 
+              title="Average Rating" 
+              value={avgRating} 
+              icon={<Star className="h-6 w-6 fill-warning text-warning" />}
+            >
+              <div className="flex flex-col gap-1">
+                {renderStars(Math.round(parseFloat(avgRating)))}
+                {isMultiLocationView && locationBreakdown.length > 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Aggregated across {locationBreakdown.length} locations
+                  </p>
+                )}
+              </div>
             </MetricCard>
-            <MetricCard title="Total Reviews" value={reviews.length} icon={<MessageSquare className="h-6 w-6" />} />
+            <MetricCard 
+              title="Total Reviews" 
+              value={reviews.length} 
+              icon={<MessageSquare className="h-6 w-6" />}
+            >
+              {isMultiLocationView && locationBreakdown.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  From {locationBreakdown.length} locations
+                </p>
+              )}
+            </MetricCard>
             <MetricCard
               title="This Month"
               value={thisMonth}
@@ -199,6 +318,67 @@ export default function Reviews() {
           </>
         )}
       </div>
+
+      {/* Location Breakdown Table (Multi-location view only) */}
+      {isMultiLocationView && locationBreakdown.length > 1 && (
+        <Card className="shadow-soft border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Building2 className="h-5 w-5" />
+              Ratings by Location
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Avg Rating</TableHead>
+                  <TableHead>Total Reviews</TableHead>
+                  <TableHead>Unresponded</TableHead>
+                  <TableHead>Last Review</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {locationBreakdown.map((loc) => (
+                  <TableRow 
+                    key={loc.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleLocationClick(loc.id)}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        {loc.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {renderStars(Math.round(loc.avgRating))}
+                        <span className="text-sm font-medium">{loc.avgRating.toFixed(1)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{loc.totalReviews}</TableCell>
+                    <TableCell>
+                      {loc.unresponded > 0 ? (
+                        <Badge variant="destructive">{loc.unresponded}</Badge>
+                      ) : (
+                        <Badge variant="secondary">0</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {loc.lastReviewDate 
+                        ? format(parseISO(loc.lastReviewDate), 'MMM d, yyyy')
+                        : '—'
+                      }
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
@@ -254,7 +434,12 @@ export default function Reviews() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {review.location?.name && <Badge variant="secondary">{review.location.name}</Badge>}
+                      {review.location?.name && (
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {review.location.name}
+                        </Badge>
+                      )}
                       {review.responded_at && <Badge className="bg-success">Replied</Badge>}
                     </div>
                   </div>
@@ -344,6 +529,12 @@ export default function Reviews() {
                 <div className="flex items-center gap-2 mb-2">
                   {renderStars(selectedReview.rating)}
                   <span className="font-medium">{selectedReview.reviewer_name}</span>
+                  {selectedReview.location?.name && (
+                    <Badge variant="outline" className="text-xs">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {selectedReview.location.name}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm">{selectedReview.review_text}</p>
               </div>
