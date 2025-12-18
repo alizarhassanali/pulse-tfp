@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_tag_assignments: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          tag_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          tag_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_tag_assignments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "contact_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_tags: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           brand_id: string | null
@@ -237,6 +288,30 @@ export type Database = {
           },
         ]
       }
+      feedback_categories: {
+        Row: {
+          archived: boolean | null
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          archived?: boolean | null
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          archived?: boolean | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           config: Json | null
@@ -360,6 +435,42 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      response_category_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          category_id: string
+          response_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          category_id: string
+          response_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          category_id?: string
+          response_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_category_assignments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "response_category_assignments_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {

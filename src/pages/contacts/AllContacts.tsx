@@ -9,14 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, Send, FileDown } from 'lucide-react';
+import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
+import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 
@@ -28,17 +29,12 @@ const demoContacts = [
   { id: 'demo-4', first_name: 'Michael', last_name: 'Brown', email: 'michael@email.com', phone: '+15551112222', preferred_channel: 'both', brand: { name: 'Conceptia Fertility' }, location: { name: 'Uptown' }, status: 'active', created_at: '2025-12-01T10:00:00Z', last_score: 7 },
 ];
 
-// Demo submissions for contact detail
-const demoSubmissions = [
-  { id: '1', event_name: 'Post First Consult', nps_score: 9, completed_at: '2025-12-15T10:00:00Z', answers: [{ question: 'What did you like most?', answer: 'The friendly staff' }] },
-  { id: '2', event_name: 'Follow-up Survey', nps_score: 8, completed_at: '2025-11-20T10:00:00Z', answers: [{ question: 'How can we improve?', answer: 'Shorter wait times' }] },
-];
-
 export default function AllContacts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [contactDetailOpen, setContactDetailOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newContact, setNewContact] = useState({
@@ -46,10 +42,12 @@ export default function AllContacts() {
     last_name: '',
     email: '',
     phone: '',
-    preferred_channel: 'email',
+    prefer_sms: false,
+    prefer_email: true,
     brand_id: '',
     location_id: '',
     opt_in: true,
+    tag_ids: [] as string[],
   });
 
   const { data: dbContacts = [], isLoading } = useQuery({
@@ -96,12 +94,23 @@ export default function AllContacts() {
     return name.includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search);
   });
 
+  const getPreferredChannelDisplay = (channel: string | null) => {
+    switch (channel) {
+      case 'both': return 'SMS & Email';
+      case 'sms': return 'SMS';
+      case 'email': return 'Email';
+      default: return channel || '-';
+    }
+  };
+
   const handleExport = () => {
     const csv = [
-      ['Name', 'Email', 'Phone', 'Preferred Channel', 'Brand', 'Location', 'Status'].join(','),
-      ...filteredContacts.map((c) =>
-        [`${c.first_name} ${c.last_name}`, c.email || '', c.phone || '', c.preferred_channel, c.brand?.name || '', c.location?.name || '', c.status].join(',')
-      ),
+      ['Name', 'Email', 'Phone', 'Preferred SMS', 'Preferred Email', 'Brand', 'Location', 'Status'].join(','),
+      ...filteredContacts.map((c) => {
+        const preferSms = c.preferred_channel === 'sms' || c.preferred_channel === 'both' ? 'TRUE' : 'FALSE';
+        const preferEmail = c.preferred_channel === 'email' || c.preferred_channel === 'both' ? 'TRUE' : 'FALSE';
+        return [`${c.first_name} ${c.last_name}`, c.email || '', c.phone || '', preferSms, preferEmail, c.brand?.name || '', c.location?.name || '', c.status].join(',');
+      }),
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -113,25 +122,93 @@ export default function AllContacts() {
     toast({ title: 'Contacts exported' });
   };
 
-  const handleAddContact = async () => {
-    if (!newContact.first_name || (!newContact.email && !newContact.phone)) {
-      toast({ title: 'Please fill required fields', variant: 'destructive' });
+  const createContactMutation = useMutation({
+    mutationFn: async () => {
+      // Determine preferred_channel from checkboxes
+      let preferred_channel = 'email';
+      if (newContact.prefer_sms && newContact.prefer_email) {
+        preferred_channel = 'both';
+      } else if (newContact.prefer_sms) {
+        preferred_channel = 'sms';
+      } else if (newContact.prefer_email) {
+        preferred_channel = 'email';
+      }
+
+      const { data: contact, error } = await supabase
+        .from('contacts')
+        .insert({
+          first_name: newContact.first_name,
+          last_name: newContact.last_name,
+          email: newContact.email || null,
+          phone: newContact.phone || null,
+          preferred_channel,
+          brand_id: newContact.brand_id || null,
+          location_id: newContact.location_id || null,
+          status: 'active',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Insert tag assignments
+      if (newContact.tag_ids.length > 0 && contact) {
+        const { error: tagError } = await supabase
+          .from('contact_tag_assignments')
+          .insert(newContact.tag_ids.map(tagId => ({
+            contact_id: contact.id,
+            tag_id: tagId,
+          })));
+        if (tagError) throw tagError;
+      }
+
+      return contact;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast({ title: 'Contact added successfully' });
+      setAddModalOpen(false);
+      setNewContact({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        prefer_sms: false,
+        prefer_email: true,
+        brand_id: '',
+        location_id: '',
+        opt_in: true,
+        tag_ids: [],
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error adding contact', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleAddContact = () => {
+    if (!newContact.first_name) {
+      toast({ title: 'Please enter first name', variant: 'destructive' });
       return;
     }
+    if (newContact.prefer_sms && !newContact.phone) {
+      toast({ title: 'Phone is required when SMS is selected', variant: 'destructive' });
+      return;
+    }
+    if (newContact.prefer_email && !newContact.email) {
+      toast({ title: 'Email is required when Email is selected', variant: 'destructive' });
+      return;
+    }
+    if (!newContact.prefer_sms && !newContact.prefer_email) {
+      toast({ title: 'Please select at least one preferred method', variant: 'destructive' });
+      return;
+    }
+    createContactMutation.mutate();
+  };
 
-    // In a real app, this would insert to Supabase
-    toast({ title: 'Contact added successfully' });
-    setAddModalOpen(false);
-    setNewContact({
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      preferred_channel: 'email',
-      brand_id: '',
-      location_id: '',
-      opt_in: true,
-    });
+  const handleViewContact = (contactId: string) => {
+    setSelectedContactId(contactId);
+    setContactDetailOpen(true);
   };
 
   return (
@@ -176,7 +253,7 @@ export default function AllContacts() {
                 <TableHead>Contact</TableHead>
                 <TableHead>Brand</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Channel</TableHead>
+                <TableHead>Preferred Method</TableHead>
                 <TableHead>Last Score</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -199,9 +276,12 @@ export default function AllContacts() {
                             {contact.last_name?.[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">
+                        <button 
+                          onClick={() => handleViewContact(contact.id)}
+                          className="font-medium text-primary hover:underline text-left"
+                        >
                           {contact.first_name} {contact.last_name}
-                        </span>
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -224,7 +304,7 @@ export default function AllContacts() {
                     <TableCell className="text-sm">{contact.location?.name || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="capitalize">
-                        {contact.preferred_channel}
+                        {getPreferredChannelDisplay(contact.preferred_channel)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -243,7 +323,7 @@ export default function AllContacts() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedContact(contact)}>
+                      <Button variant="ghost" size="icon" onClick={() => handleViewContact(contact.id)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -266,86 +346,11 @@ export default function AllContacts() {
       </Card>
 
       {/* Contact Detail Modal */}
-      <Dialog open={!!selectedContact} onOpenChange={() => setSelectedContact(null)}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedContact?.first_name} {selectedContact?.last_name}
-            </DialogTitle>
-          </DialogHeader>
-          <Tabs defaultValue="info">
-            <TabsList>
-              <TabsTrigger value="info">Info</TabsTrigger>
-              <TabsTrigger value="submissions">Submissions</TabsTrigger>
-              <TabsTrigger value="communications">Communications</TabsTrigger>
-            </TabsList>
-            <TabsContent value="info" className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Email:</span>
-                  <p>{selectedContact?.email || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Phone:</span>
-                  <p>{selectedContact?.phone || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Preferred Channel:</span>
-                  <p className="capitalize">{selectedContact?.preferred_channel || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Status:</span>
-                  <p className="capitalize">{selectedContact?.status || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Brand:</span>
-                  <p>{selectedContact?.brand?.name || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Location:</span>
-                  <p>{selectedContact?.location?.name || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Created:</span>
-                  <p>{selectedContact?.created_at ? format(parseISO(selectedContact.created_at), 'MMM d, yyyy') : '-'}</p>
-                </div>
-              </div>
-              <Button className="btn-coral mt-4">
-                <Send className="h-4 w-4 mr-2" />
-                Send Ad-hoc Survey
-              </Button>
-            </TabsContent>
-            <TabsContent value="submissions" className="pt-4">
-              <div className="space-y-4">
-                {demoSubmissions.map((sub) => (
-                  <Card key={sub.id} className="border-border/50">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{sub.event_name}</span>
-                        <div className="flex items-center gap-2">
-                          <ScoreBadge score={sub.nps_score} />
-                          <span className="text-sm text-muted-foreground">
-                            {format(parseISO(sub.completed_at), 'MMM d, yyyy')}
-                          </span>
-                        </div>
-                      </div>
-                      {sub.answers.map((ans, idx) => (
-                        <div key={idx} className="text-sm mt-2">
-                          <p className="text-muted-foreground">{ans.question}</p>
-                          <p>{ans.answer}</p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="communications" className="pt-4">
-              <p className="text-muted-foreground text-center py-8">No communications yet</p>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+      <ContactDetailsModal
+        contactId={selectedContactId}
+        open={contactDetailOpen}
+        onOpenChange={setContactDetailOpen}
+      />
 
       {/* Import CSV Modal */}
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
@@ -369,13 +374,14 @@ export default function AllContacts() {
                 <strong>Step 2:</strong> Fill in the following fields:
               </p>
               <ul className="text-sm text-muted-foreground list-disc list-inside">
-                <li>First Name (required)</li>
-                <li>Last Name</li>
-                <li>Email</li>
-                <li>Phone</li>
-                <li>Preferred Channel (email/sms/both)</li>
-                <li>Brand Name</li>
-                <li>Location Name</li>
+                <li>full_name (required)</li>
+                <li>email</li>
+                <li>phone</li>
+                <li>brand</li>
+                <li>location</li>
+                <li>preferred_sms (TRUE/FALSE)</li>
+                <li>preferred_email (TRUE/FALSE)</li>
+                <li>tags (comma-separated)</li>
               </ul>
             </div>
             <div className="space-y-2">
@@ -401,7 +407,7 @@ export default function AllContacts() {
 
       {/* Add Contact Modal */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Add Contact</DialogTitle>
             <DialogDescription>Add a new contact to your database.</DialogDescription>
@@ -424,7 +430,7 @@ export default function AllContacts() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>Email {newContact.prefer_email && '*'}</Label>
               <Input
                 type="email"
                 value={newContact.email}
@@ -432,28 +438,42 @@ export default function AllContacts() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label>Phone {newContact.prefer_sms && '*'}</Label>
               <Input
                 value={newContact.phone}
                 onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
                 placeholder="+1 555 123 4567"
               />
             </div>
+            <div className="space-y-3">
+              <Label>Preferred Method *</Label>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="prefer-email"
+                    checked={newContact.prefer_email}
+                    onCheckedChange={(checked) => setNewContact({ ...newContact, prefer_email: checked as boolean })}
+                  />
+                  <Label htmlFor="prefer-email" className="font-normal">Email</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="prefer-sms"
+                    checked={newContact.prefer_sms}
+                    onCheckedChange={(checked) => setNewContact({ ...newContact, prefer_sms: checked as boolean })}
+                  />
+                  <Label htmlFor="prefer-sms" className="font-normal">SMS</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Select one or both methods for survey delivery</p>
+            </div>
             <div className="space-y-2">
-              <Label>Preferred Channel</Label>
-              <Select
-                value={newContact.preferred_channel}
-                onValueChange={(v) => setNewContact({ ...newContact, preferred_channel: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="both">Both</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Tags</Label>
+              <ContactTagsSelect
+                selectedTags={newContact.tag_ids}
+                onTagsChange={(tags) => setNewContact({ ...newContact, tag_ids: tags })}
+                placeholder="Select contact tags..."
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -507,8 +527,8 @@ export default function AllContacts() {
             <Button variant="outline" onClick={() => setAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="btn-coral" onClick={handleAddContact}>
-              Add Contact
+            <Button className="btn-coral" onClick={handleAddContact} disabled={createContactMutation.isPending}>
+              {createContactMutation.isPending ? 'Adding...' : 'Add Contact'}
             </Button>
           </DialogFooter>
         </DialogContent>

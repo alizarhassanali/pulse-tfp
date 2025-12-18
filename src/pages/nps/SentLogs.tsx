@@ -54,12 +54,12 @@ import {
   Send, 
   MoreHorizontal,
   ChevronDown,
-  ExternalLink
+  User
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 
 // Demo data with complete contact info
 const DEMO_SENT_LOGS = [
@@ -180,7 +180,6 @@ const DEMO_SENT_LOGS = [
 const ITEMS_PER_PAGE = 10;
 
 export default function SentLogs() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { selectedBrands, selectedEvent, dateRange } = useFilterStore();
   const [search, setSearch] = useState('');
@@ -189,6 +188,8 @@ export default function SentLogs() {
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const { data: invitations = [], isLoading } = useQuery({
     queryKey: ['sent-logs', selectedBrands, selectedEvent, dateRange, statusFilter, channelFilter],
@@ -333,7 +334,8 @@ export default function SentLogs() {
   };
 
   const handleViewContact = (contactId: string) => {
-    navigate(`/contacts/all?contact=${contactId}`);
+    setSelectedContactId(contactId);
+    setContactModalOpen(true);
   };
 
   return (
@@ -490,7 +492,7 @@ export default function SentLogs() {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem onClick={() => handleViewContact(invitation.contact?.id)}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
+                            <User className="h-4 w-4 mr-2" />
                             View Contact
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -671,6 +673,13 @@ export default function SentLogs() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Contact Details Modal */}
+      <ContactDetailsModal
+        contactId={selectedContactId}
+        open={contactModalOpen}
+        onOpenChange={setContactModalOpen}
+      />
     </div>
   );
 }
