@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
-import { PageHeader } from '@/components/ui/page-header';
 import { MetricCard } from '@/components/ui/metric-card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
@@ -24,15 +23,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Area,
-  AreaChart,
   PieChart,
   Pie,
   Cell,
@@ -40,8 +37,6 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, 
-  Users, 
-  BarChart3, 
   Send, 
   CheckCircle2, 
   Percent,
@@ -49,18 +44,72 @@ import {
   Minus,
   ThumbsDown,
   AlertTriangle,
-  Clock,
-  UserX,
   Download,
   Bell,
   Calendar,
   MessageSquare,
   Eye,
-  ArrowRight
+  ArrowRight,
+  Building2,
+  MapPin,
+  Zap,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { format, subDays, parseISO } from 'date-fns';
-import { useState } from 'react';
+import { format, subDays } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Demo data for brands and locations
+const DEMO_BRANDS = [
+  { id: 'conceptia', name: 'Conceptia Fertility' },
+  { id: 'generation', name: 'Generation Fertility' },
+  { id: 'grace', name: 'Grace Fertility' },
+  { id: 'olive', name: 'Olive Fertility' },
+];
+
+const DEMO_LOCATIONS: Record<string, { id: string; name: string }[]> = {
+  generation: [
+    { id: 'newmarket', name: 'NewMarket' },
+    { id: 'vaughan', name: 'Vaughan' },
+    { id: 'torontowest', name: 'TorontoWest' },
+    { id: 'waterloo', name: 'Waterloo' },
+  ],
+  conceptia: [
+    { id: 'downtown', name: 'Downtown' },
+    { id: 'midtown', name: 'Midtown' },
+  ],
+  grace: [
+    { id: 'vancouver', name: 'Vancouver' },
+    { id: 'burnaby', name: 'Burnaby' },
+  ],
+  olive: [
+    { id: 'calgary', name: 'Calgary' },
+    { id: 'edmonton', name: 'Edmonton' },
+  ],
+};
+
+const DEMO_EVENTS = [
+  { id: 'post-first-consult', name: 'Post First Consult' },
+  { id: 'post-treatment-followup', name: 'Post Treatment Follow-up' },
+  { id: 'annual-checkup', name: 'Annual Checkup' },
+];
 
 // Demo data
 const DEMO_PRIMARY_METRICS = {
@@ -115,11 +164,144 @@ const DEMO_CRITICAL_FEEDBACK = [
 
 const PIE_COLORS = ['hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)'];
 
+// Multi-select dropdown component for dashboard
+interface FilterMultiSelectProps {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  placeholder: string;
+  allLabel: string;
+  icon: React.ReactNode;
+}
+
+function FilterMultiSelect({ options, selected, onChange, placeholder, allLabel, icon }: FilterMultiSelectProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleSelectAll = () => {
+    onChange([]);
+  };
+
+  const handleSelect = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((s) => s !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+
+  const displayText = selected.length === 0 
+    ? allLabel 
+    : selected.length === 1 
+      ? options.find(o => o.value === selected[0])?.label || allLabel
+      : `${selected.length} selected`;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-10 px-4 justify-between bg-card border-border hover:bg-accent/50 min-w-[180px]"
+        >
+          <div className="flex items-center gap-2">
+            {icon}
+            <span className="text-sm font-medium truncate max-w-[120px]">{displayText}</span>
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-0 bg-popover border border-border shadow-lg z-50" align="start">
+        <Command>
+          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} className="h-9" />
+          <CommandList>
+            <CommandEmpty>No {placeholder.toLowerCase()} found.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                onSelect={handleSelectAll}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <Checkbox 
+                    checked={selected.length === 0} 
+                    className="pointer-events-none"
+                  />
+                  <span className="font-medium">{allLabel}</span>
+                </div>
+              </CommandItem>
+              <CommandSeparator />
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  onSelect={() => handleSelect(option.value)}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <Checkbox 
+                      checked={selected.includes(option.value)} 
+                      className="pointer-events-none"
+                    />
+                    <span>{option.label}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function NPSDashboard() {
   const navigate = useNavigate();
-  const { selectedBrands, selectedLocations, selectedEvent, dateRange, setDateRange } = useFilterStore();
+  const { 
+    selectedBrands, 
+    selectedLocations, 
+    selectedEvent, 
+    dateRange, 
+    setDateRange,
+    setSelectedBrands,
+    setSelectedLocations,
+    setSelectedEvent,
+  } = useFilterStore();
   const [trendView, setTrendView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [channelFilter, setChannelFilter] = useState<string>('all');
+
+  // Set default demo selections
+  useEffect(() => {
+    if (selectedBrands.length === 0) {
+      setSelectedBrands(['generation']);
+      setSelectedLocations(['newmarket', 'vaughan']);
+      setSelectedEvent('post-first-consult');
+    }
+  }, []);
+
+  // Get available locations based on selected brands
+  const getAvailableLocations = () => {
+    if (selectedBrands.length === 0) {
+      return Object.values(DEMO_LOCATIONS).flat().map(l => ({ value: l.id, label: l.name }));
+    }
+    return selectedBrands
+      .filter(b => DEMO_LOCATIONS[b])
+      .flatMap(b => DEMO_LOCATIONS[b])
+      .map(l => ({ value: l.id, label: l.name }));
+  };
+
+  // Clear invalid locations when brands change
+  useEffect(() => {
+    if (selectedBrands.length > 0) {
+      const availableLocs = getAvailableLocations().map(l => l.value);
+      const validLocations = selectedLocations.filter(l => availableLocs.includes(l));
+      if (validLocations.length !== selectedLocations.length) {
+        setSelectedLocations(validLocations);
+      }
+    }
+  }, [selectedBrands]);
+
+  const brands = DEMO_BRANDS.map(b => ({ value: b.id, label: b.name }));
+  const locations = getAvailableLocations();
+  const events = DEMO_EVENTS.map(e => ({ value: e.id, label: e.name }));
 
   // Fetch survey responses for metrics
   const { data: responses = [], isLoading: loadingResponses } = useQuery({
@@ -258,7 +440,6 @@ export default function NPSDashboard() {
   };
 
   const handleExport = (type: 'all' | 'current') => {
-    // TODO: Implement export functionality
     console.log(`Exporting ${type} data...`);
   };
 
@@ -275,29 +456,71 @@ export default function NPSDashboard() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PageHeader
-        title="NPS Dashboard"
-        description="Monitor patient satisfaction and Net Promoter Score trends"
-        actions={
-          <div className="flex items-center gap-3">
-            <Select defaultValue="30" onValueChange={handleDateRangeChange}>
-              <SelectTrigger className="w-[180px]">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Select range" />
+    <div className="space-y-8 animate-fade-in">
+      {/* Filter Header */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">NPS Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
+          </div>
+          
+          {/* Filters row */}
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterMultiSelect
+              options={brands}
+              selected={selectedBrands}
+              onChange={setSelectedBrands}
+              placeholder="Brands"
+              allLabel="All Brands"
+              icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+            />
+
+            <FilterMultiSelect
+              options={locations}
+              selected={selectedLocations}
+              onChange={setSelectedLocations}
+              placeholder="Locations"
+              allLabel="All Locations"
+              icon={<MapPin className="h-4 w-4 text-muted-foreground" />}
+            />
+
+            <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+              <SelectTrigger className="h-10 min-w-[180px] bg-card border-border">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="All Events" />
+                </div>
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
+              <SelectContent className="bg-popover border border-border shadow-lg z-50">
+                <SelectItem value="all">All Events</SelectItem>
+                {events.map((event) => (
+                  <SelectItem key={event.value} value={event.value}>
+                    {event.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select defaultValue="30" onValueChange={handleDateRangeChange}>
+              <SelectTrigger className="h-10 min-w-[160px] bg-card border-border">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Select range" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border shadow-lg z-50">
                 <SelectItem value="30">Last 30 days</SelectItem>
                 <SelectItem value="60">Last 60 days</SelectItem>
                 <SelectItem value="90">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        }
-      />
+        </div>
+      </div>
 
-      {/* Primary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" role="region" aria-label="Primary metrics">
+      {/* Primary Metric Cards - Single Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" role="region" aria-label="Primary metrics">
         {loadingResponses ? (
           <>
             <CardSkeleton />
@@ -315,7 +538,7 @@ export default function NPSDashboard() {
               icon={<TrendingUp className="h-6 w-6" />}
             >
               <p className="text-xs text-muted-foreground mt-2">
-                Based on {total} responses
+                Based on {total.toLocaleString()} responses
               </p>
             </MetricCard>
 
@@ -357,265 +580,270 @@ export default function NPSDashboard() {
         )}
       </div>
 
-      {/* Secondary Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" role="region" aria-label="Secondary metrics">
+      {/* Score Distribution & Delivery Issues Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Promoters, Passives, Detractors - Cohesive Group */}
         <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ThumbsUp className="h-4 w-4 text-promoter" />
-              <span className="text-sm font-medium text-muted-foreground">Promoters</span>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium">Score Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 rounded-lg bg-promoter-bg/30 border border-promoter/20">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <ThumbsUp className="h-5 w-5 text-promoter" />
+                </div>
+                <p className="text-3xl font-bold text-promoter">{hasRealData ? promoters : DEMO_SECONDARY_METRICS.promoters.count}</p>
+                <p className="text-xs text-muted-foreground mt-1">Promoters</p>
+                <p className="text-sm font-semibold text-promoter mt-1">{pieData[0].percent}%</p>
+              </div>
+
+              <div className="text-center p-4 rounded-lg bg-passive-bg/30 border border-passive/20">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Minus className="h-5 w-5 text-passive" />
+                </div>
+                <p className="text-3xl font-bold text-passive">{hasRealData ? passives : DEMO_SECONDARY_METRICS.passives.count}</p>
+                <p className="text-xs text-muted-foreground mt-1">Passives</p>
+                <p className="text-sm font-semibold text-passive mt-1">{pieData[1].percent}%</p>
+              </div>
+
+              <div className="text-center p-4 rounded-lg bg-detractor-bg/30 border border-detractor/20">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <ThumbsDown className="h-5 w-5 text-detractor" />
+                </div>
+                <p className="text-3xl font-bold text-detractor">{hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count}</p>
+                <p className="text-xs text-muted-foreground mt-1">Detractors</p>
+                <p className="text-sm font-semibold text-detractor mt-1">{pieData[2].percent}%</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-promoter">{hasRealData ? promoters : DEMO_SECONDARY_METRICS.promoters.count}</p>
-            <p className="text-xs text-muted-foreground">{pieData[0].percent}%</p>
           </CardContent>
         </Card>
 
+        {/* Delivery Issues - Combined Card */}
         <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Minus className="h-4 w-4 text-passive" />
-              <span className="text-sm font-medium text-muted-foreground">Passives</span>
-            </div>
-            <p className="text-2xl font-bold text-passive">{hasRealData ? passives : DEMO_SECONDARY_METRICS.passives.count}</p>
-            <p className="text-xs text-muted-foreground">{pieData[1].percent}%</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ThumbsDown className="h-4 w-4 text-detractor" />
-              <span className="text-sm font-medium text-muted-foreground">Detractors</span>
-            </div>
-            <p className="text-2xl font-bold text-detractor">{hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count}</p>
-            <p className="text-xs text-muted-foreground">{pieData[2].percent}%</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              <span className="text-sm font-medium text-muted-foreground">Bounced</span>
-            </div>
-            <p className="text-2xl font-bold">{DEMO_SECONDARY_METRICS.bounced}</p>
-          </CardContent>
-        </Card>
+              Delivery Issues
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 rounded-lg bg-warning/5 border border-warning/20">
+                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.bounced}</p>
+                <p className="text-xs text-muted-foreground mt-1">Bounced</p>
+                <p className="text-xs text-warning mt-1">Undelivered</p>
+              </div>
 
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-info" />
-              <span className="text-sm font-medium text-muted-foreground">Throttled</span>
-            </div>
-            <p className="text-2xl font-bold">{DEMO_SECONDARY_METRICS.throttled}</p>
-          </CardContent>
-        </Card>
+              <div className="text-center p-4 rounded-lg bg-info/5 border border-info/20">
+                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.throttled}</p>
+                <p className="text-xs text-muted-foreground mt-1">Throttled</p>
+                <p className="text-xs text-info mt-1">Rate limited</p>
+              </div>
 
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <UserX className="h-4 w-4 text-destructive" />
-              <span className="text-sm font-medium text-muted-foreground">Unsubscribed</span>
+              <div className="text-center p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+                <p className="text-3xl font-bold text-foreground">{DEMO_SECONDARY_METRICS.unsubscribed}</p>
+                <p className="text-xs text-muted-foreground mt-1">Unsubscribed</p>
+                <p className="text-xs text-destructive mt-1">Opted out</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold">{DEMO_SECONDARY_METRICS.unsubscribed}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {loadingResponses ? (
-          <>
-            <ChartSkeleton />
-            <ChartSkeleton />
-          </>
-        ) : (
-          <>
-            {/* NPS Trend Chart */}
-            <Card className="shadow-soft border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">NPS Trend</CardTitle>
-                <div className="flex gap-1">
-                  {(['daily', 'weekly', 'monthly'] as const).map((view) => (
-                    <Button
-                      key={view}
-                      variant={trendView === view ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setTrendView(view)}
-                      className="text-xs"
-                    >
-                      {view.charAt(0).toUpperCase() + view.slice(1)}
-                    </Button>
-                  ))}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                        axisLine={{ stroke: 'hsl(var(--border))' }}
-                      />
-                      <YAxis
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                        axisLine={{ stroke: 'hsl(var(--border))' }}
-                        domain={[-100, 100]}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area
-                        type="monotone"
-                        dataKey="nps"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary) / 0.2)"
-                        strokeWidth={2}
-                        name="NPS Score"
-                        connectNulls
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Score Distribution Pie Chart */}
-            <Card className="shadow-soft border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Score Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={2}
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${percent}%`}
-                        labelLine={false}
+      {/* Charts Section - Full Width */}
+      <section aria-label="Charts" className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {loadingResponses ? (
+            <>
+              <div className="lg:col-span-2"><ChartSkeleton /></div>
+              <ChartSkeleton />
+            </>
+          ) : (
+            <>
+              {/* NPS Trend Chart - Takes 2/3 width */}
+              <Card className="shadow-soft border-border/50 lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-medium">NPS Trend</CardTitle>
+                  <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+                    {(['daily', 'weekly', 'monthly'] as const).map((view) => (
+                      <Button
+                        key={view}
+                        variant={trendView === view ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setTrendView(view)}
+                        className={cn(
+                          "text-xs h-7 px-3",
+                          trendView === view && "bg-background shadow-sm"
+                        )}
                       >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number, name: string) => [value, name]}
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
+                        {view.charAt(0).toUpperCase() + view.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <YAxis
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                          domain={[-100, 100]}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area
+                          type="monotone"
+                          dataKey="nps"
+                          stroke="hsl(var(--primary))"
+                          fill="hsl(var(--primary) / 0.2)"
+                          strokeWidth={2}
+                          name="NPS Score"
+                          connectNulls
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-      {/* Channel Performance Table */}
-      <Card className="shadow-soft border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Channel Performance</CardTitle>
-          <Select value={channelFilter} onValueChange={setChannelFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Channels" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              <SelectItem value="all">All Channels</SelectItem>
-              <SelectItem value="sms">SMS</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="qr">QR Code</SelectItem>
-              <SelectItem value="web">Web</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead className="text-right">Sent</TableHead>
-                <TableHead className="text-right">Completed</TableHead>
-                <TableHead className="text-right">Response Rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {channelData
-                .filter(c => channelFilter === 'all' || c.channel === channelFilter)
-                .map((channel) => (
+              {/* Score Distribution Pie Chart - Takes 1/3 width */}
+              <Card className="shadow-soft border-border/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium">Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="45%"
+                          innerRadius={50}
+                          outerRadius={85}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number, name: string) => [value, name]}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom"
+                          height={36}
+                          formatter={(value, entry: any) => (
+                            <span className="text-xs">{value}: {pieData.find(p => p.name === value)?.percent}%</span>
+                          )}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Channel Performance Table - Full Width */}
+      <section aria-label="Channel Performance" className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Channel Performance</h2>
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-semibold">Channel</TableHead>
+                  <TableHead className="text-right font-semibold">Sent</TableHead>
+                  <TableHead className="text-right font-semibold">Completed</TableHead>
+                  <TableHead className="text-right font-semibold">Response Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {channelData.map((channel) => (
                   <TableRow key={channel.channel}>
                     <TableCell>
                       <ChannelBadge channel={channel.channel as any} />
                     </TableCell>
-                    <TableCell className="text-right">{channel.sent.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">{channel.sent.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       {channel.completed > 0 ? channel.completed.toLocaleString() : '—'}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {channel.rate > 0 ? `${channel.rate}%` : '—'}
+                    <TableCell className="text-right">
+                      {channel.rate > 0 ? (
+                        <span className="font-semibold text-primary">{channel.rate}%</span>
+                      ) : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </section>
 
-      {/* Top Critical Feedback */}
-      <Card className="shadow-soft border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
+      {/* Top Critical Feedback - Full Width */}
+      <section aria-label="Critical Feedback" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-destructive" />
             Top Critical Feedback
-          </CardTitle>
+          </h2>
           <Button variant="ghost" size="sm" onClick={() => navigate('/nps/questions')}>
             View All <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {DEMO_CRITICAL_FEEDBACK.map((feedback) => (
-              <div
-                key={feedback.id}
-                className="flex items-start gap-4 p-4 rounded-lg border border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
-                role="button"
-                tabIndex={0}
-                aria-label={`Feedback from ${feedback.date} with score ${feedback.score}`}
-              >
-                <ScoreBadge score={feedback.score} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground line-clamp-2">{feedback.comment}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-muted-foreground">{feedback.date}</span>
-                    <ChannelBadge channel={feedback.channel as any} />
-                    {feedback.consent && (
-                      <span className="text-xs text-success">Can reply</span>
-                    )}
+        </div>
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-4">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {DEMO_CRITICAL_FEEDBACK.map((feedback) => (
+                <div
+                  key={feedback.id}
+                  className="flex items-start gap-4 p-4 rounded-lg border border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Feedback from ${feedback.date} with score ${feedback.score}`}
+                >
+                  <ScoreBadge score={feedback.score} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground line-clamp-2">{feedback.comment}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-xs text-muted-foreground">{feedback.date}</span>
+                      <ChannelBadge channel={feedback.channel as any} />
+                      {feedback.consent && (
+                        <span className="text-xs text-promoter font-medium">Can reply</span>
+                      )}
+                    </div>
                   </div>
+                  <Button variant="ghost" size="icon" className="shrink-0">
+                    <Eye className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" className="shrink-0">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Export and Alert Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center pt-4">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => handleExport('current')}>
             <Download className="mr-2 h-4 w-4" />
             Export Current View
@@ -632,7 +860,7 @@ export default function NPSDashboard() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-border pt-4 mt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-muted-foreground">
+      <footer className="border-t border-border pt-6 mt-8 flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-muted-foreground">
         <p>
           Displaying data for: {format(new Date(dateRange.from), 'MMM d, yyyy')} to {format(new Date(dateRange.to), 'MMM d, yyyy')}
         </p>
