@@ -207,15 +207,17 @@ export default function CreateEvent() {
 
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
+      const insertData = {
+        brand_id: formData.brandId || null,
+        name: formData.name || `draft-${Date.now()}`,
+        type: 'nps',
+        config: formData as unknown as Record<string, unknown>,
+        status: 'draft',
+      };
+      
       const { data, error } = await supabase
         .from('events')
-        .insert({
-          brand_id: formData.brandId || null,
-          name: formData.name || `draft-${Date.now()}`,
-          type: 'nps',
-          config: formData as unknown as Record<string, unknown>,
-          status: 'draft',
-        })
+        .insert(insertData as any)
         .select()
         .single();
 
