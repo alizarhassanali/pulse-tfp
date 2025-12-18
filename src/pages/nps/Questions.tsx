@@ -8,6 +8,7 @@ import { ChannelBadge } from '@/components/ui/channel-badge';
 import { ResponseCardSkeleton } from '@/components/ui/loading-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { ResponseDetailModal } from '@/components/nps/ResponseDetailModal';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -71,11 +72,18 @@ const demoResponses = [
       email: 'john.smith@example.com',
       phone: '+1 (555) 123-4567',
     },
+    event: { name: 'Post First Consult', brand_id: 'brand-1' },
+    brand: { name: 'Generation Fertility' },
+    location: { name: 'NewMarket' },
     invitation: { channel: 'sms' },
     answers: [
       {
         question: 'Is there anything we could improve?',
         answer: 'The wait time was a bit long. I had to wait almost 45 minutes past my scheduled appointment time, which was frustrating. The staff were friendly though.',
+      },
+      {
+        question: 'How would you rate our facilities?',
+        answer: 'Clean and modern, really impressed with the equipment.',
       },
     ],
   },
@@ -91,6 +99,9 @@ const demoResponses = [
       email: 'emma.johnson@example.com',
       phone: '+1 (555) 234-5678',
     },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-2' },
+    brand: { name: 'Olive Fertility' },
+    location: { name: 'Downtown' },
     invitation: { channel: 'email' },
     answers: [
       {
@@ -111,11 +122,22 @@ const demoResponses = [
       email: 'sarah.williams@example.com',
       phone: null,
     },
+    event: { name: 'Annual Check-In', brand_id: 'brand-1' },
+    brand: { name: 'Generation Fertility' },
+    location: { name: 'Vaughan' },
     invitation: { channel: 'email' },
     answers: [
       {
         question: 'What did you like most about your experience?',
         answer: 'The personalized care and attention to detail. The team took the time to answer all my questions and made sure I understood every step of my treatment plan.',
+      },
+      {
+        question: 'Any additional comments?',
+        answer: 'The online booking system was very easy to use.',
+      },
+      {
+        question: 'How satisfied are you with our communication?',
+        answer: 'Very satisfied - always got prompt responses to my emails.',
       },
     ],
   },
@@ -131,6 +153,9 @@ const demoResponses = [
       email: 'michael.brown@example.com',
       phone: '+1 (555) 345-6789',
     },
+    event: { name: 'Post First Consult', brand_id: 'brand-3' },
+    brand: { name: 'Grace Fertility' },
+    location: { name: 'Waterloo' },
     invitation: { channel: 'sms' },
     answers: [
       {
@@ -151,6 +176,9 @@ const demoResponses = [
       email: 'lisa.davis@example.com',
       phone: '+1 (555) 456-7890',
     },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-1' },
+    brand: { name: 'Generation Fertility' },
+    location: { name: 'TorontoWest' },
     invitation: { channel: 'qr' },
     answers: [
       {
@@ -171,11 +199,18 @@ const demoResponses = [
       email: 'david.miller@example.com',
       phone: null,
     },
+    event: { name: 'Annual Check-In', brand_id: 'brand-2' },
+    brand: { name: 'Olive Fertility' },
+    location: { name: 'Downtown' },
     invitation: { channel: 'web' },
     answers: [
       {
         question: 'Would you recommend us to a friend?',
         answer: 'Probably yes, but there is room for improvement in scheduling flexibility. It was hard to find appointment times that worked with my schedule.',
+      },
+      {
+        question: 'How was the parking situation?',
+        answer: 'Parking was difficult to find, had to park a block away.',
       },
     ],
   },
@@ -191,6 +226,9 @@ const demoResponses = [
       email: 'jennifer.garcia@example.com',
       phone: '+1 (555) 567-8901',
     },
+    event: { name: 'Post First Consult', brand_id: 'brand-1' },
+    brand: { name: 'Generation Fertility' },
+    location: { name: 'NewMarket' },
     invitation: { channel: 'email' },
     answers: [
       {
@@ -211,51 +249,14 @@ const demoResponses = [
       email: 'robert.martinez@example.com',
       phone: '+1 (555) 678-9012',
     },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-4' },
+    brand: { name: 'Conceptia Fertility' },
+    location: { name: 'Midtown' },
     invitation: { channel: 'sms' },
     answers: [
       {
         question: 'Is there anything we could improve?',
         answer: 'Very disappointed with the billing department. I received multiple incorrect bills and spent hours on the phone trying to resolve the issues. This was extremely stressful during an already difficult time.',
-      },
-    ],
-  },
-  {
-    id: 'demo-9',
-    nps_score: 10,
-    completed_at: '2025-12-13T10:15:00Z',
-    consent_given: true,
-    contact: {
-      id: 'contact-9',
-      first_name: 'Amanda',
-      last_name: 'Wilson',
-      email: 'amanda.wilson@example.com',
-      phone: null,
-    },
-    invitation: { channel: 'email' },
-    answers: [
-      {
-        question: 'Would you recommend us to a friend?',
-        answer: '100% yes! This clinic changed my life. After years of struggling, the team here finally gave me hope. I cannot thank them enough for their compassion and expertise.',
-      },
-    ],
-  },
-  {
-    id: 'demo-10',
-    nps_score: 5,
-    completed_at: '2025-12-12T14:30:00Z',
-    consent_given: false,
-    contact: {
-      id: 'contact-10',
-      first_name: 'Christopher',
-      last_name: 'Anderson',
-      email: 'chris.anderson@example.com',
-      phone: '+1 (555) 789-0123',
-    },
-    invitation: { channel: 'qr' },
-    answers: [
-      {
-        question: 'Is there anything we could improve?',
-        answer: 'Mixed feelings. The medical care was good but the administrative side needs improvement. Parking is difficult and expensive.',
       },
     ],
   },
@@ -278,6 +279,8 @@ export default function NPSQuestions() {
   const [selectedResponse, setSelectedResponse] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedAnswers, setExpandedAnswers] = useState<ExpandedAnswers>({});
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedDetailResponse, setSelectedDetailResponse] = useState<any>(null);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['nps-questions-responses', selectedBrands, selectedEvent, dateRange, scoreFilter, channelFilter],
@@ -659,7 +662,14 @@ export default function NPSQuestions() {
                       Send Message
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedDetailResponse(response);
+                      setDetailModalOpen(true);
+                    }}
+                  >
                     View Full Details
                   </Button>
                 </div>
@@ -782,6 +792,13 @@ export default function NPSQuestions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Full Details Modal */}
+      <ResponseDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        response={selectedDetailResponse}
+      />
     </div>
   );
 }

@@ -10,7 +10,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Select,
   SelectContent,
@@ -40,11 +39,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
   Pagination,
   PaginationContent,
   PaginationItem,
@@ -58,18 +52,16 @@ import {
   Eye, 
   RefreshCw, 
   Send, 
-  MoreHorizontal, 
-  CalendarIcon,
+  MoreHorizontal,
   ChevronDown,
   ExternalLink
 } from 'lucide-react';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
-// Demo data
+// Demo data with complete contact info
 const DEMO_SENT_LOGS = [
   {
     id: 'demo-1',
@@ -80,8 +72,9 @@ const DEMO_SENT_LOGS = [
     completed_at: '2025-12-22T10:20:00Z',
     status: 'completed',
     channel: 'sms',
-    contact: { id: 'c1', first_name: 'John', last_name: 'Smith', email: 'john.smith@example.com', phone: '+1 (555) 123-4567' },
-    event: { name: 'Post First Consult' },
+    contact: { id: 'c1', first_name: 'John', last_name: 'Smith', email: 'john.smith@example.com', phone: '+1 (555) 123-4567', preferred_channel: 'sms' },
+    event: { name: 'Post First Consult', brand: { name: 'Generation Fertility' } },
+    location: { name: 'NewMarket' },
     response: [{ nps_score: 9, completed_at: '2025-12-22T10:20:00Z' }],
   },
   {
@@ -93,8 +86,9 @@ const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'bounced',
     channel: 'email',
-    contact: { id: 'c2', first_name: 'Emma', last_name: 'Johnson', email: 'emma.johnson@example.com', phone: null },
-    event: { name: 'Post Treatment Follow-up' },
+    contact: { id: 'c2', first_name: 'Emma', last_name: 'Johnson', email: 'emma.johnson@example.com', phone: null, preferred_channel: 'email' },
+    event: { name: 'Post Treatment Follow-up', brand: { name: 'Olive Fertility' } },
+    location: { name: 'Downtown' },
     response: [],
   },
   {
@@ -106,8 +100,9 @@ const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'throttled',
     channel: 'sms',
-    contact: { id: 'c3', first_name: 'Sarah', last_name: 'Lee', email: 'sarah.lee@example.com', phone: '+1 (555) 234-5678' },
-    event: { name: 'Post First Consult' },
+    contact: { id: 'c3', first_name: 'Sarah', last_name: 'Lee', email: 'sarah.lee@example.com', phone: '+1 (555) 234-5678', preferred_channel: 'sms' },
+    event: { name: 'Post First Consult', brand: { name: 'Generation Fertility' } },
+    location: { name: 'Vaughan' },
     response: [],
   },
   {
@@ -119,8 +114,9 @@ const DEMO_SENT_LOGS = [
     completed_at: '2025-12-19T17:05:00Z',
     status: 'completed',
     channel: 'email',
-    contact: { id: 'c4', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+1 (555) 345-6789' },
-    event: { name: 'Annual Checkup' },
+    contact: { id: 'c4', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+1 (555) 345-6789', preferred_channel: 'email' },
+    event: { name: 'Annual Checkup', brand: { name: 'Grace Fertility' } },
+    location: { name: 'Waterloo' },
     response: [{ nps_score: 10, completed_at: '2025-12-19T17:05:00Z' }],
   },
   {
@@ -132,8 +128,9 @@ const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'delivered',
     channel: 'sms',
-    contact: { id: 'c5', first_name: 'Lisa', last_name: 'Williams', email: 'lisa.williams@example.com', phone: '+1 (555) 456-7890' },
-    event: { name: 'Post First Consult' },
+    contact: { id: 'c5', first_name: 'Lisa', last_name: 'Williams', email: 'lisa.williams@example.com', phone: '+1 (555) 456-7890', preferred_channel: 'both' },
+    event: { name: 'Post First Consult', brand: { name: 'Generation Fertility' } },
+    location: { name: 'TorontoWest' },
     response: [],
   },
   {
@@ -145,8 +142,9 @@ const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'unsubscribed',
     channel: 'email',
-    contact: { id: 'c6', first_name: 'David', last_name: 'Brown', email: 'david.brown@example.com', phone: null },
-    event: { name: 'Post Treatment Follow-up' },
+    contact: { id: 'c6', first_name: 'David', last_name: 'Brown', email: 'david.brown@example.com', phone: null, preferred_channel: 'email' },
+    event: { name: 'Post Treatment Follow-up', brand: { name: 'Conceptia Fertility' } },
+    location: { name: 'Midtown' },
     response: [],
   },
   {
@@ -158,8 +156,9 @@ const DEMO_SENT_LOGS = [
     completed_at: '2025-12-16T15:35:00Z',
     status: 'completed',
     channel: 'qr',
-    contact: { id: 'c7', first_name: 'Jennifer', last_name: 'Garcia', email: 'jennifer.garcia@example.com', phone: '+1 (555) 567-8901' },
-    event: { name: 'Post First Consult' },
+    contact: { id: 'c7', first_name: 'Jennifer', last_name: 'Garcia', email: 'jennifer.garcia@example.com', phone: '+1 (555) 567-8901', preferred_channel: 'email' },
+    event: { name: 'Post First Consult', brand: { name: 'Generation Fertility' } },
+    location: { name: 'NewMarket' },
     response: [{ nps_score: 7, completed_at: '2025-12-16T15:35:00Z' }],
   },
   {
@@ -171,84 +170,25 @@ const DEMO_SENT_LOGS = [
     completed_at: '2025-12-15T12:10:00Z',
     status: 'completed',
     channel: 'email',
-    contact: { id: 'c8', first_name: 'Robert', last_name: 'Martinez', email: 'robert.martinez@example.com', phone: '+1 (555) 678-9012' },
-    event: { name: 'Annual Checkup' },
+    contact: { id: 'c8', first_name: 'Robert', last_name: 'Martinez', email: 'robert.martinez@example.com', phone: '+1 (555) 678-9012', preferred_channel: 'email' },
+    event: { name: 'Annual Checkup', brand: { name: 'Olive Fertility' } },
+    location: { name: 'Downtown' },
     response: [{ nps_score: 3, completed_at: '2025-12-15T12:10:00Z' }],
-  },
-  {
-    id: 'demo-9',
-    created_at: '2025-12-14T08:45:00Z',
-    sent_at: '2025-12-14T08:45:05Z',
-    delivered_at: '2025-12-14T08:45:10Z',
-    opened_at: null,
-    completed_at: null,
-    status: 'delivered',
-    channel: 'web',
-    contact: { id: 'c9', first_name: 'Amanda', last_name: 'Wilson', email: 'amanda.wilson@example.com', phone: null },
-    event: { name: 'Post First Consult' },
-    response: [],
-  },
-  {
-    id: 'demo-10',
-    created_at: '2025-12-13T15:30:00Z',
-    sent_at: '2025-12-13T15:30:05Z',
-    delivered_at: null,
-    opened_at: null,
-    completed_at: null,
-    status: 'bounced',
-    channel: 'email',
-    contact: { id: 'c10', first_name: 'Christopher', last_name: 'Anderson', email: 'chris.anderson@example.com', phone: '+1 (555) 789-0123' },
-    event: { name: 'Post Treatment Follow-up' },
-    response: [],
-  },
-  {
-    id: 'demo-11',
-    created_at: '2025-12-12T10:15:00Z',
-    sent_at: '2025-12-12T10:15:05Z',
-    delivered_at: '2025-12-12T10:15:10Z',
-    opened_at: '2025-12-12T11:00:00Z',
-    completed_at: '2025-12-12T11:08:00Z',
-    status: 'completed',
-    channel: 'sms',
-    contact: { id: 'c11', first_name: 'Jessica', last_name: 'Taylor', email: 'jessica.taylor@example.com', phone: '+1 (555) 890-1234' },
-    event: { name: 'Post First Consult' },
-    response: [{ nps_score: 8, completed_at: '2025-12-12T11:08:00Z' }],
-  },
-  {
-    id: 'demo-12',
-    created_at: '2025-12-11T13:00:00Z',
-    sent_at: '2025-12-11T13:00:05Z',
-    delivered_at: '2025-12-11T13:00:10Z',
-    opened_at: '2025-12-11T14:20:00Z',
-    completed_at: '2025-12-11T14:25:00Z',
-    status: 'completed',
-    channel: 'email',
-    contact: { id: 'c12', first_name: 'Daniel', last_name: 'Thomas', email: 'daniel.thomas@example.com', phone: '+1 (555) 901-2345' },
-    event: { name: 'Annual Checkup' },
-    response: [{ nps_score: 6, completed_at: '2025-12-11T14:25:00Z' }],
   },
 ];
 
 const ITEMS_PER_PAGE = 10;
 
-type DateRangePreset = '7' | '30' | '90' | 'custom';
-
 export default function SentLogs() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { selectedBrands, selectedEvent, dateRange, setDateRange } = useFilterStore();
+  const { selectedBrands, selectedEvent, dateRange } = useFilterStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('30');
-  const [customDateOpen, setCustomDateOpen] = useState(false);
-  const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  });
 
   const { data: invitations = [], isLoading } = useQuery({
     queryKey: ['sent-logs', selectedBrands, selectedEvent, dateRange, statusFilter, channelFilter],
@@ -284,7 +224,7 @@ export default function SentLogs() {
   });
 
   // Use demo data if no real data
-  const displayData = invitations.length > 0 ? invitations : DEMO_SENT_LOGS;
+  const displayData: any[] = invitations.length > 0 ? invitations : DEMO_SENT_LOGS;
 
   // Filter by search
   const filteredInvitations = useMemo(() => {
@@ -325,33 +265,6 @@ export default function SentLogs() {
     setCurrentPage(1);
   }, [search, statusFilter, channelFilter, dateRange]);
 
-  const handleDateRangePresetChange = (value: DateRangePreset) => {
-    setDateRangePreset(value);
-    
-    if (value === 'custom') {
-      setCustomDateOpen(true);
-      return;
-    }
-
-    const to = new Date();
-    const from = subDays(to, parseInt(value));
-    
-    setDateRange({
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
-    });
-  };
-
-  const handleCustomDateApply = () => {
-    if (customDateRange.from && customDateRange.to) {
-      setDateRange({
-        from: format(customDateRange.from, 'yyyy-MM-dd'),
-        to: format(customDateRange.to, 'yyyy-MM-dd'),
-      });
-      setCustomDateOpen(false);
-    }
-  };
-
   const handleViewDetail = (invitation: any) => {
     setSelectedLog(invitation);
     setDetailOpen(true);
@@ -367,14 +280,38 @@ export default function SentLogs() {
   const handleExport = (type: 'current' | 'all') => {
     const dataToExport = type === 'current' ? filteredInvitations : displayData;
     
-    const headers = ['Date Sent', 'Contact Name', 'Email', 'Event', 'Channel', 'Status', 'Score'];
+    const headers = [
+      'Full Name',
+      'Email',
+      'Phone',
+      'Preferred Channel',
+      'Brand',
+      'Location',
+      'Event',
+      'Channel Used',
+      'Status',
+      'Created At',
+      'Sent At',
+      'Delivered At',
+      'Opened At',
+      'Completed At',
+      'Score'
+    ];
     const rows = dataToExport.map((inv) => [
-      inv.sent_at ? format(parseISO(inv.sent_at), 'MMM d, yyyy') : format(parseISO(inv.created_at), 'MMM d, yyyy'),
       `${inv.contact?.first_name || ''} ${inv.contact?.last_name || ''}`.trim(),
       inv.contact?.email || '',
+      inv.contact?.phone || '',
+      inv.contact?.preferred_channel || '',
+      inv.event?.brand?.name || inv.brand?.name || '',
+      inv.location?.name || '',
       inv.event?.name || '',
       inv.channel,
       inv.status,
+      inv.created_at ? format(parseISO(inv.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      inv.sent_at ? format(parseISO(inv.sent_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      inv.delivered_at ? format(parseISO(inv.delivered_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      inv.opened_at ? format(parseISO(inv.opened_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      inv.completed_at ? format(parseISO(inv.completed_at), 'yyyy-MM-dd HH:mm:ss') : '',
       inv.response?.[0]?.nps_score ?? '',
     ]);
 
@@ -463,63 +400,6 @@ export default function SentLogs() {
             <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
           </SelectContent>
         </Select>
-
-        {/* Date Range Picker */}
-        <Popover open={customDateOpen} onOpenChange={setCustomDateOpen}>
-          <PopoverTrigger asChild>
-            <div>
-              <Select value={dateRangePreset} onValueChange={handleDateRangePresetChange}>
-                <SelectTrigger className="w-[180px] bg-card border-border">
-                  <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Date range" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border border-border shadow-lg z-50">
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                  <SelectItem value="custom">Custom range</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-4 bg-popover border border-border shadow-lg z-50" align="end">
-            <div className="space-y-4">
-              <p className="text-sm font-medium">Select date range</p>
-              <div className="flex gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">From</p>
-                  <Calendar
-                    mode="single"
-                    selected={customDateRange.from}
-                    onSelect={(date) => setCustomDateRange((prev) => ({ ...prev, from: date }))}
-                    className={cn("p-3 pointer-events-auto rounded-md border")}
-                  />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">To</p>
-                  <Calendar
-                    mode="single"
-                    selected={customDateRange.to}
-                    onSelect={(date) => setCustomDateRange((prev) => ({ ...prev, to: date }))}
-                    className={cn("p-3 pointer-events-auto rounded-md border")}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCustomDateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handleCustomDateApply}
-                  disabled={!customDateRange.from || !customDateRange.to}
-                >
-                  Apply
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
 
       {/* Results count */}

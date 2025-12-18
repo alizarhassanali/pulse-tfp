@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useFilterStore } from '@/stores/filterStore';
 import { PageHeader } from '@/components/ui/page-header';
 import { MetricCard } from '@/components/ui/metric-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -13,13 +14,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Search, ExternalLink, MessageSquare, Calendar as CalendarIcon, TrendingUp, TrendingDown } from 'lucide-react';
-import { format, parseISO, subDays, isWithinInterval } from 'date-fns';
+import { Star, Search, ExternalLink, MessageSquare, TrendingUp, TrendingDown } from 'lucide-react';
+import { format, parseISO, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
 
 // Demo reviews
 const demoReviews = [
@@ -83,19 +81,33 @@ const demoReviews = [
 export default function Reviews() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { selectedBrands, selectedLocations, dateRange } = useFilterStore();
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [respondedFilter, setRespondedFilter] = useState('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [respondModalOpen, setRespondModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [responseText, setResponseText] = useState('');
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
 
   const { data: dbReviews = [], isLoading } = useQuery({
-    queryKey: ['reviews', ratingFilter, respondedFilter],
+    queryKey: ['reviews', selectedBrands, selectedLocations, dateRange, ratingFilter, respondedFilter],
     queryFn: async () => {
-      let query = supabase.from('reviews').select('*, location:locations(name)').order('created_at', { ascending: false });
+      let query = supabase
+        .from('reviews')
+        .select('*, location:locations(name, brand_id), brand:brands(name)')
+        .gte('created_at', dateRange.from)
+        .lte('created_at', dateRange.to + 'T23:59:59')
+        .order('created_at', { ascending: false });
+      
+      if (selectedBrands.length > 0) {
+        query = query.in('brand_id', selectedBrands);
+      }
+      
+      if (selectedLocations.length > 0) {
+        query = query.in('location_id', selectedLocations);
+      }
+      
       if (ratingFilter !== 'all') query = query.eq('rating', parseInt(ratingFilter));
       if (respondedFilter === 'responded') query = query.not('responded_at', 'is', null);
       if (respondedFilter === 'not_responded') query = query.is('responded_at', null);
@@ -107,25 +119,16 @@ export default function Reviews() {
 
   const reviews = dbReviews.length > 0 ? dbReviews : demoReviews;
 
-  // Apply date filter
-  const dateFilteredReviews = dateRange?.from
-    ? reviews.filter((r) => {
-        const reviewDate = parseISO(r.created_at);
-        if (dateRange.to) {
-          return isWithinInterval(reviewDate, { start: dateRange.from!, end: dateRange.to });
-        }
-        return reviewDate >= dateRange.from!;
-      })
-    : reviews;
-
   // Apply search filter
-  const filteredReviews = dateFilteredReviews.filter((r) => {
-    if (!search) return true;
-    return (
-      r.reviewer_name?.toLowerCase().includes(search.toLowerCase()) ||
-      r.review_text?.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  const filteredReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      if (!search) return true;
+      return (
+        r.reviewer_name?.toLowerCase().includes(search.toLowerCase()) ||
+        r.review_text?.toLowerCase().includes(search.toLowerCase())
+      );
+    });
+  }, [reviews, search]);
 
   // Calculate metrics
   const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) : '0.0';
@@ -228,38 +231,6 @@ export default function Reviews() {
             <SelectItem value="not_responded">Unresponded</SelectItem>
           </SelectContent>
         </Select>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[200px] justify-start">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`
-                ) : (
-                  format(dateRange.from, 'MMM d, yyyy')
-                )
-              ) : (
-                'Date Range'
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              selected={dateRange}
-              onSelect={setDateRange}
-              numberOfMonths={2}
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-
-        {dateRange && (
-          <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
-            Clear dates
-          </Button>
-        )}
       </div>
 
       {/* Review List */}
