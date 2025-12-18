@@ -27,53 +27,21 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, MoreVertical, Edit, Copy, Trash2, Power, Building2, Send, Search, HelpCircle } from 'lucide-react';
+import { Plus, Calendar, MoreVertical, Edit, Copy, Trash2, Power, Building2, Send, Search, HelpCircle, MapPin } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-
-// Demo events for when no data exists
-const demoEvents = [
-  {
-    id: 'demo-1',
-    name: 'first-consult-nps',
-    metric_question: 'How likely are you to recommend us to a friend or colleague?',
-    status: 'active',
-    created_at: '2025-12-15T10:00:00Z',
-    brand: { name: 'Generation Fertility' },
-    event_locations: [{ location_id: '1' }, { location_id: '2' }],
-    invitations: Array(3500).fill({ id: '1', completed_at: null }).map((_, i) => ({ id: String(i), completed_at: i < 1050 ? '2025-12-01' : null })),
-  },
-  {
-    id: 'demo-2',
-    name: 'post-treatment-nps',
-    metric_question: 'How satisfied are you with your treatment experience?',
-    status: 'active',
-    created_at: '2025-12-10T10:00:00Z',
-    brand: { name: 'Olive Fertility' },
-    event_locations: [{ location_id: '1' }],
-    invitations: Array(1200).fill({}).map((_, i) => ({ id: String(i), completed_at: i < 480 ? '2025-12-01' : null })),
-  },
-  {
-    id: 'demo-3',
-    name: 'follow-up-nps',
-    metric_question: 'How likely are you to recommend our services?',
-    status: 'draft',
-    created_at: '2025-12-05T10:00:00Z',
-    brand: { name: 'Grace Fertility' },
-    event_locations: [],
-    invitations: [],
-  },
-];
+import { DEMO_MANAGE_EVENTS, DEMO_BRANDS, getLocationName } from '@/data/demo-data';
 
 export default function ManageEvents() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { selectedBrands } = useFilterStore();
+  // Only use Brand and Location filters - NOT the global Event filter
+  const { selectedBrands, selectedLocations } = useFilterStore();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const { data: dbEvents = [], isLoading } = useQuery({
-    queryKey: ['events', selectedBrands],
+    queryKey: ['events', selectedBrands, selectedLocations],
     queryFn: async () => {
       let query = supabase
         .from('events')
@@ -91,16 +59,43 @@ export default function ManageEvents() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Filter by locations if selected
+      let filteredData = data || [];
+      if (selectedLocations.length > 0) {
+        filteredData = filteredData.filter(event => {
+          if (!event.event_locations || event.event_locations.length === 0) {
+            return true; // Events with no location restrictions match all
+          }
+          return event.event_locations.some((el: any) => 
+            selectedLocations.includes(el.location_id)
+          );
+        });
+      }
+      
+      return filteredData;
     },
   });
 
-  // Use demo data if no real data
-  const events = dbEvents.length > 0 ? dbEvents : demoEvents;
+  // Use demo data if no real data, but filter by selected brands
+  const events = dbEvents.length > 0 ? dbEvents : DEMO_MANAGE_EVENTS.filter(event => {
+    if (selectedBrands.length > 0 && !selectedBrands.includes(event.brand_id)) {
+      return false;
+    }
+    if (selectedLocations.length > 0) {
+      if (!event.event_locations || event.event_locations.length === 0) {
+        return true;
+      }
+      return event.event_locations.some((el: any) => 
+        selectedLocations.includes(el.location_id)
+      );
+    }
+    return true;
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (id.startsWith('demo-')) {
+      if (id.startsWith('e1a2c3d4')) {
         throw new Error('Cannot delete demo events');
       }
       const { error } = await supabase.from('events').delete().eq('id', id);
@@ -111,14 +106,15 @@ export default function ManageEvents() {
       toast({ title: 'Event deleted successfully' });
       setDeleteId(null);
     },
-    onError: () => {
-      toast({ title: 'Failed to delete event', variant: 'destructive' });
+    onError: (error: any) => {
+      toast({ title: 'Failed to delete event', description: error.message, variant: 'destructive' });
     },
   });
 
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      if (id.startsWith('demo-')) {
+      if (id.startsWith('e1a2c3d4')) {
+        toast({ title: 'Demo mode', description: 'Status would be toggled in production' });
         return status === 'active' ? 'inactive' : 'active';
       }
       const newStatus = status === 'active' ? 'inactive' : 'active';
@@ -133,7 +129,7 @@ export default function ManageEvents() {
   });
 
   const duplicateEvent = async (event: any) => {
-    if (event.id.startsWith('demo-')) {
+    if (event.id.startsWith('e1a2c3d4')) {
       toast({ title: 'Event duplicated (demo)', description: 'This is a demo action' });
       return;
     }
@@ -159,6 +155,19 @@ export default function ManageEvents() {
       event.brand?.name?.toLowerCase().includes(search.toLowerCase())
     );
   });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge className="bg-success">Active</Badge>;
+      case 'draft':
+        return <Badge variant="secondary">Draft</Badge>;
+      case 'inactive':
+        return <Badge variant="outline">Paused</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -194,9 +203,12 @@ export default function ManageEvents() {
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
             const locationCount = event.event_locations?.length || 0;
+            const locationNames = event.event_locations?.slice(0, 3)
+              .map((el: any) => getLocationName(el.location_id))
+              .join(', ') || 'All Locations';
             const sendsCount = event.invitations?.length || 0;
             const completedCount = event.invitations?.filter((i: any) => i.completed_at).length || 0;
-            const completionRate = sendsCount > 0 ? Math.round((completedCount / sendsCount) * 100) : 0;
+            const responseRate = sendsCount > 0 ? Math.round((completedCount / sendsCount) * 100) : 0;
 
             return (
               <Card key={event.id} className="shadow-soft border-border/50 card-hover">
@@ -204,12 +216,7 @@ export default function ManageEvents() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold font-mono">{event.name}</CardTitle>
-                      <Badge
-                        variant={event.status === 'active' ? 'default' : 'secondary'}
-                        className={event.status === 'active' ? 'bg-success' : ''}
-                      >
-                        {event.status === 'active' ? 'Active' : event.status === 'draft' ? 'Draft' : 'Paused'}
-                      </Badge>
+                      {getStatusBadge(event.status)}
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -230,7 +237,7 @@ export default function ManageEvents() {
                           onClick={() => toggleStatusMutation.mutate({ id: event.id, status: event.status })}
                         >
                           <Power className="h-4 w-4 mr-2" />
-                          {event.status === 'active' ? 'Deactivate' : 'Activate'}
+                          {event.status === 'active' ? 'Pause' : 'Activate'}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
@@ -250,24 +257,35 @@ export default function ManageEvents() {
                     <span className="line-clamp-2">{event.metric_question || 'How likely are you to recommend us?'}</span>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  {/* Brand & Location */}
+                  <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Building2 className="h-4 w-4" />
                       {event.brand?.name || 'Unknown Brand'}
                     </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {locationCount > 3 ? `${locationNames}...` : locationCount === 0 ? 'All Locations' : locationNames}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t">
                     <div>
-                      <p className="text-2xl font-bold">{sendsCount.toLocaleString()}</p>
+                      <p className="text-xl font-bold">{sendsCount.toLocaleString()}</p>
                       <p className="text-xs text-muted-foreground">Sent</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{completionRate}%</p>
-                      <p className="text-xs text-muted-foreground">Completion Rate</p>
+                      <p className="text-xl font-bold">{completedCount.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">{responseRate}%</p>
+                      <p className="text-xs text-muted-foreground">Rate</p>
                     </div>
                   </div>
 
+                  {/* Actions */}
                   <div className="flex items-center gap-2 pt-2">
                     <Button
                       variant="outline"

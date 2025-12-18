@@ -1,52 +1,53 @@
 // Shared demo data for brands, locations, events, and contacts
+// Using proper UUID format for database compatibility
 
 export const DEMO_BRANDS = [
-  { id: 'conceptia', name: 'Conceptia Fertility' },
-  { id: 'generation', name: 'Generation Fertility' },
-  { id: 'grace', name: 'Grace Fertility' },
-  { id: 'olive', name: 'Olive Fertility' },
+  { id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', name: 'Conceptia Fertility' },
+  { id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', name: 'Generation Fertility' },
+  { id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', name: 'Grace Fertility' },
+  { id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', name: 'Olive Fertility' },
 ];
 
-export const DEMO_LOCATIONS: Record<string, { id: string; name: string }[]> = {
-  generation: [
-    { id: 'newmarket', name: 'NewMarket' },
-    { id: 'vaughan', name: 'Vaughan' },
-    { id: 'torontowest', name: 'TorontoWest' },
-    { id: 'waterloo', name: 'Waterloo' },
+export const DEMO_LOCATIONS: Record<string, { id: string; name: string; gmb_link?: string }[]> = {
+  'b1a2c3d4-e5f6-4789-abcd-222222222222': [
+    { id: 'l1a2c3d4-e5f6-4789-abcd-111111111111', name: 'NewMarket', gmb_link: 'https://g.page/r/generation-newmarket/review' },
+    { id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', name: 'Vaughan', gmb_link: 'https://g.page/r/generation-vaughan/review' },
+    { id: 'l1a2c3d4-e5f6-4789-abcd-333333333333', name: 'TorontoWest', gmb_link: 'https://g.page/r/generation-torontowest/review' },
+    { id: 'l1a2c3d4-e5f6-4789-abcd-444444444444', name: 'Waterloo', gmb_link: 'https://g.page/r/generation-waterloo/review' },
   ],
-  conceptia: [
-    { id: 'downtown', name: 'Downtown' },
-    { id: 'midtown', name: 'Midtown' },
+  'b1a2c3d4-e5f6-4789-abcd-111111111111': [
+    { id: 'l2a2c3d4-e5f6-4789-abcd-111111111111', name: 'Downtown', gmb_link: 'https://g.page/r/conceptia-downtown/review' },
+    { id: 'l2a2c3d4-e5f6-4789-abcd-222222222222', name: 'Midtown', gmb_link: 'https://g.page/r/conceptia-midtown/review' },
   ],
-  grace: [
-    { id: 'vancouver', name: 'Vancouver' },
-    { id: 'burnaby', name: 'Burnaby' },
+  'b1a2c3d4-e5f6-4789-abcd-333333333333': [
+    { id: 'l3a2c3d4-e5f6-4789-abcd-111111111111', name: 'Vancouver', gmb_link: 'https://g.page/r/grace-vancouver/review' },
+    { id: 'l3a2c3d4-e5f6-4789-abcd-222222222222', name: 'Burnaby', gmb_link: 'https://g.page/r/grace-burnaby/review' },
   ],
-  olive: [
-    { id: 'calgary', name: 'Calgary' },
-    { id: 'edmonton', name: 'Edmonton' },
+  'b1a2c3d4-e5f6-4789-abcd-444444444444': [
+    { id: 'l4a2c3d4-e5f6-4789-abcd-111111111111', name: 'Calgary', gmb_link: 'https://g.page/r/olive-calgary/review' },
+    { id: 'l4a2c3d4-e5f6-4789-abcd-222222222222', name: 'Edmonton', gmb_link: 'https://g.page/r/olive-edmonton/review' },
   ],
 };
 
 export const DEMO_EVENTS = [
-  { id: 'post-first-consult', name: 'Post First Consult' },
-  { id: 'post-treatment-followup', name: 'Post Treatment Follow-up' },
-  { id: 'annual-checkup', name: 'Annual Check-In' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-111111111111', name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-222222222222', name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-333333333333', name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
 ];
 
 // Demo contacts with all required fields
 export const DEMO_CONTACTS = [
-  { id: 'c1', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand_id: 'generation', location_id: 'newmarket', status: 'active', last_score: 9 },
-  { id: 'c2', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand_id: 'grace', location_id: 'vancouver', status: 'unsubscribed', last_score: 6 },
-  { id: 'c3', first_name: 'Emma', last_name: 'Johnson', email: 'emma@example.com', phone: '+15552345678', preferred_channel: 'both', brand_id: 'generation', location_id: 'vaughan', status: 'active', last_score: 10 },
-  { id: 'c4', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+15553456789', preferred_channel: 'email', brand_id: 'conceptia', location_id: 'downtown', status: 'active', last_score: 8 },
-  { id: 'c5', first_name: 'Sarah', last_name: 'Williams', email: 'sarah.w@example.com', phone: null, preferred_channel: 'email', brand_id: 'olive', location_id: 'calgary', status: 'active', last_score: 7 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-111111111111', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 9 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-222222222222', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111', status: 'unsubscribed', last_score: 6 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-333333333333', first_name: 'Emma', last_name: 'Johnson', email: 'emma@example.com', phone: '+15552345678', preferred_channel: 'both', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 10 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-444444444444', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+15553456789', preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 8 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-555555555555', first_name: 'Sarah', last_name: 'Williams', email: 'sarah.w@example.com', phone: null, preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', location_id: 'l4a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 7 },
 ];
 
 // Demo sent logs with complete information
 export const DEMO_SENT_LOGS = [
   {
-    id: 'demo-1',
+    id: 's1a2c3d4-e5f6-4789-abcd-111111111111',
     created_at: '2025-12-22T09:30:00Z',
     sent_at: '2025-12-22T09:30:05Z',
     delivered_at: '2025-12-22T09:30:10Z',
@@ -54,14 +55,14 @@ export const DEMO_SENT_LOGS = [
     completed_at: '2025-12-22T10:20:00Z',
     status: 'completed',
     channel: 'sms',
-    contact: { id: 'c1', first_name: 'John', last_name: 'Smith', email: 'john.smith@example.com', phone: '+1 (555) 123-4567', preferred_channel: 'sms' },
-    event: { name: 'Post First Consult', brand_id: 'generation' },
+    contact: { id: 'c1a2c3d4-e5f6-4789-abcd-111111111111', first_name: 'John', last_name: 'Smith', email: 'john.smith@example.com', phone: '+1 (555) 123-4567', preferred_channel: 'sms' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'NewMarket' },
     response: [{ nps_score: 9, completed_at: '2025-12-22T10:20:00Z' }],
   },
   {
-    id: 'demo-2',
+    id: 's1a2c3d4-e5f6-4789-abcd-222222222222',
     created_at: '2025-12-21T14:00:00Z',
     sent_at: '2025-12-21T14:00:05Z',
     delivered_at: null,
@@ -69,14 +70,14 @@ export const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'bounced',
     channel: 'email',
-    contact: { id: 'c2', first_name: 'Emma', last_name: 'Johnson', email: 'emma.johnson@example.com', phone: null, preferred_channel: 'email' },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'grace' },
+    contact: { id: 'c1a2c3d4-e5f6-4789-abcd-222222222222', first_name: 'Emma', last_name: 'Johnson', email: 'emma.johnson@example.com', phone: null, preferred_channel: 'email' },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
     brand: { name: 'Grace Fertility' },
     location: { name: 'Vancouver' },
     response: [],
   },
   {
-    id: 'demo-3',
+    id: 's1a2c3d4-e5f6-4789-abcd-333333333333',
     created_at: '2025-12-20T11:45:00Z',
     sent_at: '2025-12-20T11:45:05Z',
     delivered_at: null,
@@ -84,8 +85,8 @@ export const DEMO_SENT_LOGS = [
     completed_at: null,
     status: 'throttled',
     channel: 'sms',
-    contact: { id: 'c3', first_name: 'Sarah', last_name: 'Lee', email: 'sarah.lee@example.com', phone: '+1 (555) 234-5678', preferred_channel: 'sms' },
-    event: { name: 'Post First Consult', brand_id: 'generation' },
+    contact: { id: 'c1a2c3d4-e5f6-4789-abcd-333333333333', first_name: 'Sarah', last_name: 'Lee', email: 'sarah.lee@example.com', phone: '+1 (555) 234-5678', preferred_channel: 'sms' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'Vaughan' },
     response: [],
@@ -95,18 +96,20 @@ export const DEMO_SENT_LOGS = [
 // Demo responses with multiple follow-up questions
 export const DEMO_RESPONSES = [
   {
-    id: 'resp-1',
+    id: 'r1a2c3d4-e5f6-4789-abcd-111111111111',
     nps_score: 6,
     completed_at: '2025-12-22T10:30:00Z',
     consent_given: true,
+    brand: 'Generation Fertility',
+    location: 'NewMarket',
     contact: {
-      id: 'c1',
+      id: 'c1a2c3d4-e5f6-4789-abcd-111111111111',
       first_name: 'John',
       last_name: 'Smith',
       email: 'john.smith@example.com',
       phone: '+1 (555) 123-4567',
     },
-    event: { name: 'Post First Consult', brand_id: 'generation' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     invitation: { channel: 'sms' },
     answers: [
       { question: 'What could we improve?', answer: 'The wait time was too long. I had to wait almost 45 minutes past my scheduled appointment.' },
@@ -115,41 +118,179 @@ export const DEMO_RESPONSES = [
     ],
   },
   {
-    id: 'resp-2',
+    id: 'r1a2c3d4-e5f6-4789-abcd-222222222222',
     nps_score: 9,
     completed_at: '2025-12-21T14:15:00Z',
     consent_given: true,
+    brand: 'Grace Fertility',
+    location: 'Vancouver',
     contact: {
-      id: 'c2',
+      id: 'c1a2c3d4-e5f6-4789-abcd-222222222222',
       first_name: 'Emma',
       last_name: 'Johnson',
       email: 'emma.johnson@example.com',
       phone: '+1 (555) 234-5678',
     },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'grace' },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
     invitation: { channel: 'email' },
     answers: [
       { question: 'What did you like most?', answer: 'The personalized care and attention to detail. Dr. Chen was exceptional!' },
     ],
   },
   {
-    id: 'resp-3',
+    id: 'r1a2c3d4-e5f6-4789-abcd-333333333333',
     nps_score: 3,
     completed_at: '2025-12-20T16:45:00Z',
     consent_given: false,
+    brand: 'Conceptia Fertility',
+    location: 'Downtown',
     contact: {
-      id: 'c3',
+      id: 'c1a2c3d4-e5f6-4789-abcd-333333333333',
       first_name: 'Michael',
       last_name: 'Brown',
       email: 'michael.brown@example.com',
       phone: '+1 (555) 345-6789',
     },
-    event: { name: 'Annual Check-In', brand_id: 'conceptia' },
+    event: { name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
     invitation: { channel: 'sms' },
     answers: [
       { question: 'What could we improve?', answer: 'Communication needs serious work. No one returned my calls for days.' },
       { question: 'Rate the facility cleanliness', answer: '3' },
     ],
+  },
+];
+
+// Demo reviews per location
+export const DEMO_REVIEWS = [
+  {
+    id: 'rev1-e5f6-4789-abcd-111111111111',
+    reviewer_name: 'Alice L.',
+    rating: 5,
+    review_text: 'Amazing experience! The staff was incredibly friendly and professional. Dr. Smith took the time to explain everything clearly. Highly recommend this clinic to anyone looking for quality care.',
+    created_at: '2025-12-21T10:00:00Z',
+    responded_at: null,
+    response_text: null,
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
+    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
+    source_url: 'https://google.com/review/1',
+  },
+  {
+    id: 'rev2-e5f6-4789-abcd-222222222222',
+    reviewer_name: 'Bob M.',
+    rating: 2,
+    review_text: 'Wait time was way too long. I had an appointment at 2pm but wasn\'t seen until 3:30pm. The actual care was fine but the scheduling needs improvement.',
+    created_at: '2025-12-20T14:00:00Z',
+    responded_at: null,
+    response_text: null,
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222',
+    location: { name: 'Vaughan', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
+    source_url: 'https://google.com/review/2',
+  },
+  {
+    id: 'rev3-e5f6-4789-abcd-333333333333',
+    reviewer_name: 'Carol P.',
+    rating: 5,
+    review_text: 'Best fertility clinic in the city! After trying for years, we finally have good news thanks to the team here.',
+    created_at: '2025-12-19T09:00:00Z',
+    responded_at: '2025-12-19T15:00:00Z',
+    response_text: 'Thank you so much for sharing your wonderful news with us! We are thrilled to be part of your journey.',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
+    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
+    source_url: 'https://google.com/review/3',
+  },
+  {
+    id: 'rev4-e5f6-4789-abcd-444444444444',
+    reviewer_name: 'David R.',
+    rating: 4,
+    review_text: 'Good service overall. Modern facilities and knowledgeable doctors. Only giving 4 stars because parking was difficult.',
+    created_at: '2025-12-18T11:00:00Z',
+    responded_at: '2025-12-18T16:00:00Z',
+    response_text: 'Thank you for your feedback! We appreciate your kind words and are working on improving parking options.',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333',
+    location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111',
+    location: { name: 'Vancouver', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
+    brand: { name: 'Grace Fertility' },
+    source_url: 'https://google.com/review/4',
+  },
+  {
+    id: 'rev5-e5f6-4789-abcd-555555555555',
+    reviewer_name: 'Emily S.',
+    rating: 3,
+    review_text: 'Average experience. Nothing special but nothing terrible either.',
+    created_at: '2025-12-17T08:00:00Z',
+    responded_at: null,
+    response_text: null,
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-333333333333',
+    location: { name: 'TorontoWest', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
+    source_url: 'https://google.com/review/5',
+  },
+  {
+    id: 'rev6-e5f6-4789-abcd-666666666666',
+    reviewer_name: 'Frank T.',
+    rating: 5,
+    review_text: 'Exceptional care from start to finish. The entire team was supportive and professional.',
+    created_at: '2025-12-16T12:00:00Z',
+    responded_at: null,
+    response_text: null,
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    location_id: 'l1a2c3d4-e5f6-4789-abcd-444444444444',
+    location: { name: 'Waterloo', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
+    brand: { name: 'Generation Fertility' },
+    source_url: 'https://google.com/review/6',
+  },
+];
+
+// Demo events for manage events page
+export const DEMO_MANAGE_EVENTS = [
+  {
+    id: 'e1a2c3d4-e5f6-4789-abcd-111111111111',
+    name: 'post-first-consult',
+    metric_question: 'How likely are you to recommend us to a friend or colleague?',
+    status: 'active',
+    created_at: '2025-12-15T10:00:00Z',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
+    brand: { name: 'Generation Fertility' },
+    event_locations: [
+      { location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111' },
+      { location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222' },
+    ],
+    invitations: Array(3500).fill({ id: '1', completed_at: null }).map((_, i) => ({ 
+      id: `inv-${i}`, 
+      completed_at: i < 1050 ? '2025-12-01' : null 
+    })),
+  },
+  {
+    id: 'e1a2c3d4-e5f6-4789-abcd-222222222222',
+    name: 'post-treatment-followup',
+    metric_question: 'How satisfied are you with your treatment experience?',
+    status: 'active',
+    created_at: '2025-12-10T10:00:00Z',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333',
+    brand: { name: 'Grace Fertility' },
+    event_locations: [{ location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111' }],
+    invitations: Array(1200).fill({}).map((_, i) => ({ 
+      id: `inv-${i}`, 
+      completed_at: i < 480 ? '2025-12-01' : null 
+    })),
+  },
+  {
+    id: 'e1a2c3d4-e5f6-4789-abcd-333333333333',
+    name: 'annual-check-in',
+    metric_question: 'How likely are you to recommend our services?',
+    status: 'draft',
+    created_at: '2025-12-05T10:00:00Z',
+    brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111',
+    brand: { name: 'Conceptia Fertility' },
+    event_locations: [],
+    invitations: [],
   },
 ];
 
@@ -164,6 +305,13 @@ export const getAvailableLocations = (selectedBrands: string[]) => {
     .map(l => ({ value: l.id, label: l.name }));
 };
 
+// Helper to get all locations as flat array
+export const getAllLocations = () => {
+  return Object.entries(DEMO_LOCATIONS).flatMap(([brandId, locs]) => 
+    locs.map(l => ({ ...l, brand_id: brandId }))
+  );
+};
+
 // Helper to get brand name by ID
 export const getBrandName = (brandId: string): string => {
   return DEMO_BRANDS.find(b => b.id === brandId)?.name || 'Unknown Brand';
@@ -176,4 +324,13 @@ export const getLocationName = (locationId: string): string => {
     if (loc) return loc.name;
   }
   return 'Unknown Location';
+};
+
+// Helper to get location by ID
+export const getLocationById = (locationId: string) => {
+  for (const [brandId, locs] of Object.entries(DEMO_LOCATIONS)) {
+    const loc = locs.find(l => l.id === locationId);
+    if (loc) return { ...loc, brand_id: brandId };
+  }
+  return null;
 };
