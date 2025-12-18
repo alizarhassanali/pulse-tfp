@@ -180,31 +180,31 @@ export default function CreateEvent() {
       const eventInsert = {
         brand_id: formData.brandId,
         name: formData.name,
-        type: 'nps',
+        type: 'nps' as const,
         metric_question: formData.metricQuestion,
         languages: formData.languages,
         intro_message: formData.introMessage,
         throttle_days: formData.throttleDays,
-        consent_config: {
+        consent_config: JSON.parse(JSON.stringify({
           collectConsent: formData.collectConsent,
           consentText: formData.consentText,
           collectContact: formData.collectContact,
           contactFields: formData.contactFields,
-        },
-        thank_you_config: {
+        })),
+        thank_you_config: JSON.parse(JSON.stringify({
           mode: formData.thankYouMode,
           config: formData.thankYouConfig,
           locationConfig: formData.locationThankYouConfig,
-        },
-        config: {
+        })),
+        config: JSON.parse(JSON.stringify({
           defaultLanguage: formData.defaultLanguage,
-        },
+        })),
         status,
       };
 
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .insert(eventInsert)
+        .insert([eventInsert])
         .select()
         .single();
 
