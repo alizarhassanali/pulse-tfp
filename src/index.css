@@ -68,9 +68,9 @@
     --chart-4: 199 89% 48%;
     --chart-5: 262 83% 58%;
 
-    /* Topbar */
-    --topbar: 217 47% 28%;
-    --topbar-foreground: 0 0% 100%;
+    /* Topbar - Light neutral */
+    --topbar: 220 14% 96%;
+    --topbar-foreground: 220 50% 20%;
 
     /* Score badges */
     --promoter: 142 76% 36%;
@@ -123,7 +123,7 @@
     --input: 217 32% 17%;
     --ring: 5 100% 74%;
 
-    --topbar: 220 40% 6%;
+    --topbar: 220 20% 14%;
     --topbar-foreground: 210 40% 98%;
   }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   MessageSquareText,
@@ -16,9 +16,19 @@ import {
   UserCog,
   ChevronDown,
   ChevronRight,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -123,6 +133,53 @@ function NavGroupComponent({ group }: { group: NavGroup }) {
   );
 }
 
+function UserMenu() {
+  const navigate = useNavigate();
+  const { profile } = useAuthStore();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
+
+  const initials = profile?.name
+    ? profile.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+    : profile?.email?.charAt(0).toUpperCase() || 'U';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-sidebar-hover transition-colors text-left">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {profile?.name || 'User'}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {profile?.email}
+            </p>
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-48">
+        <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function Sidebar() {
   const location = useLocation();
 
@@ -143,10 +200,8 @@ export function Sidebar() {
         })}
       </nav>
       
-      <div className="p-4 border-t border-sidebar-hover">
-        <div className="text-xs text-muted-foreground text-center">
-          UserPulse v1.0.0
-        </div>
+      <div className="p-3 border-t border-sidebar-hover">
+        <UserMenu />
       </div>
     </aside>
   );
