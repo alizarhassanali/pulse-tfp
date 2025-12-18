@@ -1,1 +1,4 @@
 project_id = "nxvapwsrhvbypaasupjc"
+
+[functions.categorize-feedback]
+verify_jwt = true
