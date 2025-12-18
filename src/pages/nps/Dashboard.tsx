@@ -8,13 +8,6 @@ import { CardSkeleton, ChartSkeleton, TableRowSkeleton } from '@/components/ui/l
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -46,70 +39,14 @@ import {
   AlertTriangle,
   Download,
   Bell,
-  Calendar,
   MessageSquare,
   Eye,
   ArrowRight,
-  Building2,
-  MapPin,
-  Zap,
-  Check,
-  ChevronsUpDown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays } from 'date-fns';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from '@/components/ui/command';
-import { Checkbox } from '@/components/ui/checkbox';
-
-// Demo data for brands and locations
-const DEMO_BRANDS = [
-  { id: 'conceptia', name: 'Conceptia Fertility' },
-  { id: 'generation', name: 'Generation Fertility' },
-  { id: 'grace', name: 'Grace Fertility' },
-  { id: 'olive', name: 'Olive Fertility' },
-];
-
-const DEMO_LOCATIONS: Record<string, { id: string; name: string }[]> = {
-  generation: [
-    { id: 'newmarket', name: 'NewMarket' },
-    { id: 'vaughan', name: 'Vaughan' },
-    { id: 'torontowest', name: 'TorontoWest' },
-    { id: 'waterloo', name: 'Waterloo' },
-  ],
-  conceptia: [
-    { id: 'downtown', name: 'Downtown' },
-    { id: 'midtown', name: 'Midtown' },
-  ],
-  grace: [
-    { id: 'vancouver', name: 'Vancouver' },
-    { id: 'burnaby', name: 'Burnaby' },
-  ],
-  olive: [
-    { id: 'calgary', name: 'Calgary' },
-    { id: 'edmonton', name: 'Edmonton' },
-  ],
-};
-
-const DEMO_EVENTS = [
-  { id: 'post-first-consult', name: 'Post First Consult' },
-  { id: 'post-treatment-followup', name: 'Post Treatment Follow-up' },
-  { id: 'annual-checkup', name: 'Annual Checkup' },
-];
 
 // Demo data
 const DEMO_PRIMARY_METRICS = {
@@ -164,96 +101,6 @@ const DEMO_CRITICAL_FEEDBACK = [
 
 const PIE_COLORS = ['hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)'];
 
-// Multi-select dropdown component for dashboard
-interface FilterMultiSelectProps {
-  options: { value: string; label: string }[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
-  placeholder: string;
-  allLabel: string;
-  icon: React.ReactNode;
-}
-
-function FilterMultiSelect({ options, selected, onChange, placeholder, allLabel, icon }: FilterMultiSelectProps) {
-  const [open, setOpen] = useState(false);
-
-  const handleSelectAll = () => {
-    onChange([]);
-  };
-
-  const handleSelect = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter((s) => s !== value));
-    } else {
-      onChange([...selected, value]);
-    }
-  };
-
-  const displayText = selected.length === 0 
-    ? allLabel 
-    : selected.length === 1 
-      ? options.find(o => o.value === selected[0])?.label || allLabel
-      : `${selected.length} selected`;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="h-10 px-4 justify-between bg-card border-border hover:bg-accent/50 min-w-[180px]"
-        >
-          <div className="flex items-center gap-2">
-            {icon}
-            <span className="text-sm font-medium truncate max-w-[120px]">{displayText}</span>
-          </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[220px] p-0 bg-popover border border-border shadow-lg z-50" align="start">
-        <Command>
-          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} className="h-9" />
-          <CommandList>
-            <CommandEmpty>No {placeholder.toLowerCase()} found.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                onSelect={handleSelectAll}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <Checkbox 
-                    checked={selected.length === 0} 
-                    className="pointer-events-none"
-                  />
-                  <span className="font-medium">{allLabel}</span>
-                </div>
-              </CommandItem>
-              <CommandSeparator />
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.label}
-                  onSelect={() => handleSelect(option.value)}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <Checkbox 
-                      checked={selected.includes(option.value)} 
-                      className="pointer-events-none"
-                    />
-                    <span>{option.label}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 export default function NPSDashboard() {
   const navigate = useNavigate();
   const { 
@@ -261,47 +108,8 @@ export default function NPSDashboard() {
     selectedLocations, 
     selectedEvent, 
     dateRange, 
-    setDateRange,
-    setSelectedBrands,
-    setSelectedLocations,
-    setSelectedEvent,
   } = useFilterStore();
   const [trendView, setTrendView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-
-  // Set default demo selections
-  useEffect(() => {
-    if (selectedBrands.length === 0) {
-      setSelectedBrands(['generation']);
-      setSelectedLocations(['newmarket', 'vaughan']);
-      setSelectedEvent('post-first-consult');
-    }
-  }, []);
-
-  // Get available locations based on selected brands
-  const getAvailableLocations = () => {
-    if (selectedBrands.length === 0) {
-      return Object.values(DEMO_LOCATIONS).flat().map(l => ({ value: l.id, label: l.name }));
-    }
-    return selectedBrands
-      .filter(b => DEMO_LOCATIONS[b])
-      .flatMap(b => DEMO_LOCATIONS[b])
-      .map(l => ({ value: l.id, label: l.name }));
-  };
-
-  // Clear invalid locations when brands change
-  useEffect(() => {
-    if (selectedBrands.length > 0) {
-      const availableLocs = getAvailableLocations().map(l => l.value);
-      const validLocations = selectedLocations.filter(l => availableLocs.includes(l));
-      if (validLocations.length !== selectedLocations.length) {
-        setSelectedLocations(validLocations);
-      }
-    }
-  }, [selectedBrands]);
-
-  const brands = DEMO_BRANDS.map(b => ({ value: b.id, label: b.name }));
-  const locations = getAvailableLocations();
-  const events = DEMO_EVENTS.map(e => ({ value: e.id, label: e.name }));
 
   // Fetch survey responses for metrics
   const { data: responses = [], isLoading: loadingResponses } = useQuery({
@@ -415,30 +223,6 @@ export default function NPSDashboard() {
     { name: 'Detractors', value: hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count, percent: hasRealData && total > 0 ? Math.round((detractors / total) * 100) : DEMO_SECONDARY_METRICS.detractors.percent },
   ];
 
-  const handleDateRangeChange = (value: string) => {
-    const to = new Date();
-    let from = new Date();
-    
-    switch (value) {
-      case '30':
-        from.setDate(from.getDate() - 30);
-        break;
-      case '60':
-        from.setDate(from.getDate() - 60);
-        break;
-      case '90':
-        from.setDate(from.getDate() - 90);
-        break;
-      default:
-        from.setDate(from.getDate() - 30);
-    }
-    
-    setDateRange({
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
-    });
-  };
-
   const handleExport = (type: 'all' | 'current') => {
     console.log(`Exporting ${type} data...`);
   };
@@ -457,65 +241,21 @@ export default function NPSDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Filter Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">NPS Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
-          </div>
-          
-          {/* Filters row */}
-          <div className="flex flex-wrap items-center gap-3">
-            <FilterMultiSelect
-              options={brands}
-              selected={selectedBrands}
-              onChange={setSelectedBrands}
-              placeholder="Brands"
-              allLabel="All Brands"
-              icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
-            />
-
-            <FilterMultiSelect
-              options={locations}
-              selected={selectedLocations}
-              onChange={setSelectedLocations}
-              placeholder="Locations"
-              allLabel="All Locations"
-              icon={<MapPin className="h-4 w-4 text-muted-foreground" />}
-            />
-
-            <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-              <SelectTrigger className="h-10 min-w-[180px] bg-card border-border">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="All Events" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border shadow-lg z-50">
-                <SelectItem value="all">All Events</SelectItem>
-                {events.map((event) => (
-                  <SelectItem key={event.value} value={event.value}>
-                    {event.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select defaultValue="30" onValueChange={handleDateRangeChange}>
-              <SelectTrigger className="h-10 min-w-[160px] bg-card border-border">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Select range" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border shadow-lg z-50">
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="60">Last 60 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">NPS Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport('current')}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm">
+            <Bell className="h-4 w-4 mr-2" />
+            Set Alert
+          </Button>
         </div>
       </div>
 
