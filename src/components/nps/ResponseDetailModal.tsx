@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,8 +12,9 @@ import {
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { Separator } from '@/components/ui/separator';
+import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect';
 import { format, parseISO } from 'date-fns';
-import { Mail, Phone, CheckCircle, XCircle, Calendar, Building2, MapPin, MessageSquare } from 'lucide-react';
+import { Mail, Phone, CheckCircle, XCircle, Calendar, Building2, MapPin, MessageSquare, Tag } from 'lucide-react';
 
 interface ResponseDetailModalProps {
   open: boolean;
@@ -21,6 +23,21 @@ interface ResponseDetailModalProps {
 }
 
 export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDetailModalProps) {
+  // Fetch categories for this response
+  const { data: categoryAssignments = [] } = useQuery({
+    queryKey: ['response-categories', response?.id],
+    queryFn: async () => {
+      if (!response?.id) return [];
+      const { data, error } = await supabase
+        .from('response_category_assignments')
+        .select('category_id')
+        .eq('response_id', response.id);
+      if (error) throw error;
+      return data?.map((d: any) => d.category_id) || [];
+    },
+    enabled: !!response?.id && open,
+  });
+
   if (!response) return null;
 
   const getScoreCategory = (score: number) => {
@@ -156,6 +173,20 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
                 </div>
               )}
             </div>
+          </div>
+
+          <Separator />
+
+          {/* Feedback Categories */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Feedback Categories
+            </h4>
+            <FeedbackCategorySelect
+              responseId={response.id}
+              selectedCategories={categoryAssignments}
+            />
           </div>
 
           <Separator />
