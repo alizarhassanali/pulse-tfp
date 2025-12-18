@@ -14,6 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_logs: {
+        Row: {
+          automation_rule_id: string | null
+          channel: string
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          response_id: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          template_id: string | null
+        }
+        Insert: {
+          automation_rule_id?: string | null
+          channel: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          response_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          template_id?: string | null
+        }
+        Update: {
+          automation_rule_id?: string | null
+          channel?: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          response_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_rule_id_fkey"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          brand_id: string | null
+          channel: string
+          created_at: string | null
+          created_by: string | null
+          delay_hours: number | null
+          event_id: string | null
+          feedback_condition: string
+          id: string
+          name: string
+          status: string
+          template_id: string | null
+          throttle_days: number | null
+          trigger_group: string
+          updated_at: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          channel: string
+          created_at?: string | null
+          created_by?: string | null
+          delay_hours?: number | null
+          event_id?: string | null
+          feedback_condition?: string
+          id?: string
+          name: string
+          status?: string
+          template_id?: string | null
+          throttle_days?: number | null
+          trigger_group: string
+          updated_at?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          channel?: string
+          created_at?: string | null
+          created_by?: string | null
+          delay_hours?: number | null
+          event_id?: string | null
+          feedback_condition?: string
+          id?: string
+          name?: string
+          status?: string
+          template_id?: string | null
+          throttle_days?: number | null
+          trigger_group?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           colors: Json | null
@@ -442,18 +586,24 @@ export type Database = {
           assigned_by: string | null
           category_id: string
           response_id: string
+          source: string
+          updated_at: string | null
         }
         Insert: {
           assigned_at?: string | null
           assigned_by?: string | null
           category_id: string
           response_id: string
+          source?: string
+          updated_at?: string | null
         }
         Update: {
           assigned_at?: string | null
           assigned_by?: string | null
           category_id?: string
           response_id?: string
+          source?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -525,6 +675,41 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submission_notes: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          id: string
+          note_text: string
+          response_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          id?: string
+          note_text: string
+          response_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          note_text?: string
+          response_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_notes_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
             referencedColumns: ["id"]
           },
         ]

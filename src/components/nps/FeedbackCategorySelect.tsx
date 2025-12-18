@@ -4,14 +4,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown, X, Tag } from 'lucide-react';
-import { useState } from 'react';
+import { Check, ChevronsUpDown, X, Tag, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+
+interface CategoryAssignment {
+  category_id: string;
+  source: string;
+}
 
 interface FeedbackCategorySelectProps {
   responseId: string;
   selectedCategories: string[];
+  categoryAssignments?: CategoryAssignment[];
   onCategoriesChange?: (categories: string[]) => void;
   readOnly?: boolean;
   size?: 'sm' | 'default';
@@ -20,6 +27,7 @@ interface FeedbackCategorySelectProps {
 export function FeedbackCategorySelect({ 
   responseId,
   selectedCategories: initialCategories,
+  categoryAssignments = [],
   onCategoriesChange,
   readOnly = false,
   size = 'default'
@@ -28,6 +36,11 @@ export function FeedbackCategorySelect({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
+
+  // Sync with prop changes
+  useEffect(() => {
+    setSelectedCategories(initialCategories);
+  }, [initialCategories]);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['feedback-categories-active'],
@@ -50,19 +63,21 @@ export function FeedbackCategorySelect({
         .delete()
         .eq('response_id', responseId);
       
-      // Insert new assignments
+      // Insert new assignments as manual
       if (newCategories.length > 0) {
         const { error } = await supabase
           .from('response_category_assignments')
           .insert(newCategories.map(categoryId => ({
             response_id: responseId,
             category_id: categoryId,
+            source: 'manual',
           })));
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['response-categories', responseId] });
+      queryClient.invalidateQueries({ queryKey: ['category-assignments'] });
       toast({ title: 'Categories updated' });
     },
     onError: (error: any) => {
@@ -91,15 +106,46 @@ export function FeedbackCategorySelect({
   };
 
   const selectedCategoryNames = categories.filter((cat: any) => selectedCategories.includes(cat.id));
+  
+  // Build a map of category ID to source
+  const sourceMap = new Map(categoryAssignments.map(a => [a.category_id, a.source]));
+
+  const CategoryBadge = ({ cat, showRemove = false }: { cat: any; showRemove?: boolean }) => {
+    const source = sourceMap.get(cat.id);
+    const isAI = source === 'ai';
+    
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge 
+            variant={showRemove ? "secondary" : "outline"} 
+            className={cn("text-xs", isAI && "border-primary/50")}
+          >
+            {isAI && <Sparkles className="h-3 w-3 mr-1 text-primary" />}
+            {cat.name}
+            {showRemove && (
+              <button
+                className="ml-1 ring-offset-background rounded-full outline-none"
+                onClick={(e) => handleRemove(cat.id, e)}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          {isAI ? 'AI-assigned category' : 'Manually assigned'}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
 
   if (readOnly) {
     return (
       <div className="flex flex-wrap gap-1">
         {selectedCategoryNames.length > 0 ? (
           selectedCategoryNames.map((cat: any) => (
-            <Badge key={cat.id} variant="outline" className="text-xs">
-              {cat.name}
-            </Badge>
+            <CategoryBadge key={cat.id} cat={cat} />
           ))
         ) : (
           <span className="text-muted-foreground text-xs">No categories</span>
@@ -124,15 +170,7 @@ export function FeedbackCategorySelect({
           <div className="flex flex-wrap gap-1 flex-1">
             {selectedCategoryNames.length > 0 ? (
               selectedCategoryNames.map((cat: any) => (
-                <Badge key={cat.id} variant="secondary" className="text-xs">
-                  {cat.name}
-                  <button
-                    className="ml-1 ring-offset-background rounded-full outline-none"
-                    onClick={(e) => handleRemove(cat.id, e)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
+                <CategoryBadge key={cat.id} cat={cat} showRemove />
               ))
             ) : (
               <span className="text-muted-foreground text-xs">Add categories</span>

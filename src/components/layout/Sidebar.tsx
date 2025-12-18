@@ -18,6 +18,7 @@ import {
   ChevronRight,
   LogOut,
   Tag,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -75,6 +76,7 @@ const navigation: (NavItem | NavGroup)[] = [
     items: [
       { icon: User, label: 'Profile', href: '/settings/profile' },
       { icon: FileText, label: 'Templates', href: '/settings/templates', section: 'templates' },
+      { icon: Zap, label: 'Automations', href: '/settings/automations', section: 'templates' },
       { icon: Tag, label: 'Feedback Categories', href: '/settings/feedback-categories', section: 'templates' },
       { icon: Building2, label: 'Brands', href: '/settings/brands', section: 'brands' },
       { icon: UserCog, label: 'Users', href: '/settings/users', section: 'users' },

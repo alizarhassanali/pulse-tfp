@@ -13,6 +13,7 @@ import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { Separator } from '@/components/ui/separator';
 import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect';
+import { InternalNotesSection } from '@/components/nps/InternalNotesSection';
 import { format, parseISO } from 'date-fns';
 import { Mail, Phone, CheckCircle, XCircle, Calendar, Building2, MapPin, MessageSquare, Tag } from 'lucide-react';
 
@@ -23,17 +24,17 @@ interface ResponseDetailModalProps {
 }
 
 export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDetailModalProps) {
-  // Fetch categories for this response
+  // Fetch categories with source info for this response
   const { data: categoryAssignments = [] } = useQuery({
-    queryKey: ['response-categories', response?.id],
+    queryKey: ['response-categories-with-source', response?.id],
     queryFn: async () => {
       if (!response?.id) return [];
       const { data, error } = await supabase
         .from('response_category_assignments')
-        .select('category_id')
+        .select('category_id, source')
         .eq('response_id', response.id);
       if (error) throw error;
-      return data?.map((d: any) => d.category_id) || [];
+      return data || [];
     },
     enabled: !!response?.id && open,
   });
@@ -45,6 +46,8 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
     if (score >= 7) return 'Passive';
     return 'Detractor';
   };
+
+  const selectedCategoryIds = categoryAssignments.map((d: any) => d.category_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,9 +188,15 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
             </h4>
             <FeedbackCategorySelect
               responseId={response.id}
-              selectedCategories={categoryAssignments}
+              selectedCategories={selectedCategoryIds}
+              categoryAssignments={categoryAssignments}
             />
           </div>
+
+          <Separator />
+
+          {/* Internal Notes */}
+          <InternalNotesSection responseId={response.id} />
 
           <Separator />
 
