@@ -9,6 +9,7 @@ import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { Mail, Phone, Send, Building, MapPin, Tag } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { DEMO_CONTACTS, getBrandName, getLocationName } from '@/data/demo-data';
 
 interface ContactDetailsModalProps {
   contactId: string | null;
@@ -16,11 +17,57 @@ interface ContactDetailsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Helper to check if an ID is a demo ID (non-UUID format)
+const isDemoId = (id: string | null): boolean => {
+  if (!id) return false;
+  // Demo IDs are short strings like 'c1', 'c2', 'contact-1', etc.
+  // Real UUIDs are 36 chars with specific format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return !uuidRegex.test(id);
+};
+
+// Get demo contact data for non-UUID IDs
+const getDemoContactData = (contactId: string) => {
+  // Try to find by exact match first
+  let contact = DEMO_CONTACTS.find(c => c.id === contactId);
+  
+  // If not found, create synthetic demo data
+  if (!contact) {
+    return {
+      id: contactId,
+      first_name: 'Demo',
+      last_name: 'Contact',
+      email: 'demo@example.com',
+      phone: '+1 (555) 000-0000',
+      preferred_channel: 'email',
+      brand: { name: 'Demo Brand' },
+      location: { name: 'Demo Location' },
+      status: 'active',
+      created_at: new Date().toISOString(),
+    };
+  }
+  
+  return {
+    ...contact,
+    brand: { name: getBrandName(contact.brand_id) },
+    location: { name: getLocationName(contact.location_id) },
+    created_at: new Date().toISOString(),
+  };
+};
+
 export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDetailsModalProps) {
+  const isDemo = isDemoId(contactId);
+  
   const { data: contact, isLoading: loadingContact } = useQuery({
     queryKey: ['contact-detail', contactId],
     queryFn: async () => {
       if (!contactId) return null;
+      
+      // For demo IDs, return synthetic data
+      if (isDemo) {
+        return getDemoContactData(contactId);
+      }
+      
       const { data, error } = await supabase
         .from('contacts')
         .select('*, brand:brands(name), location:locations(name)')
@@ -35,7 +82,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
   const { data: tags = [] } = useQuery({
     queryKey: ['contact-tags', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('contact_tag_assignments')
         .select('tag:contact_tags(id, name)')
@@ -43,13 +90,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data?.map((d: any) => d.tag) || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const { data: submissions = [] } = useQuery({
     queryKey: ['contact-submissions', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('survey_responses')
         .select('*, event:events(name)')
@@ -59,13 +106,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const { data: communications = [] } = useQuery({
     queryKey: ['contact-communications', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('survey_invitations')
         .select('*, event:events(name)')
@@ -75,7 +122,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const getPreferredMethodDisplay = (channel: string | null) => {
