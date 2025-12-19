@@ -19,6 +19,8 @@ import {
   LogOut,
   Tag,
   Zap,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -29,6 +31,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -88,8 +92,32 @@ function isNavGroup(item: NavItem | NavGroup): item is NavGroup {
   return 'items' in item;
 }
 
-function NavItemComponent({ item, isActive }: { item: NavItem; isActive: boolean }) {
+function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActive: boolean; collapsed: boolean }) {
   const Icon = item.icon;
+  
+  if (collapsed) {
+    return (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <Link
+            to={item.href}
+            className={cn(
+              'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
+              isActive 
+                ? 'bg-sidebar-hover text-primary' 
+                : 'text-sidebar-foreground hover:bg-sidebar-hover'
+            )}
+          >
+            <Icon className="h-5 w-5 shrink-0" />
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="font-medium">
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <Link
       to={item.href}
@@ -101,7 +129,7 @@ function NavItemComponent({ item, isActive }: { item: NavItem; isActive: boolean
   );
 }
 
-function NavGroupComponent({ group, canViewSection }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean }) {
+function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean; collapsed: boolean }) {
   const location = useLocation();
   
   // Filter items based on permissions
@@ -116,6 +144,48 @@ function NavGroupComponent({ group, canViewSection }: { group: NavGroup; canView
   const isGroupActive = visibleItems.some((item) => location.pathname === item.href);
   const [isOpen, setIsOpen] = useState(group.defaultOpen || isGroupActive);
   const Icon = group.icon;
+
+  if (collapsed) {
+    return (
+      <DropdownMenu>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
+                  isGroupActive 
+                    ? 'bg-sidebar-hover text-primary' 
+                    : 'text-sidebar-foreground hover:bg-sidebar-hover'
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {group.label}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent side="right" align="start" className="w-48">
+          {visibleItems.map((item) => (
+            <DropdownMenuItem key={item.href} asChild>
+              <Link
+                to={item.href}
+                className={cn(
+                  'flex items-center gap-2 w-full',
+                  location.pathname === item.href && 'bg-accent'
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -143,6 +213,7 @@ function NavGroupComponent({ group, canViewSection }: { group: NavGroup; canView
             key={item.href}
             item={item}
             isActive={location.pathname === item.href}
+            collapsed={false}
           />
         ))}
       </CollapsibleContent>
@@ -150,7 +221,7 @@ function NavGroupComponent({ group, canViewSection }: { group: NavGroup; canView
   );
 }
 
-function UserMenu() {
+function UserMenu({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
 
@@ -166,6 +237,36 @@ function UserMenu() {
         .join('')
         .toUpperCase()
     : profile?.email?.charAt(0).toUpperCase() || 'U';
+
+  if (collapsed) {
+    return (
+      <DropdownMenu>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center justify-center w-10 h-10 mx-auto rounded-lg hover:bg-sidebar-hover transition-colors">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {profile?.name || 'User'}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="start" side="right" className="w-48">
+          <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+            <LogOut className="mr-2 h-4 w-4" />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -200,6 +301,7 @@ function UserMenu() {
 export function Sidebar() {
   const location = useLocation();
   const { canViewSection, isSuperAdmin, isLoading } = usePermissions();
+  const [collapsed, setCollapsed] = useState(false);
 
   // Helper function that handles undefined section
   const checkCanView = (section?: AppSection): boolean => {
@@ -209,31 +311,55 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-60 bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col">
-      <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item, index) => {
-          if (isNavGroup(item)) {
-            return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} />;
-          }
-          
-          // For non-group items, check permission
-          if (item.section && !checkCanView(item.section)) {
-            return null;
-          }
-          
-          return (
-            <NavItemComponent
-              key={item.href}
-              item={item}
-              isActive={location.pathname === item.href}
-            />
-          );
-        })}
-      </nav>
-      
-      <div className="p-3 border-t border-sidebar-hover">
-        <UserMenu />
-      </div>
-    </aside>
+    <TooltipProvider>
+      <aside 
+        className={cn(
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300',
+          collapsed ? 'w-16' : 'w-60'
+        )}
+      >
+        {/* Collapse toggle */}
+        <div className={cn('p-2 flex', collapsed ? 'justify-center' : 'justify-end')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-hover"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? (
+              <PanelLeft className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <nav className={cn('flex-1 space-y-2', collapsed ? 'px-2' : 'px-4')}>
+          {navigation.map((item, index) => {
+            if (isNavGroup(item)) {
+              return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} collapsed={collapsed} />;
+            }
+            
+            // For non-group items, check permission
+            if (item.section && !checkCanView(item.section)) {
+              return null;
+            }
+            
+            return (
+              <NavItemComponent
+                key={item.href}
+                item={item}
+                isActive={location.pathname === item.href}
+                collapsed={collapsed}
+              />
+            );
+          })}
+        </nav>
+        
+        <div className={cn('border-t border-sidebar-hover', collapsed ? 'p-2' : 'p-3')}>
+          <UserMenu collapsed={collapsed} />
+        </div>
+      </aside>
+    </TooltipProvider>
   );
 }
