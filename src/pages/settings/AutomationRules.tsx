@@ -354,12 +354,12 @@ export default function AutomationRules() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Event (Optional)</Label>
-                <Select value={form.event_id} onValueChange={(v) => setForm({ ...form, event_id: v })}>
+                <Select value={form.event_id || "__all__"} onValueChange={(v) => setForm({ ...form, event_id: v === "__all__" ? "" : v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Events" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Events</SelectItem>
+                    <SelectItem value="__all__">All Events</SelectItem>
                     {events.map((e) => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
@@ -369,12 +369,12 @@ export default function AutomationRules() {
 
               <div className="space-y-2">
                 <Label>Brand (Optional)</Label>
-                <Select value={form.brand_id} onValueChange={(v) => setForm({ ...form, brand_id: v })}>
+                <Select value={form.brand_id || "__all__"} onValueChange={(v) => setForm({ ...form, brand_id: v === "__all__" ? "" : v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Brands" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Brands</SelectItem>
+                    <SelectItem value="__all__">All Brands</SelectItem>
                     {brands.map((b) => (
                       <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                     ))}
