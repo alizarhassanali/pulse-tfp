@@ -105,7 +105,7 @@ export default function Templates() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader 
-        title="Templates" 
+        title="Message Templates" 
         description="Manage communication templates for emails, SMS, and Google Review responses" 
         actions={
           <Button 

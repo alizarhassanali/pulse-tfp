@@ -172,8 +172,8 @@ export default function ManageEvents() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Manage NPS Events"
-        description="Create and manage your survey events"
+        title="Events & Surveys"
+        description="Create and manage your NPS surveys and events"
         actions={
           <Button className="btn-coral" onClick={() => navigate('/nps/events/create')}>
             <Plus className="h-4 w-4 mr-2" />

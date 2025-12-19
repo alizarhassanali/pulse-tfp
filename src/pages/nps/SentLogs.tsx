@@ -341,7 +341,7 @@ export default function SentLogs() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Sent Logs"
+        title="Send History"
         description="Track delivery status and engagement for survey invitations"
         actions={
           <DropdownMenu>
