@@ -282,7 +282,7 @@ export default function Integration() {
     return (
       <div className="space-y-6 animate-fade-in">
         <PageHeader
-          title="Integration"
+          title="Distribution"
           description="Distribute your surveys through various channels"
         />
         
@@ -318,7 +318,7 @@ export default function Integration() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Integration"
+        title="Distribution"
         description="Distribute your surveys through various channels"
       />
 

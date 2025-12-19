@@ -114,8 +114,8 @@ export default function FeedbackCategories() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Feedback Categories"
-        description="Manage categories for classifying NPS feedback responses"
+        title="Feedback Tags"
+        description="Manage tags for classifying NPS feedback responses"
         actions={
           <div className="flex gap-2">
             <Button

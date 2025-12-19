@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   MessageSquareText,
   Send,
   Calendar,
-  Plug,
+  Share2,
   Star,
   Users,
   UserX,
@@ -19,8 +19,8 @@ import {
   LogOut,
   Tag,
   Zap,
-  PanelLeftClose,
-  PanelLeft,
+  ChevronLeft,
+  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -60,9 +60,9 @@ const navigation: (NavItem | NavGroup)[] = [
     items: [
       { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard', section: 'dashboard' },
       { icon: MessageSquareText, label: 'Questions', href: '/nps/questions', section: 'questions' },
-      { icon: Send, label: 'Sent Logs', href: '/nps/sent-logs', section: 'sent_logs' },
-      { icon: Calendar, label: 'Manage Events', href: '/nps/manage-events', section: 'manage_events' },
-      { icon: Plug, label: 'Integration', href: '/nps/integration', section: 'integration' },
+      { icon: Send, label: 'Send History', href: '/nps/sent-logs', section: 'sent_logs' },
+      { icon: Calendar, label: 'Events & Surveys', href: '/nps/manage-events', section: 'manage_events' },
+      { icon: Share2, label: 'Distribution', href: '/nps/integration', section: 'integration' },
     ],
   },
   { icon: Star, label: 'Reviews', href: '/reviews', section: 'reviews' },
@@ -75,15 +75,21 @@ const navigation: (NavItem | NavGroup)[] = [
     ],
   },
   {
+    icon: MessageCircle,
+    label: 'Communication',
+    items: [
+      { icon: FileText, label: 'Message Templates', href: '/settings/templates', section: 'templates' },
+      { icon: Zap, label: 'Automation Rules', href: '/settings/automations', section: 'templates' },
+      { icon: Tag, label: 'Feedback Tags', href: '/settings/feedback-categories', section: 'templates' },
+    ],
+  },
+  {
     icon: Settings,
     label: 'Settings',
     items: [
       { icon: User, label: 'Profile', href: '/settings/profile' },
-      { icon: FileText, label: 'Templates', href: '/settings/templates', section: 'templates' },
-      { icon: Zap, label: 'Automations', href: '/settings/automations', section: 'templates' },
-      { icon: Tag, label: 'Feedback Categories', href: '/settings/feedback-categories', section: 'templates' },
       { icon: Building2, label: 'Brands', href: '/settings/brands', section: 'brands' },
-      { icon: UserCog, label: 'Users', href: '/settings/users', section: 'users' },
+      { icon: UserCog, label: 'Users & Roles', href: '/settings/users', section: 'users' },
     ],
   },
 ];
@@ -124,7 +130,7 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
       className={cn('sidebar-item', isActive && 'sidebar-item-active')}
     >
       <Icon className="h-5 w-5 shrink-0" />
-      <span className="truncate">{item.label}</span>
+      <span>{item.label}</span>
     </Link>
   );
 }
@@ -134,11 +140,10 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
   
   // Filter items based on permissions
   const visibleItems = group.items.filter(item => {
-    if (!item.section) return true; // No section means always visible (e.g., Profile)
+    if (!item.section) return true;
     return canViewSection(item.section);
   });
 
-  // Don't render the group if no items are visible
   if (visibleItems.length === 0) return null;
 
   const isGroupActive = visibleItems.some((item) => location.pathname === item.href);
@@ -198,7 +203,7 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
         >
           <div className="flex items-center gap-3">
             <Icon className="h-5 w-5 shrink-0" />
-            <span className="truncate">{group.label}</span>
+            <span>{group.label}</span>
           </div>
           {isOpen ? (
             <ChevronDown className="h-4 w-4 shrink-0" />
@@ -286,6 +291,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
               {profile?.email}
             </p>
           </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-48">
@@ -300,12 +306,11 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
 
 export function Sidebar() {
   const location = useLocation();
-  const { canViewSection, isSuperAdmin, isLoading } = usePermissions();
+  const { canViewSection, isSuperAdmin } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Helper function that handles undefined section
   const checkCanView = (section?: AppSection): boolean => {
-    if (!section) return true; // No section means always visible
+    if (!section) return true;
     if (isSuperAdmin) return true;
     return canViewSection(section);
   };
@@ -314,33 +319,26 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300',
-          collapsed ? 'w-16' : 'w-60'
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative',
+          collapsed ? 'w-16' : 'w-64'
         )}
       >
-        {/* Collapse toggle */}
-        <div className={cn('p-2 flex', collapsed ? 'justify-center' : 'justify-end')}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-hover"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+        {/* Collapse toggle - positioned at middle of sidebar */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border shadow-sm hover:bg-muted z-10"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
+        </Button>
 
-        <nav className={cn('flex-1 space-y-2', collapsed ? 'px-2' : 'px-4')}>
+        <nav className={cn('flex-1 space-y-2 py-4', collapsed ? 'px-2' : 'px-3')}>
           {navigation.map((item, index) => {
             if (isNavGroup(item)) {
               return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} collapsed={collapsed} />;
             }
             
-            // For non-group items, check permission
             if (item.section && !checkCanView(item.section)) {
               return null;
             }
