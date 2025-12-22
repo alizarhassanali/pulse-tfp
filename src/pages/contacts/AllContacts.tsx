@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/page-header';
@@ -17,16 +17,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 
 // Demo contacts
 const demoContacts = [
-  { id: 'demo-1', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand: { name: 'Generation Fertility' }, location: { name: 'NewMarket' }, status: 'active', created_at: '2025-11-01T10:00:00Z', last_score: 9 },
-  { id: 'demo-2', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand: { name: 'Grace Fertility' }, location: { name: 'Downtown' }, status: 'unsubscribed', created_at: '2025-10-15T10:00:00Z', last_score: 6 },
-  { id: 'demo-3', first_name: 'Emma', last_name: 'Johnson', email: 'emma@email.com', phone: '+15559876543', preferred_channel: 'email', brand: { name: 'Olive Fertility' }, location: { name: 'Midtown' }, status: 'active', created_at: '2025-11-20T10:00:00Z', last_score: 10 },
-  { id: 'demo-4', first_name: 'Michael', last_name: 'Brown', email: 'michael@email.com', phone: '+15551112222', preferred_channel: 'both', brand: { name: 'Conceptia Fertility' }, location: { name: 'Uptown' }, status: 'active', created_at: '2025-12-01T10:00:00Z', last_score: 7 },
+  { id: 'demo-1', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand: { name: 'Generation Fertility' }, location: { name: 'NewMarket' }, status: 'active', created_at: '2025-11-01T10:00:00Z', last_score: 9, brand_id: 'b1', location_id: 'l1' },
+  { id: 'demo-2', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand: { name: 'Grace Fertility' }, location: { name: 'Downtown' }, status: 'unsubscribed', created_at: '2025-10-15T10:00:00Z', last_score: 6, brand_id: 'b2', location_id: 'l2' },
+  { id: 'demo-3', first_name: 'Emma', last_name: 'Johnson', email: 'emma@email.com', phone: '+15559876543', preferred_channel: 'email', brand: { name: 'Olive Fertility' }, location: { name: 'Midtown' }, status: 'active', created_at: '2025-11-20T10:00:00Z', last_score: 10, brand_id: 'b3', location_id: 'l3' },
+  { id: 'demo-4', first_name: 'Michael', last_name: 'Brown', email: 'michael@email.com', phone: '+15551112222', preferred_channel: 'both', brand: { name: 'Conceptia Fertility' }, location: { name: 'Uptown' }, status: 'active', created_at: '2025-12-01T10:00:00Z', last_score: 7, brand_id: 'b4', location_id: 'l4' },
 ];
 
 export default function AllContacts() {
@@ -37,6 +37,13 @@ export default function AllContacts() {
   const [contactDetailOpen, setContactDetailOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  
+  // Filter states
+  const [filterBrand, setFilterBrand] = useState<string>('all');
+  const [filterLocation, setFilterLocation] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterMethod, setFilterMethod] = useState<string>('all');
+  
   const [newContact, setNewContact] = useState({
     first_name: '',
     last_name: '',
@@ -71,6 +78,15 @@ export default function AllContacts() {
     },
   });
 
+  const { data: allLocations = [] } = useQuery({
+    queryKey: ['all-locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('locations').select('*').order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: locations = [] } = useQuery({
     queryKey: ['locations-list', newContact.brand_id],
     queryFn: async () => {
@@ -88,11 +104,59 @@ export default function AllContacts() {
 
   const contacts = dbContacts.length > 0 ? dbContacts : demoContacts;
 
-  const filteredContacts = contacts.filter((c) => {
-    if (!search) return true;
-    const name = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
-    return name.includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search);
-  });
+  // Get unique values for filters
+  const uniqueBrands = useMemo(() => {
+    const brandNames = contacts.map(c => c.brand?.name).filter(Boolean);
+    return [...new Set(brandNames)];
+  }, [contacts]);
+
+  const uniqueLocations = useMemo(() => {
+    let locs = contacts.map(c => c.location?.name).filter(Boolean);
+    if (filterBrand !== 'all') {
+      locs = contacts
+        .filter(c => c.brand?.name === filterBrand)
+        .map(c => c.location?.name)
+        .filter(Boolean);
+    }
+    return [...new Set(locs)];
+  }, [contacts, filterBrand]);
+
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((c) => {
+      // Search filter
+      if (search) {
+        const name = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+        const matchesSearch = name.includes(search.toLowerCase()) || 
+          c.email?.toLowerCase().includes(search.toLowerCase()) || 
+          c.phone?.includes(search);
+        if (!matchesSearch) return false;
+      }
+      
+      // Brand filter
+      if (filterBrand !== 'all' && c.brand?.name !== filterBrand) return false;
+      
+      // Location filter
+      if (filterLocation !== 'all' && c.location?.name !== filterLocation) return false;
+      
+      // Status filter
+      if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+      
+      // Preferred method filter
+      if (filterMethod !== 'all' && c.preferred_channel !== filterMethod) return false;
+      
+      return true;
+    });
+  }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod]);
+
+  const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod].filter(f => f !== 'all').length;
+
+  const clearAllFilters = () => {
+    setFilterBrand('all');
+    setFilterLocation('all');
+    setFilterStatus('all');
+    setFilterMethod('all');
+    setSearch('');
+  };
 
   const getPreferredChannelDisplay = (channel: string | null) => {
     switch (channel) {
@@ -124,7 +188,6 @@ export default function AllContacts() {
 
   const createContactMutation = useMutation({
     mutationFn: async () => {
-      // Determine preferred_channel from checkboxes
       let preferred_channel = 'email';
       if (newContact.prefer_sms && newContact.prefer_email) {
         preferred_channel = 'both';
@@ -151,7 +214,6 @@ export default function AllContacts() {
 
       if (error) throw error;
 
-      // Insert tag assignments
       if (newContact.tag_ids.length > 0 && contact) {
         const { error: tagError } = await supabase
           .from('contact_tag_assignments')
@@ -234,28 +296,101 @@ export default function AllContacts() {
         }
       />
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search contacts by name, email or phone..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Filters Section */}
+      <Card className="border-border bg-card">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 bg-background"
+              />
+            </div>
 
-      <Card className="shadow-soft border-border/50">
+            {/* Brand Filter */}
+            <Select value={filterBrand} onValueChange={(v) => { setFilterBrand(v); setFilterLocation('all'); }}>
+              <SelectTrigger className="w-[160px] bg-background">
+                <SelectValue placeholder="All Brands" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Brands</SelectItem>
+                {uniqueBrands.map((brand) => (
+                  <SelectItem key={brand} value={brand!}>{brand}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Location Filter */}
+            <Select value={filterLocation} onValueChange={setFilterLocation}>
+              <SelectTrigger className="w-[160px] bg-background">
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {uniqueLocations.map((loc) => (
+                  <SelectItem key={loc} value={loc!}>{loc}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px] bg-background">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Preferred Method Filter */}
+            <Select value={filterMethod} onValueChange={setFilterMethod}>
+              <SelectTrigger className="w-[160px] bg-background">
+                <SelectValue placeholder="All Methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="sms">SMS</SelectItem>
+                <SelectItem value="both">SMS & Email</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            {activeFiltersCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4 mr-1" />
+                Clear ({activeFiltersCount})
+              </Button>
+            )}
+          </div>
+
+          {/* Results count */}
+          <div className="mt-3 text-sm text-muted-foreground">
+            Showing {filteredContacts.length} of {contacts.length} contacts
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card className="border-border bg-card">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Preferred Method</TableHead>
-                <TableHead>Last Score</TableHead>
-                <TableHead>Status</TableHead>
+              <TableRow className="bg-muted/30">
+                <TableHead className="font-semibold">Name</TableHead>
+                <TableHead className="font-semibold">Contact</TableHead>
+                <TableHead className="font-semibold">Brand</TableHead>
+                <TableHead className="font-semibold">Location</TableHead>
+                <TableHead className="font-semibold">Preferred Method</TableHead>
+                <TableHead className="font-semibold">Last Score</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -267,18 +402,18 @@ export default function AllContacts() {
                 </>
               ) : filteredContacts.length > 0 ? (
                 filteredContacts.map((contact: any) => (
-                  <TableRow key={contact.id}>
+                  <TableRow key={contact.id} className="hover:bg-muted/20">
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          <AvatarFallback className="bg-tertiary-light text-secondary text-xs font-medium">
                             {contact.first_name?.[0]}
                             {contact.last_name?.[0]}
                           </AvatarFallback>
                         </Avatar>
                         <button 
                           onClick={() => handleViewContact(contact.id)}
-                          className="font-medium text-primary hover:underline text-left"
+                          className="font-medium text-secondary hover:text-primary hover:underline text-left transition-colors"
                         >
                           {contact.first_name} {contact.last_name}
                         </button>
@@ -287,14 +422,14 @@ export default function AllContacts() {
                     <TableCell>
                       <div className="text-sm space-y-0.5">
                         {contact.email && (
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
+                          <div className="flex items-center gap-1.5 text-foreground">
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                             {contact.email}
                           </div>
                         )}
                         {contact.phone && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Phone className="h-3 w-3" />
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5" />
                             {contact.phone}
                           </div>
                         )}
@@ -303,7 +438,7 @@ export default function AllContacts() {
                     <TableCell className="text-sm">{contact.brand?.name || '-'}</TableCell>
                     <TableCell className="text-sm">{contact.location?.name || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="capitalize">
+                      <Badge variant="secondary" className="bg-tertiary-light text-secondary border-0">
                         {getPreferredChannelDisplay(contact.preferred_channel)}
                       </Badge>
                     </TableCell>
@@ -317,13 +452,13 @@ export default function AllContacts() {
                     <TableCell>
                       <Badge
                         variant={contact.status === 'active' ? 'default' : 'secondary'}
-                        className={contact.status === 'active' ? 'bg-success' : ''}
+                        className={contact.status === 'active' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}
                       >
                         {contact.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleViewContact(contact.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => handleViewContact(contact.id)} className="hover:bg-tertiary-light">
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -334,8 +469,8 @@ export default function AllContacts() {
                   <TableCell colSpan={8}>
                     <EmptyState
                       icon={<Users className="h-8 w-8" />}
-                      title="No contacts"
-                      description="Add contacts to start collecting feedback."
+                      title="No contacts found"
+                      description={activeFiltersCount > 0 ? "Try adjusting your filters." : "Add contacts to start collecting feedback."}
                     />
                   </TableCell>
                 </TableRow>
@@ -388,7 +523,7 @@ export default function AllContacts() {
               <p className="text-sm">
                 <strong>Step 3:</strong> Upload your file
               </p>
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/20">
                 <p className="text-muted-foreground text-sm mb-4">Drop your CSV file here or click to browse</p>
                 <Input type="file" accept=".csv" className="max-w-xs mx-auto" />
               </div>

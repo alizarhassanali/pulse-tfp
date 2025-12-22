@@ -110,7 +110,7 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
             className={cn(
               'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
               isActive 
-                ? 'bg-sidebar-hover text-primary' 
+                ? 'bg-primary text-primary-foreground' 
                 : 'text-sidebar-foreground hover:bg-sidebar-hover'
             )}
           >
@@ -138,7 +138,6 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
 function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean; collapsed: boolean }) {
   const location = useLocation();
   
-  // Filter items based on permissions
   const visibleItems = group.items.filter(item => {
     if (!item.section) return true;
     return canViewSection(item.section);
@@ -160,7 +159,7 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
                 className={cn(
                   'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
                   isGroupActive 
-                    ? 'bg-sidebar-hover text-primary' 
+                    ? 'bg-primary text-primary-foreground' 
                     : 'text-sidebar-foreground hover:bg-sidebar-hover'
                 )}
               >
@@ -319,21 +318,20 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar border-r border-border/50 h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
           collapsed ? 'w-16' : 'w-64'
         )}
       >
-        {/* Collapse toggle - positioned at middle of sidebar */}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border shadow-sm hover:bg-muted z-10"
+          className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-card border border-border shadow-sm hover:bg-muted z-10"
           onClick={() => setCollapsed(!collapsed)}
         >
-          <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
+          <ChevronLeft className={cn('h-4 w-4 transition-transform text-foreground', collapsed && 'rotate-180')} />
         </Button>
 
-        <nav className={cn('flex-1 space-y-2 py-4', collapsed ? 'px-2' : 'px-3')}>
+        <nav className={cn('flex-1 space-y-1 py-4', collapsed ? 'px-2' : 'px-3')}>
           {navigation.map((item, index) => {
             if (isNavGroup(item)) {
               return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} collapsed={collapsed} />;
@@ -354,7 +352,7 @@ export function Sidebar() {
           })}
         </nav>
         
-        <div className={cn('border-t border-sidebar-hover', collapsed ? 'p-2' : 'p-3')}>
+        <div className={cn('border-t border-border/50', collapsed ? 'p-2' : 'p-3')}>
           <UserMenu collapsed={collapsed} />
         </div>
       </aside>
