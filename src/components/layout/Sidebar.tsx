@@ -59,8 +59,8 @@ const navigation: (NavItem | NavGroup)[] = [
     defaultOpen: true,
     items: [
       { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard', section: 'dashboard' },
-      { icon: MessageSquareText, label: 'Questions', href: '/nps/questions', section: 'questions' },
-      { icon: Send, label: 'Send History', href: '/nps/sent-logs', section: 'sent_logs' },
+      { icon: MessageSquareText, label: 'Responses', href: '/nps/questions', section: 'questions' },
+      { icon: Send, label: 'Event History', href: '/nps/sent-logs', section: 'sent_logs' },
       { icon: Calendar, label: 'Events & Surveys', href: '/nps/manage-events', section: 'manage_events' },
       { icon: Share2, label: 'Distribution', href: '/nps/integration', section: 'integration' },
     ],
@@ -319,7 +319,7 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative',
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
           collapsed ? 'w-16' : 'w-64'
         )}
       >

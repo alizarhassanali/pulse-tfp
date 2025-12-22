@@ -191,6 +191,15 @@ export default function SentLogs() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalSent = DEMO_SENT_LOGS.length;
+    const totalResponded = DEMO_SENT_LOGS.filter(log => log.response?.length > 0 && log.response[0]?.nps_score !== undefined).length;
+    const deliveredCount = DEMO_SENT_LOGS.filter(log => log.status === 'delivered' || log.status === 'completed').length;
+    const responseRate = totalSent > 0 ? Math.round((totalResponded / totalSent) * 100) : 0;
+    return { totalSent, totalResponded, deliveredCount, responseRate };
+  }, []);
+
   const { data: invitations = [], isLoading } = useQuery({
     queryKey: ['sent-logs', selectedBrands, selectedEvent, dateRange, statusFilter, channelFilter],
     queryFn: async () => {
@@ -341,7 +350,7 @@ export default function SentLogs() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Send History"
+        title="Event History"
         description="Track delivery status and engagement for survey invitations"
         actions={
           <DropdownMenu>
@@ -363,6 +372,62 @@ export default function SentLogs() {
           </DropdownMenu>
         }
       />
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Send className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.totalSent}</p>
+                <p className="text-xs text-muted-foreground">Total Sent</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Eye className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.totalResponded}</p>
+                <p className="text-xs text-muted-foreground">Responded</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <RefreshCw className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.deliveredCount}</p>
+                <p className="text-xs text-muted-foreground">Delivered</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <User className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.responseRate}%</p>
+                <p className="text-xs text-muted-foreground">Response Rate</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
