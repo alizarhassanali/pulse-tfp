@@ -348,20 +348,20 @@ export default function SentLogs() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
       <PageHeader
         title="Event History"
         description="Track delivery status and engagement for survey invitations"
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="shadow-sm">
                 <Download className="h-4 w-4 mr-2" />
                 Export
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover border border-border shadow-lg z-50">
+            <DropdownMenuContent align="end" className="bg-popover border border-border shadow-elevated z-50">
               <DropdownMenuItem onClick={() => handleExport('current')}>
                 Export current view
               </DropdownMenuItem>
@@ -374,78 +374,70 @@ export default function SentLogs() {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Send className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalSent}</p>
-                <p className="text-xs text-muted-foreground">Total Sent</p>
-              </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="metric-card group">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Total Sent</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.totalSent}</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <RefreshCw className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.deliveredCount}</p>
-                <p className="text-xs text-muted-foreground">Total Delivered</p>
-              </div>
+            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+              <Send className="h-5 w-5 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Eye className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalResponded}</p>
-                <p className="text-xs text-muted-foreground">Total Responded</p>
-              </div>
+          </div>
+        </div>
+        <div className="metric-card group">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Total Delivered</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.deliveredCount}</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <User className="h-5 w-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.responseRate}%</p>
-                <p className="text-xs text-muted-foreground">Response Rate</p>
-              </div>
+            <div className="p-3 rounded-xl bg-teal-500/10 group-hover:bg-teal-500/15 transition-colors">
+              <RefreshCw className="h-5 w-5 text-teal-600" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="metric-card group">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Total Responded</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.totalResponded}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/15 transition-colors">
+              <Eye className="h-5 w-5 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+        <div className="metric-card group">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Response Rate</p>
+              <p className="text-3xl font-bold tracking-tight">{stats.responseRate}%</p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/15 transition-colors">
+              <User className="h-5 w-5 text-amber-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 input-focus"
+            className="pl-10 h-10 bg-card border-border/60 focus:border-primary focus:ring-2 focus:ring-primary/10"
           />
         </div>
 
         <Select value={channelFilter} onValueChange={setChannelFilter}>
-          <SelectTrigger className="w-[160px] bg-card border-border">
+          <SelectTrigger className="w-[150px] h-10 bg-card border-border/60">
             <SelectValue placeholder="All Channels" />
           </SelectTrigger>
-          <SelectContent className="bg-popover border border-border shadow-lg z-50">
+          <SelectContent className="bg-popover border border-border shadow-elevated z-50">
             <SelectItem value="all">All Channels</SelectItem>
             <SelectItem value="sms">SMS</SelectItem>
             <SelectItem value="email">Email</SelectItem>
@@ -455,10 +447,10 @@ export default function SentLogs() {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px] bg-card border-border">
+          <SelectTrigger className="w-[150px] h-10 bg-card border-border/60">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
-          <SelectContent className="bg-popover border border-border shadow-lg z-50">
+          <SelectContent className="bg-popover border border-border shadow-elevated z-50">
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
@@ -470,13 +462,15 @@ export default function SentLogs() {
       </div>
 
       {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        Showing {paginatedData.length} of {filteredInvitations.length} logs
-        {invitations.length === 0 && ' (demo data)'}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{paginatedData.length}</span> of <span className="font-medium text-foreground">{filteredInvitations.length}</span> records
+          {invitations.length === 0 && <span className="text-muted-foreground/70"> (demo data)</span>}
+        </p>
       </div>
 
       {/* Table */}
-      <Card className="shadow-soft border-border/50">
+      <Card className="shadow-card border-border/50 overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
