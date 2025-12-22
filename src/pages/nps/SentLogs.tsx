@@ -391,12 +391,12 @@ export default function SentLogs() {
         <Card className="shadow-soft border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Eye className="h-5 w-5 text-green-500" />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <RefreshCw className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.totalResponded}</p>
-                <p className="text-xs text-muted-foreground">Responded</p>
+                <p className="text-2xl font-bold">{stats.deliveredCount}</p>
+                <p className="text-xs text-muted-foreground">Total Delivered</p>
               </div>
             </div>
           </CardContent>
@@ -404,12 +404,12 @@ export default function SentLogs() {
         <Card className="shadow-soft border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <RefreshCw className="h-5 w-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Eye className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.deliveredCount}</p>
-                <p className="text-xs text-muted-foreground">Delivered</p>
+                <p className="text-2xl font-bold">{stats.totalResponded}</p>
+                <p className="text-xs text-muted-foreground">Total Responded</p>
               </div>
             </div>
           </CardContent>
