@@ -183,7 +183,70 @@ export function GlobalFilters() {
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
+      {/* Date Range - Prominent */}
+      <Popover open={customDateOpen} onOpenChange={setCustomDateOpen}>
+        <PopoverTrigger asChild>
+          <div>
+            <Select value={datePreset} onValueChange={handleDatePresetChange}>
+              <SelectTrigger className="h-10 min-w-[170px] bg-primary/10 border border-primary/30 text-topbar-foreground hover:bg-primary/20 focus:ring-1 focus:ring-primary/50 focus:ring-offset-0 rounded-lg font-medium">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">{getDateRangeLabel()}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="60">Last 60 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-4 bg-popover border border-border shadow-lg z-[100]" align="start">
+          <div className="space-y-4">
+            <p className="text-sm font-medium">Select custom date range</p>
+            <div className="flex gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">From</p>
+                <Calendar
+                  mode="single"
+                  selected={customFrom}
+                  onSelect={setCustomFrom}
+                  className={cn("p-3 pointer-events-auto rounded-md border")}
+                />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">To</p>
+                <Calendar
+                  mode="single"
+                  selected={customTo}
+                  onSelect={setCustomTo}
+                  className={cn("p-3 pointer-events-auto rounded-md border")}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCustomDateOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleCustomDateApply}
+                disabled={!customFrom || !customTo}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Divider */}
+      <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
+
       {/* Brand Filter */}
       <FilterMultiSelect
         options={brands}
@@ -222,68 +285,6 @@ export function GlobalFilters() {
         </SelectContent>
       </Select>
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-topbar-foreground/20 mx-2" />
-
-      {/* Date Range */}
-      <Popover open={customDateOpen} onOpenChange={setCustomDateOpen}>
-        <PopoverTrigger asChild>
-          <div>
-            <Select value={datePreset} onValueChange={handleDatePresetChange}>
-              <SelectTrigger className="h-9 min-w-[150px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 opacity-70" />
-                  <span className="text-sm">{getDateRangeLabel()}</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="60">Last 60 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="custom">Custom range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-4 bg-popover border border-border shadow-lg z-[100]" align="end">
-          <div className="space-y-4">
-            <p className="text-sm font-medium">Select custom date range</p>
-            <div className="flex gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">From</p>
-                <Calendar
-                  mode="single"
-                  selected={customFrom}
-                  onSelect={setCustomFrom}
-                  className={cn("p-3 pointer-events-auto rounded-md border")}
-                />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">To</p>
-                <Calendar
-                  mode="single"
-                  selected={customTo}
-                  onSelect={setCustomTo}
-                  className={cn("p-3 pointer-events-auto rounded-md border")}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCustomDateOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                size="sm" 
-                onClick={handleCustomDateApply}
-                disabled={!customFrom || !customTo}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
     </div>
   );
 }
