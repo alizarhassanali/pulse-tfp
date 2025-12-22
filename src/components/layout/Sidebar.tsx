@@ -319,7 +319,7 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
+          'bg-sidebar border-r border-border/50 h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
           collapsed ? 'w-16' : 'w-64'
         )}
       >
