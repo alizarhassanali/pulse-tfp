@@ -28,6 +28,7 @@ import {
   AlertCircle,
   Clock,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 
 interface Event {
@@ -59,6 +60,98 @@ const TIMEZONE_OPTIONS = [
   { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
   { value: 'UTC', label: 'UTC' },
+];
+
+// Sample data for SFTP template
+const SAMPLE_CONTACTS = [
+  {
+    first_name: 'Sarah',
+    last_name: 'Johnson',
+    email: 'sarah.johnson@example.com',
+    phone: '+1-555-123-4567',
+    preferred_channel: 'email',
+    location_name: 'Downtown Clinic',
+    external_id: 'PAT-001234',
+    contact_tags: 'new-patient,fertility',
+    appointment_date: '2024-01-15',
+  },
+  {
+    first_name: 'Michael',
+    last_name: 'Chen',
+    email: 'mchen@gmail.com',
+    phone: '+1-555-234-5678',
+    preferred_channel: 'sms',
+    location_name: 'Westside Center',
+    external_id: 'PAT-001235',
+    contact_tags: 'returning,ivf',
+    appointment_date: '2024-01-16',
+  },
+  {
+    first_name: 'Emma',
+    last_name: 'Williams',
+    email: 'emma.w@company.org',
+    phone: '',
+    preferred_channel: 'email',
+    location_name: 'Downtown Clinic',
+    external_id: 'PAT-001236',
+    contact_tags: 'consultation',
+    appointment_date: '2024-01-17',
+  },
+  {
+    first_name: 'James',
+    last_name: 'Rodriguez',
+    email: '',
+    phone: '+1-555-345-6789',
+    preferred_channel: 'sms',
+    location_name: 'North Branch',
+    external_id: 'PAT-001237',
+    contact_tags: 'follow-up,urgent',
+    appointment_date: '2024-01-17',
+  },
+  {
+    first_name: 'Aisha',
+    last_name: 'Patel',
+    email: 'aisha.patel@outlook.com',
+    phone: '+1-555-456-7890',
+    preferred_channel: 'both',
+    location_name: 'Eastside Clinic',
+    external_id: 'PAT-001238',
+    contact_tags: 'vip,returning',
+    appointment_date: '2024-01-18',
+  },
+  {
+    first_name: 'David',
+    last_name: 'Kim',
+    email: 'dkim@business.net',
+    phone: '+1-555-567-8901',
+    preferred_channel: 'email',
+    location_name: 'Downtown Clinic',
+    external_id: 'PAT-001239',
+    contact_tags: '',
+    appointment_date: '2024-01-19',
+  },
+  {
+    first_name: 'Lisa',
+    last_name: 'Thompson',
+    email: 'lisa.t@email.com',
+    phone: '+1-555-678-9012',
+    preferred_channel: 'email',
+    location_name: 'Westside Center',
+    external_id: 'PAT-001240',
+    contact_tags: 'new-patient',
+    appointment_date: '2024-01-20',
+  },
+  {
+    first_name: 'Ahmed',
+    last_name: 'Hassan',
+    email: 'a.hassan@mail.com',
+    phone: '+1-555-789-0123',
+    preferred_channel: 'sms',
+    location_name: 'South Location',
+    external_id: 'PAT-001241',
+    contact_tags: 'returning,ivf',
+    appointment_date: '2024-01-21',
+  },
 ];
 
 export function IntegrationsTab({ eventId, events }: IntegrationsTabProps) {
@@ -202,27 +295,117 @@ export function IntegrationsTab({ eventId, events }: IntegrationsTabProps) {
   };
 
   const handleDownloadSampleTemplate = () => {
-    const headers = [
-      'first_name',
-      'last_name',
-      'email',
-      'phone',
-      'preferred_channel',
-      'brand_id',
-      'location_id',
-      'external_id',
-      'event_name',
+    const format = sftpFileFormat;
+    
+    // Column definitions with metadata
+    const columns = [
+      { key: 'first_name', label: 'first_name', required: true, description: 'Contact first name' },
+      { key: 'last_name', label: 'last_name', required: true, description: 'Contact last name' },
+      { key: 'email', label: 'email', required: false, description: 'Email address (required if phone not provided)' },
+      { key: 'phone', label: 'phone', required: false, description: 'Phone with country code (required if email not provided)' },
+      { key: 'preferred_channel', label: 'preferred_channel', required: false, description: 'Values: email, sms, or both' },
+      { key: 'location_name', label: 'location_name', required: false, description: 'Location name for matching' },
+      { key: 'external_id', label: 'external_id', required: false, description: 'Your system patient/customer ID' },
+      { key: 'contact_tags', label: 'contact_tags', required: false, description: 'Comma-separated tags' },
+      { key: 'appointment_date', label: 'appointment_date', required: false, description: 'Format: YYYY-MM-DD' },
     ];
-    const sampleRow = ['John', 'Doe', 'john@example.com', '+1234567890', 'email', 'brand-uuid', 'location-uuid', 'ext-123', 'post-visit-nps'];
-    const csv = [headers.join(','), sampleRow.join(',')].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sftp-contact-template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    if (format === 'csv') {
+      // Create CSV with header comments
+      const headerComments = [
+        '# SFTP Contact Import Template',
+        '# Required fields: first_name, last_name, and either email OR phone',
+        '# Optional fields: preferred_channel (email/sms/both), location_name, external_id, contact_tags, appointment_date',
+        '# Note: Event and brand are configured in the SFTP integration settings',
+        '#',
+      ];
+      
+      const headers = columns.map(c => c.label);
+      const rows = SAMPLE_CONTACTS.map(contact => 
+        columns.map(col => {
+          const value = contact[col.key as keyof typeof contact] || '';
+          // Escape commas in values
+          return value.includes(',') ? `"${value}"` : value;
+        }).join(',')
+      );
+      
+      const csv = [...headerComments, headers.join(','), ...rows].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sftp-contact-template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'json') {
+      // Create JSON with schema documentation
+      const jsonData = {
+        _documentation: {
+          description: 'SFTP Contact Import Template',
+          required_fields: ['first_name', 'last_name', 'email OR phone'],
+          optional_fields: ['preferred_channel', 'location_name', 'external_id', 'contact_tags', 'appointment_date'],
+          notes: [
+            'At least email or phone must be provided',
+            'preferred_channel accepts: email, sms, or both',
+            'contact_tags should be comma-separated',
+            'appointment_date format: YYYY-MM-DD',
+          ],
+          field_definitions: columns.map(c => ({
+            field: c.key,
+            required: c.required,
+            description: c.description,
+          })),
+        },
+        contacts: SAMPLE_CONTACTS,
+      };
+      
+      const json = JSON.stringify(jsonData, null, 2);
+      
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sftp-contact-template.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'xlsx') {
+      // For XLSX, we'll create a CSV that Excel can open
+      // In a real implementation, you'd use a library like xlsx
+      const headers = columns.map(c => c.label);
+      const instructionRow = columns.map(c => c.required ? 'REQUIRED' : 'optional');
+      const descriptionRow = columns.map(c => c.description);
+      
+      const rows = SAMPLE_CONTACTS.map(contact => 
+        columns.map(col => {
+          const value = contact[col.key as keyof typeof contact] || '';
+          return value.includes(',') ? `"${value}"` : value;
+        }).join(',')
+      );
+      
+      const csv = [
+        '# Instructions: Required fields are marked. Delete this row before uploading.',
+        headers.join(','),
+        instructionRow.join(','),
+        descriptionRow.join(','),
+        ...rows,
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sftp-contact-template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({ 
+        title: 'Template downloaded', 
+        description: 'Open in Excel and save as .xlsx if needed. The CSV format is compatible with Excel.' 
+      });
+      return;
+    }
+    
     toast({ title: 'Sample template downloaded' });
   };
 
@@ -472,8 +655,19 @@ function App() {
                 <div className="border-t pt-6 space-y-4">
                   <h4 className="font-medium flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    File Format
+                    File Format & Template
                   </h4>
+                  
+                  {/* Info Box */}
+                  <div className="p-4 bg-muted/30 rounded-lg flex gap-3">
+                    <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p><strong>Required fields:</strong> first_name, last_name, and either email OR phone</p>
+                      <p><strong>Optional fields:</strong> preferred_channel (email/sms/both), location_name, external_id, contact_tags, appointment_date</p>
+                      <p className="text-xs">Note: Event and brand are configured below in the integration settings, not in the upload file.</p>
+                    </div>
+                  </div>
+                  
                   <div className="flex items-center gap-4">
                     <Select value={sftpFileFormat} onValueChange={setSftpFileFormat}>
                       <SelectTrigger className="w-[150px]">
@@ -490,6 +684,10 @@ function App() {
                       Download Sample Template
                     </Button>
                   </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Template includes 8 sample contacts with various data combinations to demonstrate all field formats
+                  </p>
                 </div>
 
                 {/* Event & Channel Mapping */}

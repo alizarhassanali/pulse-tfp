@@ -32,6 +32,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import {
   Mail,
@@ -41,6 +46,7 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Check,
   AlertTriangle,
   Clock,
@@ -69,9 +75,9 @@ interface SendWizardProps {
 }
 
 const STEPS = [
-  { id: 'recipients', label: 'Select Recipients', icon: Users },
-  { id: 'compose', label: 'Compose Message', icon: Mail },
-  { id: 'confirm', label: 'Review & Send', icon: Send },
+  { id: 'recipients', label: 'Recipients', fullLabel: 'Select Recipients', icon: Users },
+  { id: 'compose', label: 'Compose', fullLabel: 'Compose Message', icon: Mail },
+  { id: 'confirm', label: 'Review', fullLabel: 'Review & Send', icon: Send },
 ];
 
 export function SendWizard({
@@ -111,6 +117,10 @@ export function SendWizard({
   const [sendSchedule, setSendSchedule] = useState<'now' | 'schedule'>('now');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+
+  // Collapsible sections
+  const [emailOpen, setEmailOpen] = useState(true);
+  const [smsOpen, setSmsOpen] = useState(true);
 
   // Filter contacts by brand and eligibility
   const filteredContacts = useMemo(() => {
@@ -264,7 +274,7 @@ export function SendWizard({
           <div key={step.id} className="flex items-center">
             <div
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-full transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-full transition-colors',
                 index === currentStep
                   ? 'bg-primary text-primary-foreground'
                   : index < currentStep
@@ -277,10 +287,11 @@ export function SendWizard({
               ) : (
                 <step.icon className="h-4 w-4" />
               )}
-              <span className="font-medium hidden sm:inline">{step.label}</span>
+              <span className="font-medium text-sm hidden sm:inline">{step.fullLabel}</span>
+              <span className="font-medium text-sm sm:hidden">{step.label}</span>
             </div>
             {index < STEPS.length - 1 && (
-              <ChevronRight className="h-5 w-5 mx-2 text-muted-foreground" />
+              <ChevronRight className="h-5 w-5 mx-1 sm:mx-2 text-muted-foreground" />
             )}
           </div>
         ))}
@@ -427,134 +438,221 @@ export function SendWizard({
         </Card>
       )}
 
-      {/* Step 2: Compose */}
+      {/* Step 2: Compose - Redesigned */}
       {currentStep === 1 && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Channel Settings */}
+        <div className="space-y-4">
+          {/* Channel Settings Header */}
           <Card className="shadow-soft border-border/50">
-            <CardHeader>
-              <CardTitle>Channel Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <Label className="text-base font-medium">Respect Preferred Channel</Label>
+                  <h3 className="font-semibold text-lg">Delivery Settings</h3>
                   <p className="text-sm text-muted-foreground">
-                    Send via each contact's preferred channel
+                    {selectedContacts.length} recipients selected
                   </p>
                 </div>
-                <Switch checked={respectPreferredChannel} onCheckedChange={setRespectPreferredChannel} />
-              </div>
-
-              {!respectPreferredChannel && (
-                <div className="flex items-center gap-6 p-4 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Checkbox checked={sendEmail} onCheckedChange={(c) => setSendEmail(c as boolean)} />
-                    <Label className="flex items-center gap-1">
-                      <Mail className="h-4 w-4" /> Email
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox checked={sendSms} onCheckedChange={(c) => setSendSms(c as boolean)} />
-                    <Label className="flex items-center gap-1">
-                      <MessageSquare className="h-4 w-4" /> SMS
-                    </Label>
-                  </div>
-                </div>
-              )}
-
-              {/* Channel Breakdown */}
-              <div className="p-4 bg-muted/30 rounded-lg space-y-2">
-                <p className="text-sm font-medium">Delivery Breakdown</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{channelBreakdown.emailCount} via Email</span>
+                    <span className="font-medium">{channelBreakdown.emailCount}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    <span>{channelBreakdown.smsCount} via SMS</span>
+                    <span className="font-medium">{channelBreakdown.smsCount}</span>
                   </div>
                 </div>
               </div>
+              
+              <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-base font-medium">Respect Preferred Channel</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send via each contact's preferred channel
+                    </p>
+                  </div>
+                  <Switch checked={respectPreferredChannel} onCheckedChange={setRespectPreferredChannel} />
+                </div>
+
+                {!respectPreferredChannel && (
+                  <div className="flex items-center gap-6 mt-4 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={sendEmail} onCheckedChange={(c) => setSendEmail(c as boolean)} />
+                      <Label className="flex items-center gap-1">
+                        <Mail className="h-4 w-4" /> Email
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={sendSms} onCheckedChange={(c) => setSendSms(c as boolean)} />
+                      <Label className="flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" /> SMS
+                      </Label>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Email Content */}
-          <Card className="shadow-soft border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email Content
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label>Subject Line</Label>
-                <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Email Body</Label>
-                <Textarea
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  className="min-h-[120px] font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Variables: {'{first_name}'}, {'{last_name}'}, {'{survey_link}'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Email Section - Collapsible */}
+          <Collapsible open={emailOpen} onOpenChange={setEmailOpen}>
+            <Card className="shadow-soft border-border/50">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Mail className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">Email Content</CardTitle>
+                        <CardDescription>Customize your email message</CardDescription>
+                      </div>
+                    </div>
+                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", emailOpen && "rotate-180")} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Editor */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Subject Line</Label>
+                        <Input 
+                          value={emailSubject} 
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="Enter email subject..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email Body</Label>
+                        <Textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          className="min-h-[180px] font-mono text-sm"
+                          placeholder="Enter your email message..."
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Available variables: <code className="bg-muted px-1 rounded">{'{first_name}'}</code> <code className="bg-muted px-1 rounded">{'{last_name}'}</code> <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Live Preview */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" /> Live Preview
+                      </Label>
+                      <div className="p-4 bg-muted/30 rounded-lg border min-h-[220px]">
+                        <div className="space-y-3">
+                          <div className="pb-2 border-b">
+                            <p className="text-xs text-muted-foreground">Subject:</p>
+                            <p className="font-medium">{previewMessage(emailSubject)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Body:</p>
+                            <p className="text-sm whitespace-pre-wrap">{previewMessage(emailBody)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-          {/* SMS Content */}
+          {/* SMS Section - Collapsible */}
+          <Collapsible open={smsOpen} onOpenChange={setSmsOpen}>
+            <Card className="shadow-soft border-border/50">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">SMS Content</CardTitle>
+                        <CardDescription>Keep it short - 160 character limit</CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={smsBody.length > 160 ? 'destructive' : 'secondary'} className="font-mono">
+                        {smsBody.length}/160
+                      </Badge>
+                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", smsOpen && "rotate-180")} />
+                    </div>
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Editor */}
+                    <div className="space-y-2">
+                      <Label>Message</Label>
+                      <Textarea
+                        value={smsBody}
+                        onChange={(e) => setSmsBody(e.target.value)}
+                        className="min-h-[100px] font-mono text-sm"
+                        maxLength={160}
+                        placeholder="Enter your SMS message..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Variables: <code className="bg-muted px-1 rounded">{'{first_name}'}</code> <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>
+                      </p>
+                    </div>
+                    
+                    {/* Live Preview */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" /> Live Preview
+                      </Label>
+                      <div className="p-4 bg-muted/30 rounded-lg border">
+                        <div className="max-w-[280px] mx-auto">
+                          <div className="bg-primary/10 rounded-2xl rounded-bl-md p-3">
+                            <p className="text-sm">{previewMessage(smsBody)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
+          {/* Schedule - Compact */}
           <Card className="shadow-soft border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                SMS Content
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label>Message</Label>
-                <Textarea
-                  value={smsBody}
-                  onChange={(e) => setSmsBody(e.target.value)}
-                  className="min-h-[80px] font-mono text-sm"
-                  maxLength={160}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Variables: {'{first_name}'}, {'{survey_link}'}</span>
-                  <span className={smsBody.length > 160 ? 'text-destructive' : ''}>
-                    {smsBody.length}/160
-                  </span>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-muted rounded-lg">
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Schedule</h3>
+                    <p className="text-sm text-muted-foreground">When should messages be sent?</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Select value={sendSchedule} onValueChange={(v) => setSendSchedule(v as 'now' | 'schedule')}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="now">Send Immediately</SelectItem>
+                      <SelectItem value="schedule">Schedule for Later</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule */}
-          <Card className="shadow-soft border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Select value={sendSchedule} onValueChange={(v) => setSendSchedule(v as 'now' | 'schedule')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="now">Send Immediately</SelectItem>
-                  <SelectItem value="schedule">Schedule for Later</SelectItem>
-                </SelectContent>
-              </Select>
 
               {sendSchedule === 'schedule' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
                   <div className="space-y-2">
                     <Label>Date</Label>
                     <Input
@@ -687,7 +785,7 @@ export function SendWizard({
               </span>
               <span className="block mt-2">
                 {respectPreferredChannel
-                  ? 'Messages will be sent via each contact\'s preferred channel.'
+                  ? "Messages will be sent via each contact's preferred channel."
                   : `All contacts will receive ${sendEmail && sendSms ? 'both Email and SMS' : sendEmail ? 'Email only' : 'SMS only'}.`}
               </span>
             </AlertDialogDescription>
