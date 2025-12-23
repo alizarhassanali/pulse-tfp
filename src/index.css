@@ -150,11 +150,7 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Graphik', system-ui, sans-serif;
-    @apply font-medium tracking-tight text-foreground;
-  }
-
-  p, span, a, li, label, td, th {
-    @apply text-foreground;
+    @apply font-medium tracking-tight;
   }
 }
 
