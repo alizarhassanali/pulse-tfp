@@ -63,7 +63,7 @@ import { format as formatDate, parseISO } from 'date-fns';
 import { getScoreCategory, type ScoreCategory } from '@/types/database';
 import { DEMO_CONTACTS } from '@/data/demo-data';
 
-// Demo data for when no real data exists - using valid UUIDs from DEMO_CONTACTS
+// Demo data for when no real data exists - using full contact data from DEMO_CONTACTS
 const demoResponses = [
   {
     id: 'r1a2c3d4-e5f6-4789-abcd-111111111111',
@@ -71,11 +71,11 @@ const demoResponses = [
     completed_at: '2025-12-22T10:30:00Z',
     consent_given: true,
     contact: {
-      id: DEMO_CONTACTS[1].id, // John Smith
-      first_name: 'John',
-      last_name: 'Smith',
-      email: 'john.smith@example.com',
-      phone: '+1 (555) 123-4567',
+      id: DEMO_CONTACTS[1].id,
+      first_name: DEMO_CONTACTS[1].first_name,
+      last_name: DEMO_CONTACTS[1].last_name,
+      email: DEMO_CONTACTS[1].email,
+      phone: DEMO_CONTACTS[1].phone,
     },
     event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
@@ -98,11 +98,11 @@ const demoResponses = [
     completed_at: '2025-12-20T14:15:00Z',
     consent_given: true,
     contact: {
-      id: DEMO_CONTACTS[2].id, // Emma Johnson
-      first_name: 'Emma',
-      last_name: 'Johnson',
-      email: 'emma.johnson@example.com',
-      phone: '+1 (555) 234-5678',
+      id: DEMO_CONTACTS[2].id,
+      first_name: DEMO_CONTACTS[2].first_name,
+      last_name: DEMO_CONTACTS[2].last_name,
+      email: DEMO_CONTACTS[2].email,
+      phone: DEMO_CONTACTS[2].phone,
     },
     event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444' },
     brand: { name: 'Olive Fertility' },
@@ -121,11 +121,11 @@ const demoResponses = [
     completed_at: '2025-12-19T09:00:00Z',
     consent_given: true,
     contact: {
-      id: DEMO_CONTACTS[4].id, // Sarah Williams
-      first_name: 'Sarah',
-      last_name: 'Williams',
-      email: 'sarah.williams@example.com',
-      phone: null,
+      id: DEMO_CONTACTS[4].id,
+      first_name: DEMO_CONTACTS[4].first_name,
+      last_name: DEMO_CONTACTS[4].last_name,
+      email: DEMO_CONTACTS[4].email,
+      phone: DEMO_CONTACTS[4].phone,
     },
     event: { name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
@@ -136,14 +136,6 @@ const demoResponses = [
         question: 'What did you like most about your experience?',
         answer: 'The personalized care and attention to detail. The team took the time to answer all my questions and made sure I understood every step of my treatment plan.',
       },
-      {
-        question: 'Any additional comments?',
-        answer: 'The online booking system was very easy to use.',
-      },
-      {
-        question: 'How satisfied are you with our communication?',
-        answer: 'Very satisfied - always got prompt responses to my emails.',
-      },
     ],
   },
   {
@@ -152,11 +144,11 @@ const demoResponses = [
     completed_at: '2025-12-18T16:45:00Z',
     consent_given: false,
     contact: {
-      id: DEMO_CONTACTS[3].id, // Michael Chen
-      first_name: 'Michael',
-      last_name: 'Chen',
-      email: 'michael.chen@example.com',
-      phone: '+1 (555) 345-6789',
+      id: DEMO_CONTACTS[3].id,
+      first_name: DEMO_CONTACTS[3].first_name,
+      last_name: DEMO_CONTACTS[3].last_name,
+      email: DEMO_CONTACTS[3].email,
+      phone: DEMO_CONTACTS[3].phone,
     },
     event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
     brand: { name: 'Grace Fertility' },
@@ -165,7 +157,7 @@ const demoResponses = [
     answers: [
       {
         question: 'Is there anything we could improve?',
-        answer: 'Communication needs work. I had trouble reaching someone when I had questions about my test results. The phone system is confusing and I was transferred multiple times before getting help.',
+        answer: 'Communication needs work. I had trouble reaching someone when I had questions about my test results.',
       },
     ],
   },
@@ -175,11 +167,11 @@ const demoResponses = [
     completed_at: '2025-12-17T11:30:00Z',
     consent_given: true,
     contact: {
-      id: DEMO_CONTACTS[0].id, // Jane Doe
-      first_name: 'Jane',
-      last_name: 'Doe',
-      email: 'jane@clinic.com',
-      phone: '+1 (555) 456-7890',
+      id: DEMO_CONTACTS[0].id,
+      first_name: DEMO_CONTACTS[0].first_name,
+      last_name: DEMO_CONTACTS[0].last_name,
+      email: DEMO_CONTACTS[0].email,
+      phone: DEMO_CONTACTS[0].phone,
     },
     event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
@@ -189,79 +181,6 @@ const demoResponses = [
       {
         question: 'What did you like most about your experience?',
         answer: 'The facility is beautiful and modern. The waiting area is comfortable and the examination rooms are clean and well-equipped.',
-      },
-    ],
-  },
-  {
-    id: 'r1a2c3d4-e5f6-4789-abcd-666666666666',
-    nps_score: 7,
-    completed_at: '2025-12-16T13:20:00Z',
-    consent_given: true,
-    contact: {
-      id: DEMO_CONTACTS[3].id, // Michael Chen
-      first_name: 'Michael',
-      last_name: 'Chen',
-      email: 'michael.chen@example.com',
-      phone: null,
-    },
-    event: { name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444' },
-    brand: { name: 'Olive Fertility' },
-    location: { name: 'Downtown' },
-    invitation: { channel: 'web' },
-    answers: [
-      {
-        question: 'Would you recommend us to a friend?',
-        answer: 'Probably yes, but there is room for improvement in scheduling flexibility. It was hard to find appointment times that worked with my schedule.',
-      },
-      {
-        question: 'How was the parking situation?',
-        answer: 'Parking was difficult to find, had to park a block away.',
-      },
-    ],
-  },
-  {
-    id: 'r1a2c3d4-e5f6-4789-abcd-777777777777',
-    nps_score: 9,
-    completed_at: '2025-12-15T08:45:00Z',
-    consent_given: true,
-    contact: {
-      id: DEMO_CONTACTS[0].id, // Jane Doe
-      first_name: 'Jane',
-      last_name: 'Doe',
-      email: 'jane@clinic.com',
-      phone: '+1 (555) 567-8901',
-    },
-    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    location: { name: 'NewMarket' },
-    invitation: { channel: 'email' },
-    answers: [
-      {
-        question: 'What did you like most about your experience?',
-        answer: 'Dr. Patel was exceptional! She took the time to explain my diagnosis and treatment options in detail. I felt heard and respected throughout my visit.',
-      },
-    ],
-  },
-  {
-    id: 'r1a2c3d4-e5f6-4789-abcd-888888888888',
-    nps_score: 2,
-    completed_at: '2025-12-14T15:00:00Z',
-    consent_given: true,
-    contact: {
-      id: DEMO_CONTACTS[3].id, // Michael Chen
-      first_name: 'Michael',
-      last_name: 'Chen',
-      email: 'michael.chen@example.com',
-      phone: '+1 (555) 678-9012',
-    },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
-    brand: { name: 'Conceptia Fertility' },
-    location: { name: 'Midtown' },
-    invitation: { channel: 'sms' },
-    answers: [
-      {
-        question: 'Is there anything we could improve?',
-        answer: 'Very disappointed with the billing department. I received multiple incorrect bills and spent hours on the phone trying to resolve the issues. This was extremely stressful during an already difficult time.',
       },
     ],
   },
