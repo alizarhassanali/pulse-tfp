@@ -14,6 +14,7 @@ import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import {
   Select,
   SelectContent,
@@ -58,7 +59,9 @@ import {
   ChevronDown,
   Tag,
   User,
+  X,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format as formatDate, parseISO } from 'date-fns';
 import { getScoreCategory, type ScoreCategory } from '@/types/database';
 import { DEMO_CONTACTS } from '@/data/demo-data';
@@ -450,70 +453,105 @@ export default function NPSQuestions() {
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or response..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 input-focus"
-          />
-        </div>
+      <Card className="border-border bg-card">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or response..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 bg-background"
+              />
+            </div>
 
-        <div className="flex items-center gap-2">
-          {['all', 'promoters', 'passives', 'detractors'].map((score) => (
-            <Button
-              key={score}
-              variant={scoreFilter === score ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setScoreFilter(score)}
-              className={scoreFilter === score ? 'btn-coral' : ''}
-            >
-              {score === 'all' ? 'All' : score.charAt(0).toUpperCase() + score.slice(1)}
+            <div className="flex items-center gap-2">
+              {['all', 'promoters', 'passives', 'detractors'].map((score) => (
+                <Button
+                  key={score}
+                  variant={scoreFilter === score ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setScoreFilter(score)}
+                  className={scoreFilter === score ? 'btn-coral' : ''}
+                >
+                  {score === 'all' ? 'All' : score.charAt(0).toUpperCase() + score.slice(1)}
+                </Button>
+              ))}
+            </div>
+
+            <Select value={channelFilter} onValueChange={setChannelFilter}>
+              <SelectTrigger className="w-[160px] bg-background">
+                <SelectValue placeholder="All Channels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="sms">SMS</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="qr">QR Code</SelectItem>
+                <SelectItem value="web">Web Embed</SelectItem>
+                <SelectItem value="link">Link</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px] bg-background">
+                <Tag className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {feedbackCategories.map((cat: any) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Select All Checkbox - consistent with AllContacts */}
+            {paginatedResponses.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="select-all-responses"
+                  checked={paginatedResponses.length > 0 && selectedResponses.length === paginatedResponses.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all responses"
+                />
+                <Label htmlFor="select-all-responses" className="text-sm text-muted-foreground cursor-pointer">
+                  Select All
+                </Label>
+              </div>
+            )}
+          </div>
+
+          {/* Bulk Action Bar */}
+          <BulkActionBar
+            selectedCount={selectedResponses.length}
+            itemLabel="response"
+            onClearSelection={() => setSelectedResponses([])}
+            className="mt-3"
+          >
+            <Button size="sm" className="btn-coral" onClick={() => {
+              if (selectedResponses.length > 0) {
+                const firstSelected = paginatedResponses.find(r => selectedResponses.includes(r.id));
+                if (firstSelected) handleSendMessage(firstSelected);
+              }
+            }}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Send Message
             </Button>
-          ))}
-        </div>
+            <Button size="sm" variant="outline" onClick={() => handleExport('current', 'csv')}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Selected
+            </Button>
+          </BulkActionBar>
 
-        <Select value={channelFilter} onValueChange={setChannelFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="All Channels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Channels</SelectItem>
-            <SelectItem value="sms">SMS</SelectItem>
-            <SelectItem value="email">Email</SelectItem>
-            <SelectItem value="qr">QR Code</SelectItem>
-            <SelectItem value="web">Web Embed</SelectItem>
-            <SelectItem value="link">Link</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Tag className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {feedbackCategories.map((cat: any) => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {paginatedResponses.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleSelectAll}>
-            {selectedResponses.length === paginatedResponses.length ? 'Deselect All' : 'Select All'}
-          </Button>
-        )}
-      </div>
-
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        Showing {paginatedResponses.length} of {filteredResponses.length} responses
-        {responses.length === 0 && ' (demo data)'}
-      </div>
+          {/* Results count */}
+          <div className="mt-3 text-sm text-muted-foreground">
+            Showing {paginatedResponses.length} of {filteredResponses.length} responses
+            {responses.length === 0 && ' (demo data)'}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Response Cards */}
       <div className="grid gap-4">
@@ -527,9 +565,10 @@ export default function NPSQuestions() {
           paginatedResponses.map((response) => (
             <Card
               key={response.id}
-              className={`shadow-soft border-border/50 transition-all hover:shadow-md ${
-                selectedResponses.includes(response.id) ? 'ring-2 ring-primary' : ''
-              }`}
+              className={cn(
+                'shadow-soft border-border/50 transition-all hover:shadow-md',
+                selectedResponses.includes(response.id) && 'ring-2 ring-primary bg-primary/5'
+              )}
             >
               <CardHeader className="pb-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
