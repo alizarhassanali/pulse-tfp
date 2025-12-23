@@ -319,24 +319,24 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 relative sticky top-16',
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 sticky top-16 relative',
           collapsed ? 'w-16' : 'w-64'
         )}
       >
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 -right-3 h-6 w-6 rounded-full bg-card border border-border shadow-sm hover:bg-muted z-10"
+          className="absolute top-4 right-2 h-7 w-7 rounded-md bg-sidebar-hover hover:bg-primary/10 z-10"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? (
-            <PanelLeft className="h-3.5 w-3.5 text-foreground" />
+            <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
           ) : (
-            <PanelLeftClose className="h-3.5 w-3.5 text-foreground" />
+            <PanelLeftClose className="h-4 w-4 text-sidebar-foreground" />
           )}
         </Button>
 
-        <nav className={cn('flex-1 space-y-1 py-4', collapsed ? 'px-2' : 'px-3')}>
+        <nav className={cn('flex-1 space-y-1 pt-14 pb-4', collapsed ? 'px-2' : 'px-3')}>
           {navigation.map((item, index) => {
             if (isNavGroup(item)) {
               return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} collapsed={collapsed} />;
