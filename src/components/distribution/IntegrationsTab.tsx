@@ -304,7 +304,7 @@ export function IntegrationsTab({ eventId, events }: IntegrationsTabProps) {
       { key: 'email', label: 'email', required: false, description: 'Email address (required if phone not provided)' },
       { key: 'phone', label: 'phone', required: false, description: 'Phone with country code (required if email not provided)' },
       { key: 'preferred_channel', label: 'preferred_channel', required: false, description: 'Values: email, sms, or both' },
-      { key: 'location_name', label: 'location_name', required: false, description: 'Location name for matching' },
+      { key: 'location_name', label: 'location_name', required: true, description: 'Location name for matching (must exist in system)' },
       { key: 'external_id', label: 'external_id', required: false, description: 'Your system patient/customer ID' },
       { key: 'contact_tags', label: 'contact_tags', required: false, description: 'Comma-separated tags' },
       { key: 'appointment_date', label: 'appointment_date', required: false, description: 'Format: YYYY-MM-DD' },
@@ -314,8 +314,8 @@ export function IntegrationsTab({ eventId, events }: IntegrationsTabProps) {
       // Create CSV with header comments
       const headerComments = [
         '# SFTP Contact Import Template',
-        '# Required fields: first_name, last_name, and either email OR phone',
-        '# Optional fields: preferred_channel (email/sms/both), location_name, external_id, contact_tags, appointment_date',
+        '# Required fields: first_name, last_name, location_name, and either email OR phone',
+        '# Optional fields: preferred_channel (email/sms/both), external_id, contact_tags, appointment_date',
         '# Note: Event and brand are configured in the SFTP integration settings',
         '#',
       ];
@@ -343,8 +343,8 @@ export function IntegrationsTab({ eventId, events }: IntegrationsTabProps) {
       const jsonData = {
         _documentation: {
           description: 'SFTP Contact Import Template',
-          required_fields: ['first_name', 'last_name', 'email OR phone'],
-          optional_fields: ['preferred_channel', 'location_name', 'external_id', 'contact_tags', 'appointment_date'],
+          required_fields: ['first_name', 'last_name', 'location_name', 'email OR phone'],
+          optional_fields: ['preferred_channel', 'external_id', 'contact_tags', 'appointment_date'],
           notes: [
             'At least email or phone must be provided',
             'preferred_channel accepts: email, sms, or both',
