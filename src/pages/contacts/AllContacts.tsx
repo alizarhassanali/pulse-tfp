@@ -19,7 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, X, Send } from 'lucide-react';
+import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { cn } from '@/lib/utils';
@@ -277,10 +279,11 @@ export default function AllContacts() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (type: 'current' | 'all') => {
+    const dataToExport = type === 'current' ? filteredContacts : contacts;
     const csv = [
       ['Name', 'Email', 'Phone', 'Preferred SMS', 'Preferred Email', 'Brand', 'Location', 'Status'].join(','),
-      ...filteredContacts.map((c) => {
+      ...dataToExport.map((c: any) => {
         const preferSms = c.preferred_channel === 'sms' || c.preferred_channel === 'both' ? 'TRUE' : 'FALSE';
         const preferEmail = c.preferred_channel === 'email' || c.preferred_channel === 'both' ? 'TRUE' : 'FALSE';
         return [`${c.first_name} ${c.last_name}`, c.email || '', c.phone || '', preferSms, preferEmail, c.brand?.name || '', c.location?.name || '', c.status].join(',');
@@ -291,9 +294,12 @@ export default function AllContacts() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'contacts.csv';
+    a.download = `contacts-${type}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
-    toast({ title: 'Contacts exported' });
+    toast({ 
+      title: 'Contacts exported',
+      description: `Exported ${dataToExport.length} contacts`
+    });
   };
 
   const createContactMutation = useMutation({
@@ -394,10 +400,23 @@ export default function AllContacts() {
               <Upload className="h-4 w-4 mr-2" />
               Import CSV
             </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport('current')}>
+                  Export current view ({filteredContacts.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('all')}>
+                  Export all ({contacts.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button className="btn-coral" onClick={() => setAddModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Contact
@@ -491,20 +510,17 @@ export default function AllContacts() {
           </div>
           
           {/* Bulk Actions */}
-          {selectedContactIds.length > 0 && (
-            <div className="mt-3 flex items-center gap-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-              <span className="text-sm font-medium">
-                {selectedContactIds.length} contact{selectedContactIds.length !== 1 ? 's' : ''} selected
-              </span>
-              <Button size="sm" onClick={handleSendEvent} className="btn-coral">
-                <Send className="h-4 w-4 mr-2" />
-                Send Event
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedContactIds([])}>
-                Clear Selection
-              </Button>
-            </div>
-          )}
+          <BulkActionBar
+            selectedCount={selectedContactIds.length}
+            itemLabel="contact"
+            onClearSelection={() => setSelectedContactIds([])}
+            className="mt-3"
+          >
+            <Button size="sm" onClick={handleSendEvent} className="btn-coral">
+              <Send className="h-4 w-4 mr-2" />
+              Send Event
+            </Button>
+          </BulkActionBar>
 
           {/* Results count */}
           <div className="mt-3 text-sm text-muted-foreground">
