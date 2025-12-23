@@ -9,6 +9,7 @@ import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations } from '@/data/demo-data';
 
 interface ContactDetailsModalProps {
   contactId: string | null;
@@ -19,19 +20,43 @@ interface ContactDetailsModalProps {
 // UUID validation helper
 const isValidUUID = (str: string | null): boolean => {
   if (!str) return false;
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 };
 
+// Check if this is a demo contact ID
+const isDemoContactId = (id: string | null): boolean => {
+  if (!id) return false;
+  return DEMO_CONTACTS.some(c => c.id === id);
+};
+
+// Get demo contact by ID
+const getDemoContact = (id: string) => {
+  const demoContact = DEMO_CONTACTS.find(c => c.id === id);
+  if (!demoContact) return null;
+  
+  const brand = DEMO_BRANDS.find(b => b.id === demoContact.brand_id);
+  const allLocations = getAllLocations();
+  const location = allLocations.find(l => l.id === demoContact.location_id);
+  
+  return {
+    ...demoContact,
+    brand: brand ? { name: brand.name } : null,
+    location: location ? { name: location.name } : null,
+    created_at: '2025-01-01T00:00:00Z',
+  };
+};
+
 export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDetailsModalProps) {
-  // Always fetch from real contacts table
-  const { data: contact, isLoading: loadingContact, error: contactError } = useQuery({
+  // Check if this is a demo contact
+  const isDemo = isDemoContactId(contactId);
+  const demoContact = isDemo && contactId ? getDemoContact(contactId) : null;
+  
+  // Fetch from real contacts table only if not a demo contact
+  const { data: dbContact, isLoading: loadingContact, error: contactError } = useQuery({
     queryKey: ['contact-detail', contactId],
     queryFn: async () => {
-      if (!contactId) {
-        if (import.meta.env.DEV) {
-          console.log('[ContactDetailsModal] No contactId provided');
-        }
+      if (!contactId || isDemo) {
         return null;
       }
       
@@ -56,13 +81,16 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       
       return data;
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
+
+  // Use demo contact if available, otherwise use database contact
+  const contact = demoContact || dbContact;
 
   const { data: tags = [] } = useQuery({
     queryKey: ['contact-tags', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('contact_tag_assignments')
         .select('tag:contact_tags(id, name)')
@@ -70,13 +98,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data?.map((d: any) => d.tag) || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const { data: submissions = [] } = useQuery({
     queryKey: ['contact-submissions', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('survey_responses')
         .select('*, event:events(name)')
@@ -86,13 +114,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const { data: communications = [] } = useQuery({
     queryKey: ['contact-communications', contactId],
     queryFn: async () => {
-      if (!contactId) return [];
+      if (!contactId || isDemo) return [];
       const { data, error } = await supabase
         .from('survey_invitations')
         .select('*, event:events(name)')
@@ -102,7 +130,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open,
+    enabled: !!contactId && open && !isDemo,
   });
 
   const getPreferredMethodDisplay = (channel: string | null) => {
@@ -174,9 +202,9 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
           </DialogTitle>
         </DialogHeader>
 
-        {loadingContact ? (
+        {loadingContact && !isDemo ? (
           <div className="py-8 text-center text-muted-foreground">Loading contact...</div>
-        ) : contactError ? (
+        ) : contactError && !isDemo ? (
           <div className="py-8 text-center text-destructive">
             <AlertCircle className="h-8 w-8 mx-auto mb-2" />
             <p>Failed to load contact details</p>
