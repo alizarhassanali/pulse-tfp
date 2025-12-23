@@ -31,7 +31,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
+import { DEMO_BRANDS, DEMO_LOCATIONS, DEMO_MANAGE_EVENTS } from '@/data/demo-data';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type ThankYouMode = 'same' | 'by-score' | 'by-score-location';
@@ -141,7 +141,58 @@ export default function CreateEvent() {
           console.log('[CreateEvent] Loading event with ID:', eventId);
         }
         
-        // Fetch the event - use maybeSingle() to avoid JSON coercion error
+        // Check if this is a demo event
+        const isDemoEvent = eventId.startsWith('e1a2c3d4');
+        
+        if (isDemoEvent) {
+          // Load from demo data
+          const demoEvent = DEMO_MANAGE_EVENTS.find(e => e.id === eventId);
+          if (!demoEvent) {
+            toast({ title: 'Event not found', description: `Demo event not found with ID: ${eventId}`, variant: 'destructive' });
+            navigate('/nps/manage-events');
+            return;
+          }
+          
+          if (import.meta.env.DEV) {
+            console.log('[CreateEvent] Loaded demo event:', demoEvent);
+          }
+          
+          // Get demo locations for the brand
+          const demoLocations = DEMO_LOCATIONS[demoEvent.brand_id] || [];
+          const locationIds = demoEvent.event_locations?.map((el: any) => el.location_id) || [];
+          
+          setFormData({
+            brandId: demoEvent.brand_id || '',
+            locationIds: locationIds,
+            name: demoEvent.name || '',
+            metricQuestion: demoEvent.metric_question || 'How likely are you to recommend [Brand] to a friend or colleague?',
+            languages: ['en'],
+            defaultLanguage: 'en',
+            introMessage: '',
+            questions: [],
+            throttleDays: 90,
+            collectConsent: true,
+            consentText: 'I consent to being contacted for feedback purposes.',
+            collectContact: true,
+            contactFields: [
+              { field: 'name', required: false },
+              { field: 'email', required: false },
+              { field: 'phone', required: false },
+            ],
+            thankYouMode: 'same',
+            thankYouConfig: {
+              promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttonText: 'Leave a Google Review', buttonUrl: demoLocations[0]?.gmb_link || '' },
+              passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttonText: '', buttonUrl: '' },
+              detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
+            },
+            locationThankYouConfig: {},
+          });
+          
+          setIsLoadingEvent(false);
+          return;
+        }
+        
+        // Fetch the event from database - use maybeSingle() to avoid JSON coercion error
         const { data: event, error: eventError } = await supabase
           .from('events')
           .select('*')
