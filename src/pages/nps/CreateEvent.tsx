@@ -261,7 +261,7 @@ export default function CreateEvent() {
       }
 
       const eventData = {
-        brand_id: formData.brandId,
+        brand_id: formData.brandId || null,
         name: formData.name,
         type: 'nps' as const,
         metric_question: formData.metricQuestion,
