@@ -546,6 +546,7 @@ export default function AllContacts() {
                 <TableHead className="font-semibold">Contact</TableHead>
                 <TableHead className="font-semibold">Brand</TableHead>
                 <TableHead className="font-semibold">Location</TableHead>
+                <TableHead className="font-semibold">Tags</TableHead>
                 <TableHead className="font-semibold">Preferred Method</TableHead>
                 <TableHead className="font-semibold">Last Score</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
@@ -555,8 +556,8 @@ export default function AllContacts() {
             <TableBody>
               {isLoading ? (
                 <>
-                  <TableRowSkeleton columns={9} />
-                  <TableRowSkeleton columns={9} />
+                  <TableRowSkeleton columns={10} />
+                  <TableRowSkeleton columns={10} />
                 </>
               ) : filteredContacts.length > 0 ? (
                 filteredContacts.map((contact: any) => (
@@ -609,6 +610,26 @@ export default function AllContacts() {
                     <TableCell className="text-sm">{contact.brand?.name || '-'}</TableCell>
                     <TableCell className="text-sm">{contact.location?.name || '-'}</TableCell>
                     <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {(contactTagMap[contact.id] || []).slice(0, 3).map((tagId: string) => {
+                          const tag = contactTags.find((t: any) => t.id === tagId);
+                          return tag ? (
+                            <Badge key={tagId} variant="outline" className="text-xs">
+                              {tag.name}
+                            </Badge>
+                          ) : null;
+                        })}
+                        {(contactTagMap[contact.id] || []).length > 3 && (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">
+                            +{(contactTagMap[contact.id] || []).length - 3}
+                          </Badge>
+                        )}
+                        {(contactTagMap[contact.id] || []).length === 0 && (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="secondary" className="bg-tertiary-light text-secondary border-0">
                         {getPreferredChannelDisplay(contact.preferred_channel)}
                       </Badge>
@@ -637,7 +658,7 @@ export default function AllContacts() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={10}>
                     <EmptyState
                       icon={<Users className="h-8 w-8" />}
                       title="No contacts found"
