@@ -16,6 +16,13 @@ interface ContactDetailsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// UUID validation helper
+const isValidUUID = (str: string | null): boolean => {
+  if (!str) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDetailsModalProps) {
   // Always fetch from real contacts table
   const { data: contact, isLoading: loadingContact, error: contactError } = useQuery({
@@ -122,6 +129,31 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
           </DialogHeader>
           <div className="py-8 text-center text-muted-foreground">
             <p>No contact ID was provided. Please try again.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Handle invalid UUID format
+  if (!isValidUUID(contactId)) {
+    if (import.meta.env.DEV) {
+      console.error('[ContactDetailsModal] Invalid contact ID format (not a UUID):', contactId);
+    }
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Invalid Contact ID
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center text-muted-foreground">
+            <p>The contact ID format is invalid.</p>
+            {import.meta.env.DEV && (
+              <p className="text-sm mt-2 font-mono text-destructive">ID: {contactId}</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -20,14 +20,15 @@ import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
+import { DEMO_CONTACTS, DEMO_BRANDS, DEMO_LOCATIONS, getBrandName, getLocationName } from '@/data/demo-data';
 
-// Demo contacts
-const demoContacts = [
-  { id: 'demo-1', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand: { name: 'Generation Fertility' }, location: { name: 'NewMarket' }, status: 'active', created_at: '2025-11-01T10:00:00Z', last_score: 9, brand_id: 'b1', location_id: 'l1' },
-  { id: 'demo-2', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand: { name: 'Grace Fertility' }, location: { name: 'Downtown' }, status: 'unsubscribed', created_at: '2025-10-15T10:00:00Z', last_score: 6, brand_id: 'b2', location_id: 'l2' },
-  { id: 'demo-3', first_name: 'Emma', last_name: 'Johnson', email: 'emma@email.com', phone: '+15559876543', preferred_channel: 'email', brand: { name: 'Olive Fertility' }, location: { name: 'Midtown' }, status: 'active', created_at: '2025-11-20T10:00:00Z', last_score: 10, brand_id: 'b3', location_id: 'l3' },
-  { id: 'demo-4', first_name: 'Michael', last_name: 'Brown', email: 'michael@email.com', phone: '+15551112222', preferred_channel: 'both', brand: { name: 'Conceptia Fertility' }, location: { name: 'Uptown' }, status: 'active', created_at: '2025-12-01T10:00:00Z', last_score: 7, brand_id: 'b4', location_id: 'l4' },
-];
+// Transform demo contacts to include brand and location names
+const demoContactsWithBrandLocation = DEMO_CONTACTS.map(c => ({
+  ...c,
+  brand: { name: getBrandName(c.brand_id) },
+  location: { name: getLocationName(c.location_id) },
+  created_at: '2025-11-01T10:00:00Z',
+}));
 
 export default function AllContacts() {
   const { toast } = useToast();
@@ -102,7 +103,7 @@ export default function AllContacts() {
     enabled: !!newContact.brand_id,
   });
 
-  const contacts = dbContacts.length > 0 ? dbContacts : demoContacts;
+  const contacts = dbContacts.length > 0 ? dbContacts : demoContactsWithBrandLocation;
 
   // Get unique values for filters
   const uniqueBrands = useMemo(() => {

@@ -61,22 +61,23 @@ import {
 } from 'lucide-react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { getScoreCategory, type ScoreCategory } from '@/types/database';
+import { DEMO_CONTACTS } from '@/data/demo-data';
 
-// Demo data for when no real data exists
+// Demo data for when no real data exists - using valid UUIDs from DEMO_CONTACTS
 const demoResponses = [
   {
-    id: 'demo-1',
+    id: 'r1a2c3d4-e5f6-4789-abcd-111111111111',
     nps_score: 6,
     completed_at: '2025-12-22T10:30:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-1',
+      id: DEMO_CONTACTS[1].id, // John Smith
       first_name: 'John',
       last_name: 'Smith',
       email: 'john.smith@example.com',
       phone: '+1 (555) 123-4567',
     },
-    event: { name: 'Post First Consult', brand_id: 'brand-1' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'NewMarket' },
     invitation: { channel: 'sms' },
@@ -92,18 +93,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-2',
+    id: 'r1a2c3d4-e5f6-4789-abcd-222222222222',
     nps_score: 9,
     completed_at: '2025-12-20T14:15:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-2',
+      id: DEMO_CONTACTS[2].id, // Emma Johnson
       first_name: 'Emma',
       last_name: 'Johnson',
       email: 'emma.johnson@example.com',
       phone: '+1 (555) 234-5678',
     },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-2' },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444' },
     brand: { name: 'Olive Fertility' },
     location: { name: 'Downtown' },
     invitation: { channel: 'email' },
@@ -115,18 +116,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-3',
+    id: 'r1a2c3d4-e5f6-4789-abcd-333333333333',
     nps_score: 10,
     completed_at: '2025-12-19T09:00:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-3',
+      id: DEMO_CONTACTS[4].id, // Sarah Williams
       first_name: 'Sarah',
       last_name: 'Williams',
       email: 'sarah.williams@example.com',
       phone: null,
     },
-    event: { name: 'Annual Check-In', brand_id: 'brand-1' },
+    event: { name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'Vaughan' },
     invitation: { channel: 'email' },
@@ -146,18 +147,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-4',
+    id: 'r1a2c3d4-e5f6-4789-abcd-444444444444',
     nps_score: 3,
     completed_at: '2025-12-18T16:45:00Z',
     consent_given: false,
     contact: {
-      id: 'contact-4',
+      id: DEMO_CONTACTS[3].id, // Michael Chen
       first_name: 'Michael',
-      last_name: 'Brown',
-      email: 'michael.brown@example.com',
+      last_name: 'Chen',
+      email: 'michael.chen@example.com',
       phone: '+1 (555) 345-6789',
     },
-    event: { name: 'Post First Consult', brand_id: 'brand-3' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
     brand: { name: 'Grace Fertility' },
     location: { name: 'Waterloo' },
     invitation: { channel: 'sms' },
@@ -169,18 +170,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-5',
+    id: 'r1a2c3d4-e5f6-4789-abcd-555555555555',
     nps_score: 8,
     completed_at: '2025-12-17T11:30:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-5',
-      first_name: 'Lisa',
-      last_name: 'Davis',
-      email: 'lisa.davis@example.com',
+      id: DEMO_CONTACTS[0].id, // Jane Doe
+      first_name: 'Jane',
+      last_name: 'Doe',
+      email: 'jane@clinic.com',
       phone: '+1 (555) 456-7890',
     },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-1' },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'TorontoWest' },
     invitation: { channel: 'qr' },
@@ -192,18 +193,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-6',
+    id: 'r1a2c3d4-e5f6-4789-abcd-666666666666',
     nps_score: 7,
     completed_at: '2025-12-16T13:20:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-6',
-      first_name: 'David',
-      last_name: 'Miller',
-      email: 'david.miller@example.com',
+      id: DEMO_CONTACTS[3].id, // Michael Chen
+      first_name: 'Michael',
+      last_name: 'Chen',
+      email: 'michael.chen@example.com',
       phone: null,
     },
-    event: { name: 'Annual Check-In', brand_id: 'brand-2' },
+    event: { name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444' },
     brand: { name: 'Olive Fertility' },
     location: { name: 'Downtown' },
     invitation: { channel: 'web' },
@@ -219,18 +220,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-7',
+    id: 'r1a2c3d4-e5f6-4789-abcd-777777777777',
     nps_score: 9,
     completed_at: '2025-12-15T08:45:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-7',
-      first_name: 'Jennifer',
-      last_name: 'Garcia',
-      email: 'jennifer.garcia@example.com',
+      id: DEMO_CONTACTS[0].id, // Jane Doe
+      first_name: 'Jane',
+      last_name: 'Doe',
+      email: 'jane@clinic.com',
       phone: '+1 (555) 567-8901',
     },
-    event: { name: 'Post First Consult', brand_id: 'brand-1' },
+    event: { name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
     brand: { name: 'Generation Fertility' },
     location: { name: 'NewMarket' },
     invitation: { channel: 'email' },
@@ -242,18 +243,18 @@ const demoResponses = [
     ],
   },
   {
-    id: 'demo-8',
+    id: 'r1a2c3d4-e5f6-4789-abcd-888888888888',
     nps_score: 2,
     completed_at: '2025-12-14T15:00:00Z',
     consent_given: true,
     contact: {
-      id: 'contact-8',
-      first_name: 'Robert',
-      last_name: 'Martinez',
-      email: 'robert.martinez@example.com',
+      id: DEMO_CONTACTS[3].id, // Michael Chen
+      first_name: 'Michael',
+      last_name: 'Chen',
+      email: 'michael.chen@example.com',
       phone: '+1 (555) 678-9012',
     },
-    event: { name: 'Post Treatment Follow-up', brand_id: 'brand-4' },
+    event: { name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
     brand: { name: 'Conceptia Fertility' },
     location: { name: 'Midtown' },
     invitation: { channel: 'sms' },
