@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/page-header';
@@ -98,9 +98,12 @@ const languageOptions = [
 
 export default function CreateEvent() {
   const navigate = useNavigate();
+  const { id: eventId } = useParams<{ id: string }>();
+  const isEditMode = !!eventId;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [isLoadingEvent, setIsLoadingEvent] = useState(isEditMode);
   const [formData, setFormData] = useState<EventFormData>({
     brandId: '',
     locationIds: [],
@@ -127,6 +130,86 @@ export default function CreateEvent() {
     },
     locationThankYouConfig: {},
   });
+
+  // Load existing event data when editing
+  useEffect(() => {
+    if (!eventId) return;
+    
+    const loadEventData = async () => {
+      try {
+        // Fetch the event
+        const { data: event, error: eventError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+        
+        if (eventError) throw eventError;
+        if (!event) {
+          toast({ title: 'Event not found', variant: 'destructive' });
+          navigate('/nps/manage-events');
+          return;
+        }
+
+        // Fetch event locations
+        const { data: eventLocations } = await supabase
+          .from('event_locations')
+          .select('location_id')
+          .eq('event_id', eventId);
+
+        // Fetch event questions
+        const { data: eventQuestions } = await supabase
+          .from('event_questions')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('order_num');
+
+        // Parse config objects
+        const consentConfig = typeof event.consent_config === 'object' ? event.consent_config as any : {};
+        const thankYouConfig = typeof event.thank_you_config === 'object' ? event.thank_you_config as any : {};
+        const eventConfig = typeof event.config === 'object' ? event.config as any : {};
+
+        setFormData({
+          brandId: event.brand_id || '',
+          locationIds: eventLocations?.map(el => el.location_id) || [],
+          name: event.name || '',
+          metricQuestion: event.metric_question || 'How likely are you to recommend [Brand] to a friend or colleague?',
+          languages: event.languages || ['en'],
+          defaultLanguage: eventConfig?.defaultLanguage || 'en',
+          introMessage: event.intro_message || '',
+          questions: eventQuestions?.map(q => ({
+            id: q.id,
+            type: q.type,
+            config: typeof q.config === 'object' ? q.config as Record<string, any> : {},
+            showFor: q.show_for || ['promoters', 'passives', 'detractors'],
+            required: q.required || false,
+          })) || [],
+          throttleDays: event.throttle_days || 90,
+          collectConsent: consentConfig?.collectConsent ?? true,
+          consentText: consentConfig?.consentText || 'I consent to being contacted for feedback purposes.',
+          collectContact: consentConfig?.collectContact ?? true,
+          contactFields: consentConfig?.contactFields || [
+            { field: 'name', required: false },
+            { field: 'email', required: false },
+            { field: 'phone', required: false },
+          ],
+          thankYouMode: thankYouConfig?.mode || 'same',
+          thankYouConfig: thankYouConfig?.config || {
+            promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttonText: 'Leave a Google Review', buttonUrl: '' },
+            passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttonText: '', buttonUrl: '' },
+            detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
+          },
+          locationThankYouConfig: thankYouConfig?.locationConfig || {},
+        });
+      } catch (error: any) {
+        toast({ title: 'Failed to load event', description: error.message, variant: 'destructive' });
+      } finally {
+        setIsLoadingEvent(false);
+      }
+    };
+
+    loadEventData();
+  }, [eventId, navigate, toast]);
 
   // Fetch brands from DB, fallback to demo
   const { data: dbBrands = [] } = useQuery({
@@ -171,13 +254,13 @@ export default function CreateEvent() {
       if (isDemoData) {
         // Simulate success for demo
         toast({ 
-          title: status === 'active' ? 'Event published!' : 'Draft saved',
+          title: isEditMode ? 'Event updated!' : (status === 'active' ? 'Event published!' : 'Draft saved'),
           description: 'This is a demo - event would be saved in production.' 
         });
-        return { id: crypto.randomUUID(), status };
+        return { id: eventId || crypto.randomUUID(), status };
       }
 
-      const eventInsert = {
+      const eventData = {
         brand_id: formData.brandId,
         name: formData.name,
         type: 'nps' as const,
@@ -202,13 +285,34 @@ export default function CreateEvent() {
         status,
       };
 
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .insert([eventInsert])
-        .select()
-        .single();
+      let event;
+      
+      if (isEditMode && eventId) {
+        // Update existing event
+        const { data, error: eventError } = await supabase
+          .from('events')
+          .update(eventData)
+          .eq('id', eventId)
+          .select()
+          .single();
 
-      if (eventError) throw eventError;
+        if (eventError) throw eventError;
+        event = data;
+
+        // Delete existing locations and questions before re-inserting
+        await supabase.from('event_locations').delete().eq('event_id', eventId);
+        await supabase.from('event_questions').delete().eq('event_id', eventId);
+      } else {
+        // Insert new event
+        const { data, error: eventError } = await supabase
+          .from('events')
+          .insert([eventData])
+          .select()
+          .single();
+
+        if (eventError) throw eventError;
+        event = data;
+      }
 
       if (formData.locationIds.length > 0) {
         const { error: locError } = await supabase.from('event_locations').insert(
@@ -1141,11 +1245,25 @@ export default function CreateEvent() {
     }
   };
 
+  if (isLoadingEvent) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Loading Event..."
+          description="Please wait while we load the event data"
+        />
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-pulse text-primary text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Create NPS Event"
-        description="Set up a new survey event with customizable questions and triggers"
+        title={isEditMode ? 'Edit Event' : 'Create NPS Event'}
+        description={isEditMode ? 'Update your survey event configuration' : 'Set up a new survey event with customizable questions and triggers'}
       />
 
       {/* Step Navigation */}

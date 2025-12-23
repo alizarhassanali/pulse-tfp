@@ -100,6 +100,7 @@ const App = () => (
               <Route path="reviews" element={<Reviews />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
+              <Route path="settings" element={<Navigate to="/settings/profile" replace />} />
               <Route path="settings/profile" element={<ProfileSettings />} />
               <Route path="settings/templates" element={<Templates />} />
               <Route path="settings/automations" element={<AutomationRules />} />

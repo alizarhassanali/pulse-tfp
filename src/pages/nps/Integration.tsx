@@ -101,6 +101,14 @@ export default function Integration() {
   const [sftpStatus, setSftpStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
   const [sftpScheduleDays, setSftpScheduleDays] = useState<string[]>(['monday', 'wednesday', 'friday']);
   const [sftpScheduleTime, setSftpScheduleTime] = useState('09:00');
+  const [sftpTimezone, setSftpTimezone] = useState(() => {
+    // Try to get user's locale timezone
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return 'America/New_York';
+    }
+  });
   const [sftpFileFormat, setSftpFileFormat] = useState('csv');
 
   // Initialize selected event from global filter or navigation state
@@ -911,12 +919,38 @@ function App() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Time (Timezone: EST)</Label>
+                    <Label>Time</Label>
                     <Input 
                       type="time" 
                       value={sftpScheduleTime}
                       onChange={(e) => setSftpScheduleTime(e.target.value)}
                     />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Timezone</Label>
+                    <Select value={sftpTimezone} onValueChange={setSftpTimezone}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select timezone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                        <SelectItem value="America/Phoenix">Arizona (MST)</SelectItem>
+                        <SelectItem value="America/Anchorage">Alaska (AKT)</SelectItem>
+                        <SelectItem value="Pacific/Honolulu">Hawaii (HST)</SelectItem>
+                        <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                        <SelectItem value="Europe/Paris">Central European (CET)</SelectItem>
+                        <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                        <SelectItem value="Asia/Shanghai">China (CST)</SelectItem>
+                        <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                        <SelectItem value="UTC">UTC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Currently selected: {sftpTimezone}
+                    </p>
                   </div>
                 </div>
               </div>
