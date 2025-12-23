@@ -18,10 +18,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
+import { EditContactModal } from '@/components/contacts/EditContactModal';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,7 @@ export default function AllContacts() {
   const [search, setSearch] = useState('');
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactDetailOpen, setContactDetailOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [sendEventModalOpen, setSendEventModalOpen] = useState(false);
@@ -389,6 +391,11 @@ export default function AllContacts() {
     setContactDetailOpen(true);
   };
 
+  const handleEditContact = (contactId: string) => {
+    setSelectedContactId(contactId);
+    setEditModalOpen(true);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
@@ -650,9 +657,23 @@ export default function AllContacts() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => handleViewContact(contact.id)} className="hover:bg-tertiary-light">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="hover:bg-tertiary-light">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewContact(contact.id)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditContact(contact.id)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -677,6 +698,17 @@ export default function AllContacts() {
         contactId={selectedContactId}
         open={contactDetailOpen}
         onOpenChange={setContactDetailOpen}
+        onEdit={() => {
+          setContactDetailOpen(false);
+          setEditModalOpen(true);
+        }}
+      />
+
+      {/* Edit Contact Modal */}
+      <EditContactModal
+        contactId={selectedContactId}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
       />
 
       {/* Import CSV Modal */}
