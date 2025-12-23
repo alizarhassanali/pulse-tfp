@@ -137,37 +137,63 @@ export default function CreateEvent() {
     
     const loadEventData = async () => {
       try {
-        // Fetch the event
+        if (import.meta.env.DEV) {
+          console.log('[CreateEvent] Loading event with ID:', eventId);
+        }
+        
+        // Fetch the event - use maybeSingle() to avoid JSON coercion error
         const { data: event, error: eventError } = await supabase
           .from('events')
           .select('*')
           .eq('id', eventId)
-          .single();
+          .maybeSingle();
         
-        if (eventError) throw eventError;
+        if (eventError) {
+          console.error('[CreateEvent] Error fetching event:', eventError);
+          throw eventError;
+        }
+        
         if (!event) {
-          toast({ title: 'Event not found', variant: 'destructive' });
+          toast({ title: 'Event not found', description: `No event found with ID: ${eventId}`, variant: 'destructive' });
           navigate('/nps/manage-events');
           return;
         }
 
+        if (import.meta.env.DEV) {
+          console.log('[CreateEvent] Loaded event:', event);
+        }
+
         // Fetch event locations
-        const { data: eventLocations } = await supabase
+        const { data: eventLocations, error: locError } = await supabase
           .from('event_locations')
           .select('location_id')
           .eq('event_id', eventId);
+        
+        if (locError) {
+          console.error('[CreateEvent] Error fetching locations:', locError);
+        }
 
         // Fetch event questions
-        const { data: eventQuestions } = await supabase
+        const { data: eventQuestions, error: qError } = await supabase
           .from('event_questions')
           .select('*')
           .eq('event_id', eventId)
           .order('order_num');
+        
+        if (qError) {
+          console.error('[CreateEvent] Error fetching questions:', qError);
+        }
 
-        // Parse config objects
-        const consentConfig = typeof event.consent_config === 'object' ? event.consent_config as any : {};
-        const thankYouConfig = typeof event.thank_you_config === 'object' ? event.thank_you_config as any : {};
-        const eventConfig = typeof event.config === 'object' ? event.config as any : {};
+        // Parse config objects safely
+        const consentConfig = (event.consent_config && typeof event.consent_config === 'object') 
+          ? event.consent_config as any 
+          : {};
+        const thankYouConfig = (event.thank_you_config && typeof event.thank_you_config === 'object') 
+          ? event.thank_you_config as any 
+          : {};
+        const eventConfig = (event.config && typeof event.config === 'object') 
+          ? event.config as any 
+          : {};
 
         setFormData({
           brandId: event.brand_id || '',
@@ -180,7 +206,7 @@ export default function CreateEvent() {
           questions: eventQuestions?.map(q => ({
             id: q.id,
             type: q.type,
-            config: typeof q.config === 'object' ? q.config as Record<string, any> : {},
+            config: (q.config && typeof q.config === 'object') ? q.config as Record<string, any> : {},
             showFor: q.show_for || ['promoters', 'passives', 'detractors'],
             required: q.required || false,
           })) || [],
@@ -201,8 +227,14 @@ export default function CreateEvent() {
           },
           locationThankYouConfig: thankYouConfig?.locationConfig || {},
         });
+        
+        if (import.meta.env.DEV) {
+          console.log('[CreateEvent] Form data loaded successfully');
+        }
       } catch (error: any) {
+        console.error('[CreateEvent] Failed to load event:', error);
         toast({ title: 'Failed to load event', description: error.message, variant: 'destructive' });
+        navigate('/nps/manage-events');
       } finally {
         setIsLoadingEvent(false);
       }

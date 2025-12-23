@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
+import { useAuthStore } from '@/stores/authStore';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +63,30 @@ import {
 import { useLocation } from 'react-router-dom';
 import { DEMO_CONTACTS, DEMO_EVENTS, DEMO_LOCATIONS, DEMO_BRANDS } from '@/data/demo-data';
 
+// Extended timezone list
+const TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona (MST)' },
+  { value: 'America/Anchorage', label: 'Alaska (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HST)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Karachi', label: 'Karachi (PKT)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Kolkata', label: 'Kolkata (IST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+  { value: 'UTC', label: 'UTC' },
+];
+
 export default function Integration() {
+  const { profile } = useAuthStore();
   const { toast } = useToast();
   const location = useLocation();
   const eventIdFromState = location.state?.eventId;
@@ -101,14 +125,24 @@ export default function Integration() {
   const [sftpStatus, setSftpStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
   const [sftpScheduleDays, setSftpScheduleDays] = useState<string[]>(['monday', 'wednesday', 'friday']);
   const [sftpScheduleTime, setSftpScheduleTime] = useState('09:00');
-  const [sftpTimezone, setSftpTimezone] = useState(() => {
-    // Try to get user's locale timezone
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      return 'America/New_York';
+  const [sftpTimezone, setSftpTimezone] = useState('America/New_York');
+  
+  // Initialize SFTP timezone from user profile when available
+  useEffect(() => {
+    if (profile?.timezone) {
+      setSftpTimezone(profile.timezone);
+    } else {
+      // Fallback to browser timezone
+      try {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (TIMEZONE_OPTIONS.some(tz => tz.value === browserTz)) {
+          setSftpTimezone(browserTz);
+        }
+      } catch {
+        // Keep default
+      }
     }
-  });
+  }, [profile?.timezone]);
   const [sftpFileFormat, setSftpFileFormat] = useState('csv');
 
   // Initialize selected event from global filter or navigation state
@@ -933,23 +967,16 @@ function App() {
                         <SelectValue placeholder="Select timezone" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                        <SelectItem value="America/Phoenix">Arizona (MST)</SelectItem>
-                        <SelectItem value="America/Anchorage">Alaska (AKT)</SelectItem>
-                        <SelectItem value="Pacific/Honolulu">Hawaii (HST)</SelectItem>
-                        <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
-                        <SelectItem value="Europe/Paris">Central European (CET)</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
-                        <SelectItem value="Asia/Shanghai">China (CST)</SelectItem>
-                        <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
-                        <SelectItem value="UTC">UTC</SelectItem>
+                        {TIMEZONE_OPTIONS.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Currently selected: {sftpTimezone}
+                      IANA: {sftpTimezone}
+                      {profile?.timezone === sftpTimezone && ' (from your profile)'}
                     </p>
                   </div>
                 </div>

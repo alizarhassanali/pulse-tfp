@@ -7,9 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
-import { Mail, Phone, Send, Building, MapPin, Tag } from 'lucide-react';
+import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { DEMO_CONTACTS, getBrandName, getLocationName } from '@/data/demo-data';
 
 interface ContactDetailsModalProps {
   contactId: string | null;
@@ -17,55 +16,20 @@ interface ContactDetailsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Helper to check if an ID is a demo ID (non-UUID format)
-const isDemoId = (id: string | null): boolean => {
-  if (!id) return false;
-  // Demo IDs are short strings like 'c1', 'c2', 'contact-1', etc.
-  // Real UUIDs are 36 chars with specific format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return !uuidRegex.test(id);
-};
-
-// Get demo contact data for non-UUID IDs
-const getDemoContactData = (contactId: string) => {
-  // Try to find by exact match first
-  let contact = DEMO_CONTACTS.find(c => c.id === contactId);
-  
-  // If not found, create synthetic demo data
-  if (!contact) {
-    return {
-      id: contactId,
-      first_name: 'Demo',
-      last_name: 'Contact',
-      email: 'demo@example.com',
-      phone: '+1 (555) 000-0000',
-      preferred_channel: 'email',
-      brand: { name: 'Demo Brand' },
-      location: { name: 'Demo Location' },
-      status: 'active',
-      created_at: new Date().toISOString(),
-    };
-  }
-  
-  return {
-    ...contact,
-    brand: { name: getBrandName(contact.brand_id) },
-    location: { name: getLocationName(contact.location_id) },
-    created_at: new Date().toISOString(),
-  };
-};
-
 export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDetailsModalProps) {
-  const isDemo = isDemoId(contactId);
-  
-  const { data: contact, isLoading: loadingContact } = useQuery({
+  // Always fetch from real contacts table
+  const { data: contact, isLoading: loadingContact, error: contactError } = useQuery({
     queryKey: ['contact-detail', contactId],
     queryFn: async () => {
-      if (!contactId) return null;
+      if (!contactId) {
+        if (import.meta.env.DEV) {
+          console.log('[ContactDetailsModal] No contactId provided');
+        }
+        return null;
+      }
       
-      // For demo IDs, return synthetic data
-      if (isDemo) {
-        return getDemoContactData(contactId);
+      if (import.meta.env.DEV) {
+        console.log('[ContactDetailsModal] Fetching contact with ID:', contactId);
       }
       
       const { data, error } = await supabase
@@ -73,7 +37,16 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
         .select('*, brand:brands(name), location:locations(name)')
         .eq('id', contactId)
         .maybeSingle();
-      if (error) throw error;
+      
+      if (error) {
+        console.error('[ContactDetailsModal] Supabase error:', error);
+        throw error;
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log('[ContactDetailsModal] Fetched contact:', data);
+      }
+      
       return data;
     },
     enabled: !!contactId && open,
@@ -82,7 +55,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
   const { data: tags = [] } = useQuery({
     queryKey: ['contact-tags', contactId],
     queryFn: async () => {
-      if (!contactId || isDemo) return [];
+      if (!contactId) return [];
       const { data, error } = await supabase
         .from('contact_tag_assignments')
         .select('tag:contact_tags(id, name)')
@@ -90,13 +63,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data?.map((d: any) => d.tag) || [];
     },
-    enabled: !!contactId && open && !isDemo,
+    enabled: !!contactId && open,
   });
 
   const { data: submissions = [] } = useQuery({
     queryKey: ['contact-submissions', contactId],
     queryFn: async () => {
-      if (!contactId || isDemo) return [];
+      if (!contactId) return [];
       const { data, error } = await supabase
         .from('survey_responses')
         .select('*, event:events(name)')
@@ -106,13 +79,13 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open && !isDemo,
+    enabled: !!contactId && open,
   });
 
   const { data: communications = [] } = useQuery({
     queryKey: ['contact-communications', contactId],
     queryFn: async () => {
-      if (!contactId || isDemo) return [];
+      if (!contactId) return [];
       const { data, error } = await supabase
         .from('survey_invitations')
         .select('*, event:events(name)')
@@ -122,7 +95,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
       if (error) throw error;
       return data || [];
     },
-    enabled: !!contactId && open && !isDemo,
+    enabled: !!contactId && open,
   });
 
   const getPreferredMethodDisplay = (channel: string | null) => {
@@ -136,24 +109,53 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
 
   if (!open) return null;
 
+  // Handle missing contact ID
+  if (!contactId) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Missing Contact ID
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center text-muted-foreground">
+            <p>No contact ID was provided. Please try again.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            {contact ? `${contact.first_name} ${contact.last_name}` : 'Contact Details'}
+            {contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact' : 'Contact Details'}
             {contact?.status === 'active' ? (
               <Badge className="bg-success">Active</Badge>
-            ) : (
-              <Badge variant="secondary">{contact?.status || 'Unknown'}</Badge>
-            )}
+            ) : contact?.status ? (
+              <Badge variant="secondary">{contact.status}</Badge>
+            ) : null}
           </DialogTitle>
         </DialogHeader>
 
         {loadingContact ? (
           <div className="py-8 text-center text-muted-foreground">Loading contact...</div>
+        ) : contactError ? (
+          <div className="py-8 text-center text-destructive">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            <p>Failed to load contact details</p>
+            <p className="text-sm text-muted-foreground mt-1">{(contactError as Error).message}</p>
+          </div>
         ) : !contact ? (
-          <div className="py-8 text-center text-muted-foreground">Contact not found</div>
+          <div className="py-8 text-center text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-warning" />
+            <p>Contact not found</p>
+            <p className="text-sm mt-1">ID: {contactId}</p>
+          </div>
         ) : (
           <Tabs defaultValue="info" className="mt-4">
             <TabsList className="grid grid-cols-3 w-full">
