@@ -310,7 +310,15 @@ export default function ManageEvents() {
                       variant="outline"
                       size="sm"
                       className="flex-1"
-                      onClick={() => navigate('/nps/integration', { state: { eventId: event.id } })}
+                      onClick={() => {
+                        if (event.status !== 'active') {
+                          // Show activation confirmation before sending
+                          setActivateId(event.id);
+                        } else {
+                          // Already active, go directly to distribution
+                          navigate('/nps/integration', { state: { eventId: event.id } });
+                        }
+                      }}
                     >
                       <Send className="h-4 w-4 mr-1" />
                       Send
@@ -365,19 +373,45 @@ export default function ManageEvents() {
       <AlertDialog open={!!activateId} onOpenChange={() => setActivateId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Activate Event</AlertDialogTitle>
+            <AlertDialogTitle>Activate Event?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to activate this event? Once activated, the survey will be 
-              available for distribution and will start collecting responses.
+              This will activate the event and enable distribution. Continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="btn-coral"
-              onClick={() => activateId && toggleStatusMutation.mutate({ id: activateId, status: 'draft' })}
+              onClick={async () => {
+                if (!activateId) return;
+                
+                // Check if it's a demo event
+                if (activateId.startsWith('e1a2c3d4')) {
+                  toast({ title: 'Event activated', description: 'Demo event activated successfully.' });
+                  setActivateId(null);
+                  navigate('/nps/integration', { state: { eventId: activateId } });
+                  return;
+                }
+                
+                try {
+                  const { error } = await supabase
+                    .from('events')
+                    .update({ status: 'active' })
+                    .eq('id', activateId);
+                  
+                  if (error) throw error;
+                  
+                  queryClient.invalidateQueries({ queryKey: ['events'] });
+                  toast({ title: 'Event activated' });
+                  navigate('/nps/integration', { state: { eventId: activateId } });
+                } catch (error: any) {
+                  toast({ title: 'Failed to activate event', description: error.message, variant: 'destructive' });
+                } finally {
+                  setActivateId(null);
+                }
+              }}
             >
-              Activate Event
+              Activate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
