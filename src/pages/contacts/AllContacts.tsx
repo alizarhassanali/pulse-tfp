@@ -53,7 +53,7 @@ export default function AllContacts() {
     prefer_email: true,
     brand_id: '',
     location_id: '',
-    opt_in: true,
+    opt_in: false,
     tag_ids: [] as string[],
   });
 

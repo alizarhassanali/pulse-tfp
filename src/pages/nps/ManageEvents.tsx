@@ -38,6 +38,7 @@ export default function ManageEvents() {
   // Only use Brand and Location filters - NOT the global Event filter
   const { selectedBrands, selectedLocations } = useFilterStore();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activateId, setActivateId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const { data: dbEvents = [], isLoading } = useQuery({
@@ -125,6 +126,7 @@ export default function ManageEvents() {
     onSuccess: (newStatus) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       toast({ title: `Event ${newStatus === 'active' ? 'activated' : 'deactivated'}` });
+      setActivateId(null);
     },
   });
 
@@ -234,7 +236,15 @@ export default function ManageEvents() {
                           Duplicate
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => toggleStatusMutation.mutate({ id: event.id, status: event.status })}
+                          onClick={() => {
+                            if (event.status === 'active') {
+                              // Direct deactivation - no confirmation needed
+                              toggleStatusMutation.mutate({ id: event.id, status: event.status });
+                            } else {
+                              // Activation requires confirmation
+                              setActivateId(event.id);
+                            }
+                          }}
                         >
                           <Power className="h-4 w-4 mr-2" />
                           {event.status === 'active' ? 'Pause' : 'Activate'}
@@ -346,6 +356,28 @@ export default function ManageEvents() {
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Activate Confirmation */}
+      <AlertDialog open={!!activateId} onOpenChange={() => setActivateId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to activate this event? Once activated, the survey will be 
+              available for distribution and will start collecting responses.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="btn-coral"
+              onClick={() => activateId && toggleStatusMutation.mutate({ id: activateId, status: 'draft' })}
+            >
+              Activate Event
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
