@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,9 +18,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, X } from 'lucide-react';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, X, Send } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
+import { cn } from '@/lib/utils';
 import { DEMO_CONTACTS, DEMO_BRANDS, DEMO_LOCATIONS, getBrandName, getLocationName } from '@/data/demo-data';
 
 // Transform demo contacts to include brand and location names
@@ -33,17 +36,24 @@ const demoContactsWithBrandLocation = DEMO_CONTACTS.map(c => ({
 export default function AllContacts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [contactDetailOpen, setContactDetailOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [sendEventModalOpen, setSendEventModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  
+  // Selected contacts for bulk actions
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   
   // Filter states
   const [filterBrand, setFilterBrand] = useState<string>('all');
   const [filterLocation, setFilterLocation] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterMethod, setFilterMethod] = useState<string>('all');
+  const [filterTags, setFilterTags] = useState<string[]>([]);
   
   const [newContact, setNewContact] = useState({
     first_name: '',
@@ -78,6 +88,37 @@ export default function AllContacts() {
       return data || [];
     },
   });
+  
+  const { data: contactTags = [] } = useQuery({
+    queryKey: ['contact-tags'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contact_tags').select('*').order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  
+  const { data: contactTagAssignments = [] } = useQuery({
+    queryKey: ['contact-tag-assignments'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('contact_tag_assignments').select('*');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  
+  const { data: events = [] } = useQuery({
+    queryKey: ['active-events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, name, status')
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: allLocations = [] } = useQuery({
     queryKey: ['all-locations'],
@@ -104,6 +145,26 @@ export default function AllContacts() {
   });
 
   const contacts = dbContacts.length > 0 ? dbContacts : demoContactsWithBrandLocation;
+
+  // Build a map of contact IDs to their tag IDs
+  const contactTagMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    contactTagAssignments.forEach((assignment: any) => {
+      if (!map[assignment.contact_id]) {
+        map[assignment.contact_id] = [];
+      }
+      map[assignment.contact_id].push(assignment.tag_id);
+    });
+    return map;
+  }, [contactTagAssignments]);
+
+  // Tag options for MultiSelect
+  const tagOptions = useMemo(() => {
+    return contactTags.map((tag: any) => ({
+      value: tag.id,
+      label: tag.name,
+    }));
+  }, [contactTags]);
 
   // Get unique values for filters
   const uniqueBrands = useMemo(() => {
@@ -145,18 +206,66 @@ export default function AllContacts() {
       // Preferred method filter
       if (filterMethod !== 'all' && c.preferred_channel !== filterMethod) return false;
       
+      // Tags filter
+      if (filterTags.length > 0) {
+        const contactTags = contactTagMap[c.id] || [];
+        const hasMatchingTag = filterTags.some(tagId => contactTags.includes(tagId));
+        if (!hasMatchingTag) return false;
+      }
+      
       return true;
     });
-  }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod]);
+  }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod, filterTags, contactTagMap]);
 
-  const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod].filter(f => f !== 'all').length;
+  const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod].filter(f => f !== 'all').length + (filterTags.length > 0 ? 1 : 0);
 
   const clearAllFilters = () => {
     setFilterBrand('all');
     setFilterLocation('all');
     setFilterStatus('all');
     setFilterMethod('all');
+    setFilterTags([]);
     setSearch('');
+  };
+  
+  // Bulk selection handlers
+  const handleSelectAll = () => {
+    if (selectedContactIds.length === filteredContacts.length) {
+      setSelectedContactIds([]);
+    } else {
+      setSelectedContactIds(filteredContacts.map((c: any) => c.id));
+    }
+  };
+  
+  const handleSelectContact = (contactId: string) => {
+    setSelectedContactIds(prev => 
+      prev.includes(contactId) 
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+  
+  const handleSendEvent = () => {
+    if (selectedContactIds.length === 0) {
+      toast({ title: 'No contacts selected', variant: 'destructive' });
+      return;
+    }
+    setSendEventModalOpen(true);
+  };
+  
+  const handleConfirmSendEvent = () => {
+    if (!selectedEventId) {
+      toast({ title: 'Please select an event', variant: 'destructive' });
+      return;
+    }
+    // Navigate to distribution page with selected contacts
+    navigate('/nps/integration', { 
+      state: { 
+        selectedEventId, 
+        preSelectedContacts: selectedContactIds 
+      } 
+    });
+    setSendEventModalOpen(false);
   };
 
   const getPreferredChannelDisplay = (channel: string | null) => {
@@ -363,6 +472,15 @@ export default function AllContacts() {
               </SelectContent>
             </Select>
 
+            {/* Tags Filter */}
+            <MultiSelect
+              options={tagOptions}
+              selected={filterTags}
+              onChange={setFilterTags}
+              placeholder="Filter by tags..."
+              className="w-[200px]"
+            />
+
             {/* Clear Filters */}
             {activeFiltersCount > 0 && (
               <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground hover:text-foreground">
@@ -371,6 +489,22 @@ export default function AllContacts() {
               </Button>
             )}
           </div>
+          
+          {/* Bulk Actions */}
+          {selectedContactIds.length > 0 && (
+            <div className="mt-3 flex items-center gap-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+              <span className="text-sm font-medium">
+                {selectedContactIds.length} contact{selectedContactIds.length !== 1 ? 's' : ''} selected
+              </span>
+              <Button size="sm" onClick={handleSendEvent} className="btn-coral">
+                <Send className="h-4 w-4 mr-2" />
+                Send Event
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedContactIds([])}>
+                Clear Selection
+              </Button>
+            </div>
+          )}
 
           {/* Results count */}
           <div className="mt-3 text-sm text-muted-foreground">
@@ -385,6 +519,13 @@ export default function AllContacts() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={filteredContacts.length > 0 && selectedContactIds.length === filteredContacts.length}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Contact</TableHead>
                 <TableHead className="font-semibold">Brand</TableHead>
@@ -398,12 +539,25 @@ export default function AllContacts() {
             <TableBody>
               {isLoading ? (
                 <>
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
+                  <TableRowSkeleton columns={9} />
+                  <TableRowSkeleton columns={9} />
                 </>
               ) : filteredContacts.length > 0 ? (
                 filteredContacts.map((contact: any) => (
-                  <TableRow key={contact.id} className="hover:bg-muted/20">
+                  <TableRow 
+                    key={contact.id} 
+                    className={cn(
+                      "hover:bg-muted/20",
+                      selectedContactIds.includes(contact.id) && "bg-primary/5"
+                    )}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedContactIds.includes(contact.id)}
+                        onCheckedChange={() => handleSelectContact(contact.id)}
+                        aria-label={`Select ${contact.first_name} ${contact.last_name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -467,7 +621,7 @@ export default function AllContacts() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <EmptyState
                       icon={<Users className="h-8 w-8" />}
                       title="No contacts found"
@@ -665,6 +819,53 @@ export default function AllContacts() {
             </Button>
             <Button className="btn-coral" onClick={handleAddContact} disabled={createContactMutation.isPending}>
               {createContactMutation.isPending ? 'Adding...' : 'Add Contact'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Event Modal */}
+      <Dialog open={sendEventModalOpen} onOpenChange={setSendEventModalOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Send Survey to Selected Contacts</DialogTitle>
+            <DialogDescription>
+              Choose an event to send to {selectedContactIds.length} selected contact{selectedContactIds.length !== 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Select Event *</Label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an event..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map((event: any) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {events.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No active events found. Create an event first.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendEventModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="btn-coral" 
+              onClick={handleConfirmSendEvent} 
+              disabled={!selectedEventId || events.length === 0}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Continue to Distribution
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -6,9 +6,9 @@ export function MainLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <TopNav />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1">
         <Sidebar />
-        <main className="flex-1 bg-gradient-main overflow-y-auto">
+        <main className="flex-1 bg-gradient-main overflow-y-auto h-[calc(100vh-64px)]">
           <div className="p-6">
             <Outlet />
           </div>
