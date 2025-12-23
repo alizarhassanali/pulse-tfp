@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
-import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle } from 'lucide-react';
+import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations } from '@/data/demo-data';
 
@@ -15,6 +15,7 @@ interface ContactDetailsModalProps {
   contactId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: () => void;
 }
 
 // UUID validation helper
@@ -47,7 +48,7 @@ const getDemoContact = (id: string) => {
   };
 };
 
-export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDetailsModalProps) {
+export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: ContactDetailsModalProps) {
   // Check if this is a demo contact
   const isDemo = isDemoContactId(contactId);
   const demoContact = isDemo && contactId ? getDemoContact(contactId) : null;
@@ -192,14 +193,22 @@ export function ContactDetailsModal({ contactId, open, onOpenChange }: ContactDe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            {contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact' : 'Contact Details'}
-            {contact?.status === 'active' ? (
-              <Badge className="bg-success">Active</Badge>
-            ) : contact?.status ? (
-              <Badge variant="secondary">{contact.status}</Badge>
-            ) : null}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-3">
+              {contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact' : 'Contact Details'}
+              {contact?.status === 'active' ? (
+                <Badge className="bg-success">Active</Badge>
+              ) : contact?.status ? (
+                <Badge variant="secondary">{contact.status}</Badge>
+              ) : null}
+            </DialogTitle>
+            {contact && onEdit && !isDemo && (
+              <Button variant="outline" size="sm" onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {loadingContact && !isDemo ? (
