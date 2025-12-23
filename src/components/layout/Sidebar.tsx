@@ -19,7 +19,8 @@ import {
   LogOut,
   Tag,
   Zap,
-  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
   MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -325,10 +326,14 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 rounded-full bg-card border border-border shadow-sm hover:bg-muted z-10"
+          className="absolute top-4 -right-3 h-6 w-6 rounded-full bg-card border border-border shadow-sm hover:bg-muted z-10"
           onClick={() => setCollapsed(!collapsed)}
         >
-          <ChevronLeft className={cn('h-4 w-4 transition-transform text-foreground', collapsed && 'rotate-180')} />
+          {collapsed ? (
+            <PanelLeft className="h-3.5 w-3.5 text-foreground" />
+          ) : (
+            <PanelLeftClose className="h-3.5 w-3.5 text-foreground" />
+          )}
         </Button>
 
         <nav className={cn('flex-1 space-y-1 py-4', collapsed ? 'px-2' : 'px-3')}>
