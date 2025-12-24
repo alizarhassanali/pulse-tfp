@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFilterStore, DatePreset } from '@/stores/filterStore';
 import { DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
@@ -150,6 +150,13 @@ export function GlobalFilters() {
   const brands = accessibleBrands.map(b => ({ value: b.id, label: b.name }));
   const locations = availableLocations.map(l => ({ value: l.id, label: l.name }));
   const events = DEMO_EVENTS.map(e => ({ value: e.id, label: e.name }));
+
+  // Auto-select first brand on initial load if none selected
+  useEffect(() => {
+    if (selectedBrands.length === 0 && brands.length > 0) {
+      setSelectedBrands([brands[0].value]);
+    }
+  }, [brands, selectedBrands.length, setSelectedBrands]);
 
   const handleBrandsChange = (newBrands: string[]) => {
     setSelectedBrands(newBrands);
