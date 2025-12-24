@@ -150,22 +150,22 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Graphik', system-ui, sans-serif;
-    @apply font-medium tracking-tight;
+    @apply font-normal tracking-tight;
   }
 }
 
 @layer components {
   /* Score badges */
   .badge-promoter {
-    @apply bg-promoter-bg text-promoter font-medium;
+    @apply bg-promoter-bg text-promoter font-normal;
   }
 
   .badge-passive {
-    @apply bg-passive-bg text-passive font-medium;
+    @apply bg-passive-bg text-passive font-normal;
   }
 
   .badge-detractor {
-    @apply bg-detractor-bg text-detractor font-medium;
+    @apply bg-detractor-bg text-detractor font-normal;
   }
 
   /* Status badges */
@@ -232,7 +232,7 @@
 
   /* Filter chip */
   .filter-chip {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-tertiary-light text-secondary border border-border hover:bg-tertiary/30 transition-colors cursor-pointer;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-normal bg-tertiary-light text-secondary border border-border hover:bg-tertiary/30 transition-colors cursor-pointer;
   }
 
   .filter-chip-active {

@@ -118,7 +118,7 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
             <Icon className="h-5 w-5 shrink-0" />
           </Link>
         </TooltipTrigger>
-        <TooltipContent side="right" className="font-medium">
+        <TooltipContent side="right" className="font-normal">
           {item.label}
         </TooltipContent>
       </Tooltip>
@@ -168,7 +168,7 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
+          <TooltipContent side="right" className="font-normal">
             {group.label}
           </TooltipContent>
         </Tooltip>
@@ -259,7 +259,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
+          <TooltipContent side="right" className="font-normal">
             {profile?.name || 'User'}
           </TooltipContent>
         </Tooltip>
@@ -284,7 +284,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">
+            <p className="text-sm font-normal text-sidebar-foreground truncate">
               {profile?.name || 'User'}
             </p>
             <p className="text-xs text-muted-foreground truncate">

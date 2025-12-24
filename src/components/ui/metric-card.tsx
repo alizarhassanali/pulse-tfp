@@ -41,10 +41,10 @@ export function MetricCard({
     >
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
+          <p className="text-sm font-normal text-muted-foreground">{title}</p>
+          <p className="text-3xl font-semibold tracking-tight">{value}</p>
           {change !== undefined && (
-            <div className={cn('flex items-center gap-1 text-xs font-medium', getTrendColor())}>
+            <div className={cn('flex items-center gap-1 text-xs font-normal', getTrendColor())}>
               {getTrendIcon()}
               <span>{change > 0 ? '+' : ''}{change}%</span>
               {changeLabel && <span className="text-muted-foreground ml-1">{changeLabel}</span>}

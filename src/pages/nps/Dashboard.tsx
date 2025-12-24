@@ -257,8 +257,8 @@ export default function NPSDashboard() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">NPS Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
+          <h1 className="text-2xl font-semibold text-foreground">NPS Dashboard</h1>
+          <p className="text-sm font-normal text-muted-foreground mt-1">Monitor patient satisfaction and Net Promoter Score trends</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setAlertModalOpen(true)}>
           <Bell className="h-4 w-4 mr-2" />
@@ -332,7 +332,7 @@ export default function NPSDashboard() {
         {/* Score Distribution */}
         <Card className="shadow-soft border-border/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Score Distribution</CardTitle>
+            <CardTitle className="text-base font-normal">Score Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
@@ -340,27 +340,27 @@ export default function NPSDashboard() {
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <ThumbsUp className="h-5 w-5 text-promoter" />
                 </div>
-                <p className="text-3xl font-bold text-promoter">{hasRealData ? promoters : DEMO_SECONDARY_METRICS.promoters.count}</p>
+                <p className="text-3xl font-semibold text-promoter">{hasRealData ? promoters : DEMO_SECONDARY_METRICS.promoters.count}</p>
                 <p className="text-xs text-muted-foreground mt-1">Promoters (9-10)</p>
-                <p className="text-sm font-semibold text-promoter mt-1">{pieData[0].percent}%</p>
+                <p className="text-sm font-medium text-promoter mt-1">{pieData[0].percent}%</p>
               </div>
 
               <div className="text-center p-4 rounded-lg bg-passive-bg/30 border border-passive/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Minus className="h-5 w-5 text-passive" />
                 </div>
-                <p className="text-3xl font-bold text-passive">{hasRealData ? passives : DEMO_SECONDARY_METRICS.passives.count}</p>
+                <p className="text-3xl font-semibold text-passive">{hasRealData ? passives : DEMO_SECONDARY_METRICS.passives.count}</p>
                 <p className="text-xs text-muted-foreground mt-1">Passives (7-8)</p>
-                <p className="text-sm font-semibold text-passive mt-1">{pieData[1].percent}%</p>
+                <p className="text-sm font-medium text-passive mt-1">{pieData[1].percent}%</p>
               </div>
 
               <div className="text-center p-4 rounded-lg bg-detractor-bg/30 border border-detractor/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <ThumbsDown className="h-5 w-5 text-detractor" />
                 </div>
-                <p className="text-3xl font-bold text-detractor">{hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count}</p>
+                <p className="text-3xl font-semibold text-detractor">{hasRealData ? detractors : DEMO_SECONDARY_METRICS.detractors.count}</p>
                 <p className="text-xs text-muted-foreground mt-1">Detractors (0-6)</p>
-                <p className="text-sm font-semibold text-detractor mt-1">{pieData[2].percent}%</p>
+                <p className="text-sm font-medium text-detractor mt-1">{pieData[2].percent}%</p>
               </div>
             </div>
           </CardContent>
@@ -369,7 +369,7 @@ export default function NPSDashboard() {
         {/* Delivery Issues */}
         <Card className="shadow-soft border-border/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
+            <CardTitle className="text-base font-normal flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
               Delivery Issues
             </CardTitle>
@@ -380,7 +380,7 @@ export default function NPSDashboard() {
                 <div className="flex items-center justify-center mb-2">
                   <Ban className="h-5 w-5 text-warning" />
                 </div>
-                <p className="text-3xl font-bold text-foreground">{bounced}</p>
+                <p className="text-3xl font-semibold text-foreground">{bounced}</p>
                 <p className="text-xs text-muted-foreground mt-1">Bounced</p>
                 <p className="text-xs text-warning mt-1">Undelivered</p>
               </div>
@@ -389,7 +389,7 @@ export default function NPSDashboard() {
                 <div className="flex items-center justify-center mb-2">
                   <Clock className="h-5 w-5 text-info" />
                 </div>
-                <p className="text-3xl font-bold text-foreground">{throttled}</p>
+                <p className="text-3xl font-semibold text-foreground">{throttled}</p>
                 <p className="text-xs text-muted-foreground mt-1">Throttled</p>
                 <p className="text-xs text-info mt-1">Rate limited</p>
               </div>
@@ -398,7 +398,7 @@ export default function NPSDashboard() {
                 <div className="flex items-center justify-center mb-2">
                   <UserX className="h-5 w-5 text-destructive" />
                 </div>
-                <p className="text-3xl font-bold text-foreground">{unsubscribed}</p>
+                <p className="text-3xl font-semibold text-foreground">{unsubscribed}</p>
                 <p className="text-xs text-muted-foreground mt-1">Unsubscribed</p>
                 <p className="text-xs text-destructive mt-1">Opted out</p>
               </div>
@@ -409,7 +409,7 @@ export default function NPSDashboard() {
 
       {/* Charts Section */}
       <section aria-label="Charts" className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
+        <h2 className="text-lg font-medium text-foreground">Analytics</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {loadingResponses ? (
             <>
@@ -421,7 +421,7 @@ export default function NPSDashboard() {
               {/* NPS Trend Chart */}
               <Card className="shadow-soft border-border/50 lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-base font-medium">NPS Trend</CardTitle>
+                  <CardTitle className="text-base font-normal">NPS Trend</CardTitle>
                   <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
                     {(['daily', 'weekly', 'monthly'] as const).map((view) => (
                       <Button
