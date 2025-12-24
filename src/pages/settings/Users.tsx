@@ -356,9 +356,9 @@ export default function UsersPage() {
           email: editingUser.email,
           name: editingUser.name || '',
           role: editingUser.role,
+          custom_role_id: editingUser.custom_role_id,
           brands: editingUser.brands.map(b => typeof b === 'string' ? b : b.id),
           locations: editingUser.locations.map(l => typeof l === 'string' ? l : l.id),
-          permissions: editingUser.permissions,
         } : null}
       />
 

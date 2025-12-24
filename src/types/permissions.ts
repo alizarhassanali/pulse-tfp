@@ -27,9 +27,20 @@ export interface UserWithAccess {
   name: string | null;
   status: string;
   role: AppRole;
+  custom_role_id?: string | null;
+  custom_role_name?: string | null;
   brands: string[];
   locations: string[];
   permissions: SectionPermission[];
+}
+
+export interface CustomRole {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: Record<AppSection, PermissionLevel>;
+  created_at: string;
+  updated_at: string;
 }
 
 // Default permissions by role
@@ -114,27 +125,27 @@ export const SECTION_CONFIG: Record<AppSection, { label: string; group: string; 
 export const ROLE_CONFIG: Record<AppRole, { label: string; description: string; color: string }> = {
   super_admin: { 
     label: 'Super Admin', 
-    description: 'Full access across all brands and locations',
+    description: 'Full access to all brands, locations, and settings',
     color: 'bg-destructive'
   },
   brand_admin: { 
     label: 'Brand Admin', 
-    description: 'Manage assigned brands and locations',
+    description: 'Manage assigned brands and respond to reviews',
     color: 'bg-primary'
   },
   clinic_manager: { 
     label: 'Clinic Manager', 
-    description: 'Manage specific clinic locations',
+    description: 'View data and respond to reviews for assigned locations',
     color: 'bg-info'
   },
   staff: { 
     label: 'Staff', 
-    description: 'View and limited edit access',
+    description: 'View-only access to assigned brands/locations',
     color: 'bg-success'
   },
   read_only: { 
     label: 'Read Only', 
-    description: 'View-only access, can export data',
+    description: 'View-only access, no actions allowed',
     color: 'bg-muted-foreground'
   },
 };
@@ -153,3 +164,25 @@ export function canEdit(permission: PermissionLevel): boolean {
 export function canRespond(permission: PermissionLevel): boolean {
   return permission === 'respond';
 }
+
+// Get all app sections as array
+export const ALL_SECTIONS: AppSection[] = [
+  'dashboard',
+  'questions',
+  'sent_logs',
+  'manage_events',
+  'integration',
+  'reviews',
+  'contacts',
+  'templates',
+  'brands',
+  'users',
+];
+
+// Permission level options for dropdowns
+export const PERMISSION_OPTIONS: { value: PermissionLevel; label: string }[] = [
+  { value: 'no_access', label: 'No Access' },
+  { value: 'view', label: 'View' },
+  { value: 'edit', label: 'Edit' },
+  { value: 'respond', label: 'Respond' },
+];
