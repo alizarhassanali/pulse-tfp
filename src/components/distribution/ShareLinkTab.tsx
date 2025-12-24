@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,23 +11,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Link2, QrCode, Copy, Download } from 'lucide-react';
-
-interface Location {
-  id: string;
-  name: string;
-}
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
+import { Link2, QrCode, Copy, Download, Lock } from 'lucide-react';
 
 interface ShareLinkTabProps {
   eventId: string;
-  locations: Location[];
 }
 
-export function ShareLinkTab({ eventId, locations }: ShareLinkTabProps) {
+export function ShareLinkTab({ eventId }: ShareLinkTabProps) {
   const { toast } = useToast();
+  const {
+    availableLocations,
+    effectiveLocationId,
+    isLocationLocked,
+    getLocationName,
+    isLoading,
+  } = useBrandLocationContext();
+
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [qrSize, setQrSize] = useState('256');
   const [qrBorderText, setQrBorderText] = useState('');
+
+  // Auto-select location when locked
+  useEffect(() => {
+    if (isLocationLocked && effectiveLocationId) {
+      setSelectedLocation(effectiveLocationId);
+    }
+  }, [isLocationLocked, effectiveLocationId]);
 
   const surveyUrl = useMemo(() => {
     if (!eventId) return '';
@@ -51,6 +61,16 @@ export function ShareLinkTab({ eventId, locations }: ShareLinkTabProps) {
     toast({ title: `QR Code downloaded as ${format.toUpperCase()}` });
   };
 
+  if (isLoading) {
+    return (
+      <Card className="shadow-soft border-border/50">
+        <CardContent className="p-8 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="shadow-soft border-border/50">
       <CardHeader>
@@ -64,9 +84,16 @@ export function ShareLinkTab({ eventId, locations }: ShareLinkTabProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Location Selector */}
-        {locations.length > 1 && (
-          <div className="space-y-2">
-            <Label>Select Location (for location-specific URL)</Label>
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            Select Location (for location-specific URL)
+            {isLocationLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+          </Label>
+          {isLocationLocked ? (
+            <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50 max-w-[300px]">
+              <span className="text-sm">{effectiveLocationId ? getLocationName(effectiveLocationId) : 'All Locations'}</span>
+            </div>
+          ) : availableLocations.length > 1 ? (
             <Select
               value={selectedLocation || 'all'}
               onValueChange={(val) => setSelectedLocation(val === 'all' ? '' : val)}
@@ -76,18 +103,26 @@ export function ShareLinkTab({ eventId, locations }: ShareLinkTabProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
+                {availableLocations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Selecting a location embeds it in the URL for accurate tracking
-            </p>
-          </div>
-        )}
+          ) : availableLocations.length === 1 ? (
+            <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50 max-w-[300px]">
+              <span className="text-sm">{availableLocations[0].name}</span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No locations available</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {isLocationLocked 
+              ? 'Location is locked based on your access'
+              : 'Selecting a location embeds it in the URL for accurate tracking'}
+          </p>
+        </div>
 
         {/* URL Section */}
         <div className="space-y-2">
