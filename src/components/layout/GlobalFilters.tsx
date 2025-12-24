@@ -263,21 +263,32 @@ export function GlobalFilters() {
       {/* Divider */}
       <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
 
-      {/* Brand Filter - Always show multi-select unless only 1 brand exists */}
+      {/* Brand Filter - Single Select */}
       {isBrandLocked && lockedBrandName ? (
         <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
           <Building2 className="h-4 w-4 opacity-70" />
           <span className="text-sm font-medium">{lockedBrandName}</span>
         </div>
       ) : (
-        <FilterMultiSelect
-          options={brands}
-          selected={selectedBrands}
-          onChange={handleBrandsChange}
-          placeholder="Brand"
-          allLabel="All Brands"
-          icon={<Building2 className="h-4 w-4 opacity-70" />}
-        />
+        <Select 
+          value={selectedBrands.length > 0 ? selectedBrands[0] : 'all'} 
+          onValueChange={(value) => handleBrandsChange(value === 'all' ? [] : [value])}
+        >
+          <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 opacity-70" />
+              <SelectValue placeholder="All Brands" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
+            <SelectItem value="all">All Brands</SelectItem>
+            {brands.map((brand) => (
+              <SelectItem key={brand.value} value={brand.value}>
+                {brand.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {/* Location Filter - Always show multi-select unless only 1 location exists */}
