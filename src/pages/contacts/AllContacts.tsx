@@ -23,7 +23,8 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Send, ChevronDown, X, Pencil, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { cn } from '@/lib/utils';
@@ -496,9 +497,9 @@ export default function AllContacts() {
       {/* Filters Section */}
       <Card className="border-border bg-card">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Search */}
-            <div className="relative flex-1 min-w-[200px] max-w-md">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, email or phone..."
@@ -508,100 +509,135 @@ export default function AllContacts() {
               />
             </div>
 
-            {/* Brand Filter */}
-            <Select value={filterBrand} onValueChange={(v) => { setFilterBrand(v); setFilterLocation('all'); }}>
-              <SelectTrigger className="w-[160px] bg-background">
-                <SelectValue placeholder="All Brands" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Brands</SelectItem>
-                {uniqueBrands.map((brand) => (
-                  <SelectItem key={brand} value={brand!}>{brand}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Filters Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters
+                  {activeFiltersCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4" align="start">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Filters</h4>
+                    {activeFiltersCount > 0 && (
+                      <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground">
+                        Clear all
+                      </Button>
+                    )}
+                  </div>
 
-            {/* Location Filter */}
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger className="w-[160px] bg-background">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {uniqueLocations.map((loc) => (
-                  <SelectItem key={loc} value={loc!}>{loc}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {/* Segmentation */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Segmentation</span>
+                    <div className="space-y-2">
+                      <Select value={filterBrand} onValueChange={(v) => { setFilterBrand(v); setFilterLocation('all'); }}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="All Brands" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Brands</SelectItem>
+                          {uniqueBrands.map((brand) => (
+                            <SelectItem key={brand} value={brand!}>{brand}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-            {/* Status Filter */}
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
-              </SelectContent>
-            </Select>
+                      <Select value={filterLocation} onValueChange={setFilterLocation}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="All Locations" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Locations</SelectItem>
+                          {uniqueLocations.map((loc) => (
+                            <SelectItem key={loc} value={loc!}>{loc}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-            {/* Preferred Method Filter */}
-            <Select value={filterMethod} onValueChange={setFilterMethod}>
-              <SelectTrigger className="w-[160px] bg-background">
-                <SelectValue placeholder="All Methods" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="sms">SMS</SelectItem>
-                <SelectItem value="both">SMS & Email</SelectItem>
-              </SelectContent>
-            </Select>
+                      <MultiSelect
+                        options={tagOptions}
+                        selected={filterTags}
+                        onChange={setFilterTags}
+                        placeholder="Filter by tags..."
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
 
-            {/* Tags Filter */}
-            <MultiSelect
-              options={tagOptions}
-              selected={filterTags}
-              onChange={setFilterTags}
-              placeholder="Filter by tags..."
-              className="w-[200px]"
-            />
+                  {/* Contact Info */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contact Info</span>
+                    <div className="space-y-2">
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="unsubscribed">Unsubscribed</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-            {/* Survey History Filter */}
-            <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
-              <SelectTrigger className="w-[160px] bg-background">
-                <SelectValue placeholder="Survey History" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Contacts</SelectItem>
-                <SelectItem value="never">Never Surveyed</SelectItem>
-                <SelectItem value="surveyed">Previously Surveyed</SelectItem>
-              </SelectContent>
-            </Select>
+                      <Select value={filterMethod} onValueChange={setFilterMethod}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="All Methods" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Methods</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="sms">SMS</SelectItem>
+                          <SelectItem value="both">SMS & Email</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-            {/* Days Since Survey Filter */}
-            <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <SelectValue placeholder="Last Survey Date" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Time</SelectItem>
-                <SelectItem value="30">30+ days ago</SelectItem>
-                <SelectItem value="60">60+ days ago</SelectItem>
-                <SelectItem value="90">90+ days ago</SelectItem>
-                <SelectItem value="180">180+ days ago</SelectItem>
-                <SelectItem value="365">1+ year ago</SelectItem>
-              </SelectContent>
-            </Select>
+                  {/* Survey History */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey History</span>
+                    <div className="space-y-2">
+                      <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="Survey History" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Contacts</SelectItem>
+                          <SelectItem value="never">Never Surveyed</SelectItem>
+                          <SelectItem value="surveyed">Previously Surveyed</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-            {/* Clear Filters */}
-            {activeFiltersCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4 mr-1" />
-                Clear ({activeFiltersCount})
-              </Button>
-            )}
+                      <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder="Last Survey Date" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Any Time</SelectItem>
+                          <SelectItem value="30">30+ days ago</SelectItem>
+                          <SelectItem value="60">60+ days ago</SelectItem>
+                          <SelectItem value="90">90+ days ago</SelectItem>
+                          <SelectItem value="180">180+ days ago</SelectItem>
+                          <SelectItem value="365">1+ year ago</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Summary */}
+            <div className="text-sm text-muted-foreground">
+              {filteredContacts.length} of {contacts.length} contacts
+            </div>
           </div>
           
           {/* Bulk Actions */}
@@ -616,11 +652,6 @@ export default function AllContacts() {
               Send Event
             </Button>
           </BulkActionBar>
-
-          {/* Results count */}
-          <div className="mt-3 text-sm text-muted-foreground">
-            Showing {filteredContacts.length} of {contacts.length} contacts
-          </div>
         </CardContent>
       </Card>
 
