@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +21,6 @@ import {
   PermissionLevel,
   SECTION_CONFIG,
   ROLE_CONFIG,
-  DEFAULT_PERMISSIONS,
   AppRole,
 } from '@/types/permissions';
 
@@ -81,14 +79,17 @@ export function ManageRolesTab() {
     }
   };
 
-  const countPermissions = (permissions: Record<AppSection, PermissionLevel>) => {
-    const counts = { edit: 0, view: 0, respond: 0 };
-    Object.values(permissions).forEach(p => {
-      if (p === 'edit') counts.edit++;
-      else if (p === 'view') counts.view++;
-      else if (p === 'respond') counts.respond++;
+  const getEditableSections = (permissions: Record<AppSection, PermissionLevel>) => {
+    const editable: string[] = [];
+    const respondable: string[] = [];
+    
+    Object.entries(permissions).forEach(([section, level]) => {
+      const config = SECTION_CONFIG[section as AppSection];
+      if (level === 'edit') editable.push(config.label);
+      else if (level === 'respond') respondable.push(config.label);
     });
-    return counts;
+    
+    return { editable, respondable };
   };
 
   const builtInRoles = Object.entries(ROLE_CONFIG) as [AppRole, typeof ROLE_CONFIG[AppRole]][];
@@ -107,37 +108,19 @@ export function ManageRolesTab() {
         </div>
 
         <div className="grid gap-3">
-          {builtInRoles.map(([roleKey, config]) => {
-            const perms = DEFAULT_PERMISSIONS[roleKey];
-            const counts = countPermissions(perms);
-
-            return (
-              <Card key={roleKey} className="bg-muted/30">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-md ${config.color}`}>
-                      <Shield className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{config.label}</h4>
-                      <p className="text-sm text-muted-foreground">{config.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {counts.edit > 0 && (
-                      <Badge variant="secondary">{counts.edit} Edit</Badge>
-                    )}
-                    {counts.respond > 0 && (
-                      <Badge variant="secondary">{counts.respond} Respond</Badge>
-                    )}
-                    {counts.view > 0 && (
-                      <Badge variant="outline">{counts.view} View</Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {builtInRoles.map(([roleKey, config]) => (
+            <Card key={roleKey} className="bg-muted/30">
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className={`p-2 rounded-md ${config.color}`}>
+                  <Shield className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-medium">{config.label}</h4>
+                  <p className="text-sm text-muted-foreground">{config.description}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
@@ -175,7 +158,10 @@ export function ManageRolesTab() {
         ) : (
           <div className="grid gap-3">
             {customRoles.map(role => {
-              const counts = countPermissions(role.permissions);
+              const { editable, respondable } = getEditableSections(role.permissions);
+              const capabilities: string[] = [];
+              if (editable.length > 0) capabilities.push(`Can edit: ${editable.join(', ')}`);
+              if (respondable.length > 0) capabilities.push(`Can respond: ${respondable.join(', ')}`);
 
               return (
                 <Card key={role.id}>
@@ -187,41 +173,30 @@ export function ManageRolesTab() {
                       <div>
                         <h4 className="font-medium">{role.name}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {role.description || 'No description'}
+                          {capabilities.length > 0 
+                            ? capabilities.join(' | ') 
+                            : role.description || 'View-only access'}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        {counts.edit > 0 && (
-                          <Badge variant="secondary">{counts.edit} Edit</Badge>
-                        )}
-                        {counts.respond > 0 && (
-                          <Badge variant="secondary">{counts.respond} Respond</Badge>
-                        )}
-                        {counts.view > 0 && (
-                          <Badge variant="outline">{counts.view} View</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingRole(role);
-                            setShowCreateModal(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteRole(role)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingRole(role);
+                          setShowCreateModal(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteRole(role)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
