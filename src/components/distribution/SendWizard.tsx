@@ -39,6 +39,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import {
   Mail,
@@ -49,6 +54,7 @@ import {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
+  SlidersHorizontal,
   Check,
   AlertTriangle,
   Clock,
@@ -455,10 +461,10 @@ export function SendWizard({
                   className="pl-9"
                 />
               </div>
-              <Collapsible>
-                <CollapsibleTrigger asChild>
+              <Popover>
+                <PopoverTrigger asChild>
                   <Button variant="outline" className="gap-2">
-                    <ChevronDown className="h-4 w-4" />
+                    <SlidersHorizontal className="h-4 w-4" />
                     Filters
                     {hasActiveFilters && (
                       <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
@@ -475,13 +481,27 @@ export function SendWizard({
                       </Badge>
                     )}
                   </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3">
-                  <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Filters</h4>
+                      {hasActiveFilters && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={clearFilters}
+                          className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+
                     {/* Contact Info Group */}
                     <div className="space-y-2">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Info</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-2">
                         <Select value={filterChannel} onValueChange={setFilterChannel}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Channel" />
@@ -492,39 +512,41 @@ export function SendWizard({
                             <SelectItem value="sms">SMS Preferred</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Select 
-                          value={filterHasEmail === null ? 'all' : filterHasEmail ? 'yes' : 'no'} 
-                          onValueChange={(v) => setFilterHasEmail(v === 'all' ? null : v === 'yes')}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Email" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Any Email</SelectItem>
-                            <SelectItem value="yes">Has Email</SelectItem>
-                            <SelectItem value="no">No Email</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select 
-                          value={filterHasPhone === null ? 'all' : filterHasPhone ? 'yes' : 'no'} 
-                          onValueChange={(v) => setFilterHasPhone(v === 'all' ? null : v === 'yes')}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Phone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Any Phone</SelectItem>
-                            <SelectItem value="yes">Has Phone</SelectItem>
-                            <SelectItem value="no">No Phone</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Select 
+                            value={filterHasEmail === null ? 'all' : filterHasEmail ? 'yes' : 'no'} 
+                            onValueChange={(v) => setFilterHasEmail(v === 'all' ? null : v === 'yes')}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Email" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Any Email</SelectItem>
+                              <SelectItem value="yes">Has Email</SelectItem>
+                              <SelectItem value="no">No Email</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={filterHasPhone === null ? 'all' : filterHasPhone ? 'yes' : 'no'} 
+                            onValueChange={(v) => setFilterHasPhone(v === 'all' ? null : v === 'yes')}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Phone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Any Phone</SelectItem>
+                              <SelectItem value="yes">Has Phone</SelectItem>
+                              <SelectItem value="no">No Phone</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 
                     {/* Segmentation Group */}
                     <div className="space-y-2">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Segmentation</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-2">
                         <Select value={filterLocation} onValueChange={setFilterLocation}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Location" />
@@ -546,20 +568,18 @@ export function SendWizard({
                             <SelectItem value="inactive">Inactive</SelectItem>
                           </SelectContent>
                         </Select>
-                        <div className="w-full">
-                          <ContactTagsSelect
-                            selectedTags={filterTags}
-                            onTagsChange={setFilterTags}
-                            placeholder="Tags..."
-                          />
-                        </div>
+                        <ContactTagsSelect
+                          selectedTags={filterTags}
+                          onTagsChange={setFilterTags}
+                          placeholder="Tags..."
+                        />
                       </div>
                     </div>
 
                     {/* Survey History Group */}
                     <div className="space-y-2">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Survey History</Label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-2">
                         <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Survey History" />
@@ -585,24 +605,9 @@ export function SendWizard({
                         </Select>
                       </div>
                     </div>
-
-                    {/* Clear Filters */}
-                    {hasActiveFilters && (
-                      <div className="pt-2 border-t">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={clearFilters}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Clear All Filters
-                        </Button>
-                      </div>
-                    )}
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Summary Row */}
