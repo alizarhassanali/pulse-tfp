@@ -51,6 +51,7 @@ interface EventFormData {
   languages: string[];
   defaultLanguage: string;
   introMessage: string;
+  questionsIntro: string;
   questions: Array<{
     id: string;
     type: string;
@@ -114,6 +115,7 @@ export default function CreateEvent() {
     languages: ['en'],
     defaultLanguage: 'en',
     introMessage: '',
+    questionsIntro: '',
     questions: [],
     throttleDays: 90,
     collectConsent: true,
@@ -170,6 +172,7 @@ export default function CreateEvent() {
             languages: ['en'],
             defaultLanguage: 'en',
             introMessage: '',
+            questionsIntro: '',
             questions: [],
             throttleDays: 90,
             collectConsent: true,
@@ -255,6 +258,7 @@ export default function CreateEvent() {
           languages: event.languages || ['en'],
           defaultLanguage: eventConfig?.defaultLanguage || 'en',
           introMessage: event.intro_message || '',
+          questionsIntro: eventConfig?.questionsIntro || '',
           questions: eventQuestions?.map(q => ({
             id: q.id,
             type: q.type,
@@ -353,6 +357,7 @@ export default function CreateEvent() {
         })),
         config: JSON.parse(JSON.stringify({
           defaultLanguage: formData.defaultLanguage,
+          questionsIntro: formData.questionsIntro,
         })),
         status,
       };
@@ -734,7 +739,22 @@ export default function CreateEvent() {
 
       case 2:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Section Introduction */}
+            <div className="space-y-2">
+              <Label>Section Introduction (optional)</Label>
+              <Textarea
+                placeholder="Enter an introduction message for the additional questions section..."
+                value={formData.questionsIntro}
+                onChange={(e) => setFormData((prev) => ({ ...prev, questionsIntro: e.target.value }))}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">
+                {formData.questionsIntro.length}/500 characters - Leave blank to skip the intro
+              </p>
+            </div>
+
+            {/* Questions Header */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{formData.questions.length}/10 questions</p>
               <Button variant="outline" onClick={addQuestion} disabled={formData.questions.length >= 10}>
@@ -1280,7 +1300,14 @@ export default function CreateEvent() {
 
                 <div className="border-t pt-4">
                   <p className="text-sm text-muted-foreground">Additional Questions</p>
-                  <p className="font-medium">{formData.questions.length} questions</p>
+                  {formData.questionsIntro && (
+                    <p className="text-sm italic text-muted-foreground mb-1">"{formData.questionsIntro}"</p>
+                  )}
+                  <p className="font-medium">
+                    {formData.questions.length > 0 
+                      ? `${formData.questions.length} question${formData.questions.length > 1 ? 's' : ''}`
+                      : 'No additional questions'}
+                  </p>
                 </div>
 
                 <div className="border-t pt-4 grid grid-cols-2 gap-4">
