@@ -97,7 +97,6 @@ export function SendWizard({
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterChannel, setFilterChannel] = useState<string>('all');
-  const [filterBrand, setFilterBrand] = useState<boolean>(true);
 
   // Channel settings
   const [respectPreferredChannel, setRespectPreferredChannel] = useState(true);
@@ -128,11 +127,6 @@ export function SendWizard({
       // Must have email or phone
       if (!c.email && !c.phone) return false;
 
-      // Filter by brand if enabled
-      if (filterBrand && eventBrandId && c.brand_id && c.brand_id !== eventBrandId) {
-        return false;
-      }
-
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -153,7 +147,7 @@ export function SendWizard({
 
       return true;
     });
-  }, [contacts, searchQuery, filterChannel, filterBrand, eventBrandId]);
+  }, [contacts, searchQuery, filterChannel]);
 
   // Calculate channel breakdown
   const channelBreakdown = useMemo(() => {
@@ -331,18 +325,6 @@ export function SendWizard({
                   <SelectItem value="sms">SMS</SelectItem>
                 </SelectContent>
               </Select>
-              {eventBrandId && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="filterBrand"
-                    checked={filterBrand}
-                    onCheckedChange={(c) => setFilterBrand(c as boolean)}
-                  />
-                  <Label htmlFor="filterBrand" className="text-sm">
-                    Only matching brand
-                  </Label>
-                </div>
-              )}
             </div>
 
             {/* Stats */}
