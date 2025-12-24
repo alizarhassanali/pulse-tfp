@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 
 interface EditContactModalProps {
   contactId: string | null;
@@ -21,6 +22,16 @@ interface EditContactModalProps {
 export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: EditContactModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const {
+    availableBrands,
+    availableLocations,
+    isBrandLocked,
+    isLocationLocked,
+    effectiveBrandId,
+    effectiveLocationId,
+    getLocationsForBrand,
+  } = useBrandLocationContext();
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -66,37 +77,24 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
     enabled: !!contactId && open,
   });
 
-  // Fetch brands
-  const { data: brands = [] } = useQuery({
-    queryKey: ['brands-list'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('brands').select('*').order('name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch locations for selected brand
-  const { data: locations = [] } = useQuery({
-    queryKey: ['locations-for-brand', formData.brand_id],
-    queryFn: async () => {
-      if (!formData.brand_id) return [];
-      const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('brand_id', formData.brand_id)
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!formData.brand_id,
-  });
+  // Get locations for the selected brand
+  const locationsForBrand = formData.brand_id 
+    ? getLocationsForBrand(formData.brand_id) 
+    : availableLocations;
 
   // Initialize form data when contact loads
   useEffect(() => {
     if (contact) {
       const preferSms = contact.preferred_channel === 'sms' || contact.preferred_channel === 'both';
       const preferEmail = contact.preferred_channel === 'email' || contact.preferred_channel === 'both';
+      
+      // Use effective brand/location if locked, otherwise use contact's values
+      const brandId = isBrandLocked && effectiveBrandId 
+        ? effectiveBrandId 
+        : (contact.brand_id || effectiveBrandId || '');
+      const locationId = isLocationLocked && effectiveLocationId 
+        ? effectiveLocationId 
+        : (contact.location_id || effectiveLocationId || '');
       
       setFormData({
         first_name: contact.first_name || '',
@@ -105,13 +103,13 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
         phone: contact.phone || '',
         prefer_sms: preferSms,
         prefer_email: preferEmail,
-        brand_id: contact.brand_id || '',
-        location_id: contact.location_id || '',
+        brand_id: brandId,
+        location_id: locationId,
         status: contact.status || 'active',
         tag_ids: contactTags,
       });
     }
-  }, [contact, contactTags]);
+  }, [contact, contactTags, isBrandLocked, isLocationLocked, effectiveBrandId, effectiveLocationId]);
 
   // Update contact mutation
   const updateContactMutation = useMutation({
@@ -274,36 +272,50 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Brand</Label>
-                <Select 
-                  value={formData.brand_id} 
-                  onValueChange={(v) => setFormData(prev => ({ ...prev, brand_id: v, location_id: '' }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brands.map((brand: any) => (
-                      <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isBrandLocked ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
+                    <span className="text-sm">{availableBrands.find(b => b.id === formData.brand_id)?.name || 'No brand'}</span>
+                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
+                  </div>
+                ) : (
+                  <Select 
+                    value={formData.brand_id} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, brand_id: v, location_id: '' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableBrands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Location</Label>
-                <Select 
-                  value={formData.location_id} 
-                  onValueChange={(v) => setFormData(prev => ({ ...prev, location_id: v }))}
-                  disabled={!formData.brand_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.brand_id ? "Select location" : "Select brand first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc: any) => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isLocationLocked ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
+                    <span className="text-sm">{locationsForBrand.find(l => l.id === formData.location_id)?.name || 'No location'}</span>
+                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
+                  </div>
+                ) : (
+                  <Select 
+                    value={formData.location_id} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, location_id: v }))}
+                    disabled={!formData.brand_id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.brand_id ? "Select location" : "Select brand first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationsForBrand.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 
