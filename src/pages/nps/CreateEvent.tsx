@@ -19,6 +19,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,9 +30,10 @@ import {
   Save,
   Eye,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEMO_BRANDS, DEMO_LOCATIONS, DEMO_MANAGE_EVENTS } from '@/data/demo-data';
+import { DEMO_MANAGE_EVENTS } from '@/data/demo-data';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type ThankYouMode = 'same' | 'by-score' | 'by-score-location';
@@ -157,8 +159,7 @@ export default function CreateEvent() {
             console.log('[CreateEvent] Loaded demo event:', demoEvent);
           }
           
-          // Get demo locations for the brand
-          const demoLocations = DEMO_LOCATIONS[demoEvent.brand_id] || [];
+          // Get locations for the brand from demo event
           const locationIds = demoEvent.event_locations?.map((el: any) => el.location_id) || [];
           
           setFormData({
@@ -181,7 +182,7 @@ export default function CreateEvent() {
             ],
             thankYouMode: 'same',
             thankYouConfig: {
-              promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttonText: 'Leave a Google Review', buttonUrl: demoLocations[0]?.gmb_link || '' },
+              promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttonText: 'Leave a Google Review', buttonUrl: '' },
               passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttonText: '', buttonUrl: '' },
               detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
             },
@@ -294,45 +295,33 @@ export default function CreateEvent() {
     loadEventData();
   }, [eventId, navigate, toast]);
 
-  // Fetch brands from DB, fallback to demo
-  const { data: dbBrands = [] } = useQuery({
-    queryKey: ['brands'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('brands').select('*').order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Use brand/location context for consistent selection behavior
+  const {
+    availableBrands,
+    effectiveBrandId,
+    isBrandLocked,
+    getLocationsForBrand,
+    getBrandName,
+    isLoading: isLoadingContext,
+  } = useBrandLocationContext();
 
-  const brands = dbBrands.length > 0 ? dbBrands : DEMO_BRANDS;
-
-  // Fetch locations from DB, fallback to demo
-  const { data: dbLocations = [] } = useQuery({
-    queryKey: ['locations', formData.brandId],
-    queryFn: async () => {
-      if (!formData.brandId) return [];
-      const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('brand_id', formData.brandId)
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!formData.brandId,
-  });
-
-  // Get locations - use DB if available, otherwise demo
+  // Get locations for the selected brand
   const locations = useMemo(() => {
-    if (dbLocations.length > 0) return dbLocations;
     if (!formData.brandId) return [];
-    return DEMO_LOCATIONS[formData.brandId] || [];
-  }, [dbLocations, formData.brandId]);
+    return getLocationsForBrand(formData.brandId);
+  }, [formData.brandId, getLocationsForBrand]);
+
+  // Auto-select brand when locked
+  useEffect(() => {
+    if (isBrandLocked && effectiveBrandId && !formData.brandId && !isEditMode) {
+      setFormData(prev => ({ ...prev, brandId: effectiveBrandId }));
+    }
+  }, [isBrandLocked, effectiveBrandId, formData.brandId, isEditMode]);
 
   const createEventMutation = useMutation({
     mutationFn: async (status: 'draft' | 'active') => {
       // Check if using demo data
-      const isDemoData = !dbBrands.length;
+      const isDemoData = !availableBrands.length;
       
       if (isDemoData) {
         // Simulate success for demo
@@ -549,7 +538,7 @@ export default function CreateEvent() {
     }
   };
 
-  const selectedBrandName = brands.find(b => b.id === formData.brandId)?.name || '';
+  const selectedBrandName = getBrandName(formData.brandId);
 
   // Generate preview URL
   const previewUrl = useMemo(() => {
@@ -590,19 +579,26 @@ export default function CreateEvent() {
                     locationThankYouConfig: {},
                   }));
                 }}
+                disabled={isBrandLocked}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a brand" />
                 </SelectTrigger>
                 <SelectContent>
-                  {brands.map((brand) => (
+                  {availableBrands.map((brand) => (
                     <SelectItem key={brand.id} value={brand.id}>
                       {brand.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {!formData.brandId && (
+              {isBrandLocked && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" />
+                  Brand is locked based on your access
+                </div>
+              )}
+              {!formData.brandId && !isBrandLocked && (
                 <p className="text-xs text-destructive">Brand is required</p>
               )}
             </div>
