@@ -7,11 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, MoreVertical, Edit, UserX, UserCheck, Shield, Users, Eye, Mail, Loader2 } from 'lucide-react';
 import { InviteUserWizard } from '@/components/users/InviteUserWizard';
-import { AppRole, AppSection, PermissionLevel, ROLE_CONFIG, DEFAULT_PERMISSIONS } from '@/types/permissions';
+import { ManageRolesTab } from '@/components/users/ManageRolesTab';
+import { AppRole, ROLE_CONFIG } from '@/types/permissions';
 import { useAuthStore } from '@/stores/authStore';
 
 interface UserData {
@@ -174,8 +176,8 @@ export default function UsersPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Users"
-        description="Manage user access, roles, and permissions"
+        title="Users & Roles"
+        description="Manage user access and role permissions"
         actions={
           <Button className="btn-coral" onClick={() => setInviteModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -184,166 +186,191 @@ export default function UsersPage() {
         }
       />
 
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-destructive" />
-              <div>
-                <div className="text-2xl font-bold">{roleStats.super_admin}</div>
-                <p className="text-sm text-muted-foreground">Super Admins</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <div>
-                <div className="text-2xl font-bold">{roleStats.brand_admin}</div>
-                <p className="text-sm text-muted-foreground">Brand Admins</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-success" />
-              <div>
-                <div className="text-2xl font-bold">{roleStats.staff}</div>
-                <p className="text-sm text-muted-foreground">Staff</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft border-border/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-2xl font-bold">{roleStats.read_only}</div>
-                <p className="text-sm text-muted-foreground">Read Only</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Roles
+          </TabsTrigger>
+        </TabsList>
 
-      <Card className="shadow-soft border-border/50">
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Brand Access</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map(user => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {(user.name || user.email)
-                              .split(' ')
-                              .map(n => n[0])
-                              .join('')
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{user.name || 'Unnamed'}</p>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={ROLE_CONFIG[user.role]?.color || 'bg-muted'}>
-                        {ROLE_CONFIG[user.role]?.label || user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {user.role === 'super_admin' ? (
-                        'All brands'
-                      ) : user.brands.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {user.brands.slice(0, 2).map(b => (
-                            <Badge key={b.id} variant="outline" className="text-xs">
-                              {b.name}
+        <TabsContent value="users" className="space-y-6">
+          <div className="grid grid-cols-4 gap-4">
+            <Card className="shadow-soft border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-destructive" />
+                  <div>
+                    <div className="text-2xl font-semibold">{roleStats.super_admin}</div>
+                    <p className="text-sm text-muted-foreground">Super Admins</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <div>
+                    <div className="text-2xl font-semibold">{roleStats.brand_admin}</div>
+                    <p className="text-sm text-muted-foreground">Brand Admins</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-success" />
+                  <div>
+                    <div className="text-2xl font-semibold">{roleStats.staff}</div>
+                    <p className="text-sm text-muted-foreground">Staff</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft border-border/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <div className="text-2xl font-semibold">{roleStats.read_only}</div>
+                    <p className="text-sm text-muted-foreground">Read Only</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-soft border-border/50">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Brand Access</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map(user => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {(user.name || user.email)
+                                  .split(' ')
+                                  .map(n => n[0])
+                                  .join('')
+                                  .toUpperCase()
+                                  .slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{user.name || 'Unnamed'}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {user.custom_role_id && user.custom_role_name ? (
+                            <Badge variant="outline" className="bg-accent/20">
+                              {user.custom_role_name}
                             </Badge>
-                          ))}
-                          {user.brands.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{user.brands.length - 2}
+                          ) : (
+                            <Badge className={ROLE_CONFIG[user.role]?.color || 'bg-muted'}>
+                              {ROLE_CONFIG[user.role]?.label || user.role}
                             </Badge>
                           )}
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={user.status === 'active' ? 'default' : 'secondary'}
-                        className={user.status === 'active' ? 'bg-success' : ''}
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(user)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSuspendClick(user)}>
-                            {user.status === 'active' ? (
-                              <>
-                                <UserX className="h-4 w-4 mr-2" />
-                                Suspend
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="h-4 w-4 mr-2" />
-                                Reactivate
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {users.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No users found. Invite your first user to get started.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {user.role === 'super_admin' ? (
+                            'All brands'
+                          ) : user.brands.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {user.brands.slice(0, 2).map(b => (
+                                <Badge key={b.id} variant="outline" className="text-xs">
+                                  {b.name}
+                                </Badge>
+                              ))}
+                              {user.brands.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{user.brands.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.status === 'active' ? 'default' : 'secondary'}
+                            className={user.status === 'active' ? 'bg-success' : ''}
+                          >
+                            {user.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(user)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleSuspendClick(user)}>
+                                {user.status === 'active' ? (
+                                  <>
+                                    <UserX className="h-4 w-4 mr-2" />
+                                    Suspend
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Reactivate
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {users.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No users found. Invite your first user to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <ManageRolesTab />
+        </TabsContent>
+      </Tabs>
 
       <InviteUserWizard
         open={inviteModalOpen}
