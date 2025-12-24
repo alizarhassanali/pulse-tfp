@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,8 +53,12 @@ import {
   AlertTriangle,
   Clock,
   Eye,
+  MapPin,
+  Tag,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 
 interface Contact {
   id: string;
@@ -62,6 +68,8 @@ interface Contact {
   phone: string | null;
   preferred_channel: string | null;
   brand_id?: string | null;
+  location_id?: string | null;
+  status?: string | null;
 }
 
 interface SendWizardProps {
@@ -97,6 +105,39 @@ export function SendWizard({
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterChannel, setFilterChannel] = useState<string>('all');
+  
+  // Enhanced filters
+  const [filterHasEmail, setFilterHasEmail] = useState<boolean | null>(null);
+  const [filterHasPhone, setFilterHasPhone] = useState<boolean | null>(null);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [filterLocation, setFilterLocation] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  // Fetch locations for filter dropdown
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations-for-filter', eventBrandId],
+    queryFn: async () => {
+      let query = supabase.from('locations').select('id, name');
+      if (eventBrandId) {
+        query = query.eq('brand_id', eventBrandId);
+      }
+      const { data, error } = await query.order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch contact tag assignments
+  const { data: tagAssignments = [] } = useQuery({
+    queryKey: ['contact-tag-assignments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contact_tag_assignments')
+        .select('contact_id, tag_id');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   // Channel settings
   const [respectPreferredChannel, setRespectPreferredChannel] = useState(true);
@@ -120,6 +161,34 @@ export function SendWizard({
   // Collapsible sections
   const [emailOpen, setEmailOpen] = useState(true);
   const [smsOpen, setSmsOpen] = useState(true);
+
+  // Helper to get contact tags
+  const getContactTags = (contactId: string) => {
+    return tagAssignments
+      .filter((ta: any) => ta.contact_id === contactId)
+      .map((ta: any) => ta.tag_id);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return filterHasEmail !== null || 
+           filterHasPhone !== null || 
+           filterTags.length > 0 || 
+           filterLocation !== 'all' || 
+           filterStatus !== 'all' ||
+           filterChannel !== 'all';
+  }, [filterHasEmail, filterHasPhone, filterTags, filterLocation, filterStatus, filterChannel]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilterHasEmail(null);
+    setFilterHasPhone(null);
+    setFilterTags([]);
+    setFilterLocation('all');
+    setFilterStatus('all');
+    setFilterChannel('all');
+    setSearchQuery('');
+  };
 
   // Filter contacts by brand and eligibility
   const filteredContacts = useMemo(() => {
@@ -145,9 +214,35 @@ export function SendWizard({
         return false;
       }
 
+      // Has Email filter
+      if (filterHasEmail === true && !c.email) return false;
+      if (filterHasEmail === false && c.email) return false;
+
+      // Has Phone filter
+      if (filterHasPhone === true && !c.phone) return false;
+      if (filterHasPhone === false && c.phone) return false;
+
+      // Location filter
+      if (filterLocation !== 'all' && c.location_id !== filterLocation) {
+        return false;
+      }
+
+      // Status filter
+      if (filterStatus !== 'all') {
+        const contactStatus = c.status || 'active';
+        if (contactStatus !== filterStatus) return false;
+      }
+
+      // Tags filter - contact must have at least one of the selected tags
+      if (filterTags.length > 0) {
+        const contactTags = getContactTags(c.id);
+        const hasMatchingTag = filterTags.some(tagId => contactTags.includes(tagId));
+        if (!hasMatchingTag) return false;
+      }
+
       return true;
     });
-  }, [contacts, searchQuery, filterChannel]);
+  }, [contacts, searchQuery, filterChannel, filterHasEmail, filterHasPhone, filterLocation, filterStatus, filterTags, tagAssignments]);
 
   // Calculate channel breakdown
   const channelBreakdown = useMemo(() => {
@@ -304,8 +399,8 @@ export function SendWizard({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 items-center">
+            {/* Filter Row 1: Search + Channel */}
+            <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -316,16 +411,152 @@ export function SendWizard({
                 />
               </div>
               <Select value={filterChannel} onValueChange={setFilterChannel}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Channel" />
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Preferred Channel" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="email">Email Preferred</SelectItem>
+                  <SelectItem value="sms">SMS Preferred</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Filter Row 2: Has Email, Has Phone, Location, Status */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <Select 
+                value={filterHasEmail === null ? 'all' : filterHasEmail ? 'yes' : 'no'} 
+                onValueChange={(v) => setFilterHasEmail(v === 'all' ? null : v === 'yes')}
+              >
+                <SelectTrigger className="w-[130px]">
+                  <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Has Email" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Email</SelectItem>
+                  <SelectItem value="yes">Has Email</SelectItem>
+                  <SelectItem value="no">No Email</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={filterHasPhone === null ? 'all' : filterHasPhone ? 'yes' : 'no'} 
+                onValueChange={(v) => setFilterHasPhone(v === 'all' ? null : v === 'yes')}
+              >
+                <SelectTrigger className="w-[130px]">
+                  <MessageSquare className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Has Phone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Phone</SelectItem>
+                  <SelectItem value="yes">Has Phone</SelectItem>
+                  <SelectItem value="no">No Phone</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterLocation} onValueChange={setFilterLocation}>
+                <SelectTrigger className="w-[160px]">
+                  <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc: any) => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filter Row 3: Tags */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="min-w-[250px] max-w-[400px]">
+                <ContactTagsSelect
+                  selectedTags={filterTags}
+                  onTagsChange={setFilterTags}
+                  placeholder="Filter by tags..."
+                />
+              </div>
+              
+              {hasActiveFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearFilters}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {/* Active Filter Badges */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-2">
+                {filterHasEmail !== null && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterHasEmail ? 'Has Email' : 'No Email'}
+                    <button onClick={() => setFilterHasEmail(null)} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterHasPhone !== null && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterHasPhone ? 'Has Phone' : 'No Phone'}
+                    <button onClick={() => setFilterHasPhone(null)} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterChannel !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterChannel === 'email' ? 'Email Preferred' : 'SMS Preferred'}
+                    <button onClick={() => setFilterChannel('all')} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterLocation !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {locations.find((l: any) => l.id === filterLocation)?.name || 'Location'}
+                    <button onClick={() => setFilterLocation('all')} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterStatus !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterStatus === 'active' ? 'Active' : 'Inactive'}
+                    <button onClick={() => setFilterStatus('all')} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterTags.length > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Tag className="h-3 w-3" />
+                    {filterTags.length} tag{filterTags.length > 1 ? 's' : ''}
+                    <button onClick={() => setFilterTags([])} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
 
             {/* Stats */}
             <div className="flex gap-4 text-sm">
