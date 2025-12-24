@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link2, Send, Settings, Info, AlertTriangle } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { DEMO_CONTACTS, DEMO_EVENTS, DEMO_LOCATIONS } from '@/data/demo-data';
+import { DEMO_CONTACTS, DEMO_EVENTS } from '@/data/demo-data';
 
 import { SendWizard } from '@/components/distribution/SendWizard';
 import { ShareLinkTab } from '@/components/distribution/ShareLinkTab';
@@ -68,11 +68,6 @@ export default function Integration() {
 
   const selectedEventData = events.find(e => e.id === selectedEvent);
   
-  // Get locations for the selected event's brand
-  const eventLocations = useMemo(() => {
-    if (!selectedEventData?.brand_id) return [];
-    return DEMO_LOCATIONS[selectedEventData.brand_id] || [];
-  }, [selectedEventData]);
 
   // Show empty state if no event selected
   if (!selectedEvent) {
@@ -184,10 +179,7 @@ export default function Integration() {
 
         {/* Share Link Tab */}
         <TabsContent value="share">
-          <ShareLinkTab
-            eventId={selectedEvent}
-            locations={eventLocations}
-          />
+          <ShareLinkTab eventId={selectedEvent} />
         </TabsContent>
 
         {/* Integrations Tab */}

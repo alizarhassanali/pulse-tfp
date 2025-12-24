@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
-import { Bell, Plus, X } from 'lucide-react';
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
+import { Bell, Plus, X, Lock } from 'lucide-react';
 
 interface SetAlertModalProps {
   open: boolean;
@@ -31,6 +30,18 @@ interface SetAlertModalProps {
 
 export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
   const { toast } = useToast();
+  const {
+    availableBrands,
+    availableLocations,
+    effectiveBrandIds,
+    effectiveLocationIds,
+    isBrandLocked,
+    isLocationLocked,
+    getBrandName,
+    getLocationName,
+    isLoading,
+  } = useBrandLocationContext();
+
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [threshold, setThreshold] = useState(50);
@@ -41,19 +52,37 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
     'Hello,\n\nThe NPS score for {{brand}} at {{location}} has dropped below {{threshold}}.\n\nCurrent Score: {{score}}\nEvaluation Period: Last {{days}} days\n\nPlease review and take action.\n\nBest regards,\nUserPulse'
   );
 
-  const availableLocations = selectedBrands.length > 0
-    ? selectedBrands.flatMap(b => DEMO_LOCATIONS[b] || [])
-    : Object.values(DEMO_LOCATIONS).flat();
+  // Auto-select brands/locations when locked
+  useEffect(() => {
+    if (isBrandLocked && effectiveBrandIds.length > 0) {
+      setSelectedBrands(effectiveBrandIds);
+    }
+  }, [isBrandLocked, effectiveBrandIds]);
+
+  useEffect(() => {
+    if (isLocationLocked && effectiveLocationIds.length > 0) {
+      setSelectedLocations(effectiveLocationIds);
+    }
+  }, [isLocationLocked, effectiveLocationIds]);
+
+  // Filter locations based on selected brands
+  const filteredLocations = selectedBrands.length > 0
+    ? availableLocations.filter(loc => loc.brand_id && selectedBrands.includes(loc.brand_id))
+    : availableLocations;
 
   const handleBrandToggle = (brandId: string) => {
+    if (isBrandLocked) return;
     setSelectedBrands(prev => 
       prev.includes(brandId) 
         ? prev.filter(b => b !== brandId)
         : [...prev, brandId]
     );
+    // Clear location selections when brands change
+    setSelectedLocations([]);
   };
 
   const handleLocationToggle = (locationId: string) => {
+    if (isLocationLocked) return;
     setSelectedLocations(prev =>
       prev.includes(locationId)
         ? prev.filter(l => l !== locationId)
@@ -88,6 +117,10 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
     onOpenChange(false);
   };
 
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -104,41 +137,75 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
         <div className="space-y-6 py-4">
           {/* Brand Selection */}
           <div className="space-y-2">
-            <Label>Brands</Label>
-            <div className="flex flex-wrap gap-2">
-              {DEMO_BRANDS.map(brand => (
-                <Badge
-                  key={brand.id}
-                  variant={selectedBrands.includes(brand.id) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => handleBrandToggle(brand.id)}
-                >
-                  {brand.name}
-                </Badge>
-              ))}
-            </div>
+            <Label className="flex items-center gap-2">
+              Brands
+              {isBrandLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+            </Label>
+            {isBrandLocked ? (
+              <div className="flex flex-wrap gap-2">
+                {effectiveBrandIds.map(brandId => (
+                  <Badge key={brandId} variant="default">
+                    {getBrandName(brandId)}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableBrands.map(brand => (
+                  <Badge
+                    key={brand.id}
+                    variant={selectedBrands.includes(brand.id) ? 'default' : 'outline'}
+                    className="cursor-pointer"
+                    onClick={() => handleBrandToggle(brand.id)}
+                  >
+                    {brand.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              {selectedBrands.length === 0 ? 'All brands selected' : `${selectedBrands.length} brand(s) selected`}
+              {isBrandLocked 
+                ? 'Brand selection is locked based on your access'
+                : selectedBrands.length === 0 
+                  ? 'All brands selected' 
+                  : `${selectedBrands.length} brand(s) selected`}
             </p>
           </div>
 
           {/* Location Selection */}
           <div className="space-y-2">
-            <Label>Locations</Label>
-            <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-              {availableLocations.map(location => (
-                <Badge
-                  key={location.id}
-                  variant={selectedLocations.includes(location.id) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => handleLocationToggle(location.id)}
-                >
-                  {location.name}
-                </Badge>
-              ))}
-            </div>
+            <Label className="flex items-center gap-2">
+              Locations
+              {isLocationLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+            </Label>
+            {isLocationLocked ? (
+              <div className="flex flex-wrap gap-2">
+                {effectiveLocationIds.map(locationId => (
+                  <Badge key={locationId} variant="default">
+                    {getLocationName(locationId)}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                {filteredLocations.map(location => (
+                  <Badge
+                    key={location.id}
+                    variant={selectedLocations.includes(location.id) ? 'default' : 'outline'}
+                    className="cursor-pointer"
+                    onClick={() => handleLocationToggle(location.id)}
+                  >
+                    {location.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              {selectedLocations.length === 0 ? 'All locations selected' : `${selectedLocations.length} location(s) selected`}
+              {isLocationLocked 
+                ? 'Location selection is locked based on your access'
+                : selectedLocations.length === 0 
+                  ? 'All locations selected' 
+                  : `${selectedLocations.length} location(s) selected`}
             </p>
           </div>
 
