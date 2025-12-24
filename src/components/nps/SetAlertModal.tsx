@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
-import { Bell, Plus, X, Lock } from 'lucide-react';
+import { Bell, Plus, X } from 'lucide-react';
 
 interface SetAlertModalProps {
   open: boolean;
@@ -33,12 +33,6 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
   const {
     availableBrands,
     availableLocations,
-    effectiveBrandIds,
-    effectiveLocationIds,
-    isBrandLocked,
-    isLocationLocked,
-    getBrandName,
-    getLocationName,
     isLoading,
   } = useBrandLocationContext();
 
@@ -52,26 +46,34 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
     'Hello,\n\nThe NPS score for {{brand}} at {{location}} has dropped below {{threshold}}.\n\nCurrent Score: {{score}}\nEvaluation Period: Last {{days}} days\n\nPlease review and take action.\n\nBest regards,\nUserPulse'
   );
 
-  // Auto-select brands/locations when locked
+  // Auto-select when only 1 option available
   useEffect(() => {
-    if (isBrandLocked && effectiveBrandIds.length > 0) {
-      setSelectedBrands(effectiveBrandIds);
+    if (availableBrands.length === 1 && selectedBrands.length === 0) {
+      setSelectedBrands([availableBrands[0].id]);
     }
-  }, [isBrandLocked, effectiveBrandIds]);
-
-  useEffect(() => {
-    if (isLocationLocked && effectiveLocationIds.length > 0) {
-      setSelectedLocations(effectiveLocationIds);
-    }
-  }, [isLocationLocked, effectiveLocationIds]);
-
+  }, [availableBrands, selectedBrands.length]);
   // Filter locations based on selected brands
-  const filteredLocations = selectedBrands.length > 0
-    ? availableLocations.filter(loc => loc.brand_id && selectedBrands.includes(loc.brand_id))
-    : availableLocations;
+  const filteredLocations = useMemo(() => {
+    if (selectedBrands.length > 0) {
+      return availableLocations.filter(loc => loc.brand_id && selectedBrands.includes(loc.brand_id));
+    }
+    return availableLocations;
+  }, [availableLocations, selectedBrands]);
+
+  // Auto-select when only 1 option available
+  useEffect(() => {
+    if (availableBrands.length === 1 && selectedBrands.length === 0) {
+      setSelectedBrands([availableBrands[0].id]);
+    }
+  }, [availableBrands, selectedBrands.length]);
+
+  useEffect(() => {
+    if (filteredLocations.length === 1 && selectedLocations.length === 0) {
+      setSelectedLocations([filteredLocations[0].id]);
+    }
+  }, [filteredLocations, selectedLocations.length]);
 
   const handleBrandToggle = (brandId: string) => {
-    if (isBrandLocked) return;
     setSelectedBrands(prev => 
       prev.includes(brandId) 
         ? prev.filter(b => b !== brandId)
@@ -82,7 +84,6 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
   };
 
   const handleLocationToggle = (locationId: string) => {
-    if (isLocationLocked) return;
     setSelectedLocations(prev =>
       prev.includes(locationId)
         ? prev.filter(l => l !== locationId)
@@ -137,75 +138,45 @@ export function SetAlertModal({ open, onOpenChange }: SetAlertModalProps) {
         <div className="space-y-6 py-4">
           {/* Brand Selection */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              Brands
-              {isBrandLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-            </Label>
-            {isBrandLocked ? (
-              <div className="flex flex-wrap gap-2">
-                {effectiveBrandIds.map(brandId => (
-                  <Badge key={brandId} variant="default">
-                    {getBrandName(brandId)}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {availableBrands.map(brand => (
-                  <Badge
-                    key={brand.id}
-                    variant={selectedBrands.includes(brand.id) ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => handleBrandToggle(brand.id)}
-                  >
-                    {brand.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <Label>Brands</Label>
+            <div className="flex flex-wrap gap-2">
+              {availableBrands.map(brand => (
+                <Badge
+                  key={brand.id}
+                  variant={selectedBrands.includes(brand.id) ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                  onClick={() => handleBrandToggle(brand.id)}
+                >
+                  {brand.name}
+                </Badge>
+              ))}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {isBrandLocked 
-                ? 'Brand selection is locked based on your access'
-                : selectedBrands.length === 0 
-                  ? 'All brands selected' 
-                  : `${selectedBrands.length} brand(s) selected`}
+              {selectedBrands.length === 0 
+                ? 'All brands selected' 
+                : `${selectedBrands.length} brand(s) selected`}
             </p>
           </div>
 
           {/* Location Selection */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              Locations
-              {isLocationLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-            </Label>
-            {isLocationLocked ? (
-              <div className="flex flex-wrap gap-2">
-                {effectiveLocationIds.map(locationId => (
-                  <Badge key={locationId} variant="default">
-                    {getLocationName(locationId)}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-                {filteredLocations.map(location => (
-                  <Badge
-                    key={location.id}
-                    variant={selectedLocations.includes(location.id) ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => handleLocationToggle(location.id)}
-                  >
-                    {location.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <Label>Locations</Label>
+            <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+              {filteredLocations.map(location => (
+                <Badge
+                  key={location.id}
+                  variant={selectedLocations.includes(location.id) ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                  onClick={() => handleLocationToggle(location.id)}
+                >
+                  {location.name}
+                </Badge>
+              ))}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {isLocationLocked 
-                ? 'Location selection is locked based on your access'
-                : selectedLocations.length === 0 
-                  ? 'All locations selected' 
-                  : `${selectedLocations.length} location(s) selected`}
+              {selectedLocations.length === 0 
+                ? 'All locations selected' 
+                : `${selectedLocations.length} location(s) selected`}
             </p>
           </div>
 

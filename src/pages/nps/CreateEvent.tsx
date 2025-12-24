@@ -311,12 +311,12 @@ export default function CreateEvent() {
     return getLocationsForBrand(formData.brandId);
   }, [formData.brandId, getLocationsForBrand]);
 
-  // Auto-select brand when locked
+  // Auto-select brand when only 1 available
   useEffect(() => {
-    if (isBrandLocked && effectiveBrandId && !formData.brandId && !isEditMode) {
+    if (effectiveBrandId && !formData.brandId && !isEditMode) {
       setFormData(prev => ({ ...prev, brandId: effectiveBrandId }));
     }
-  }, [isBrandLocked, effectiveBrandId, formData.brandId, isEditMode]);
+  }, [effectiveBrandId, formData.brandId, isEditMode]);
 
   const createEventMutation = useMutation({
     mutationFn: async (status: 'draft' | 'active') => {

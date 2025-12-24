@@ -23,7 +23,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal, Lock } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { cn } from '@/lib/utils';
@@ -53,11 +53,6 @@ export default function AllContacts() {
   // Use brand/location context hook
   const {
     availableBrands,
-    availableLocations,
-    isBrandLocked,
-    isLocationLocked,
-    effectiveBrandId,
-    effectiveLocationId,
     getLocationsForBrand,
   } = useBrandLocationContext();
   
@@ -84,16 +79,14 @@ export default function AllContacts() {
     tag_ids: [] as string[],
   });
 
-  // Auto-fill brand/location when modal opens if locked
+  // Auto-fill brand/location when modal opens if only 1 available
   useEffect(() => {
     if (addModalOpen) {
-      setNewContact(prev => ({
-        ...prev,
-        brand_id: effectiveBrandId || prev.brand_id,
-        location_id: effectiveLocationId || prev.location_id,
-      }));
+      if (availableBrands.length === 1 && !newContact.brand_id) {
+        setNewContact(prev => ({ ...prev, brand_id: availableBrands[0].id }));
+      }
     }
-  }, [addModalOpen, effectiveBrandId, effectiveLocationId]);
+  }, [addModalOpen, availableBrands, newContact.brand_id]);
 
   const { data: dbContacts = [], isLoading } = useQuery({
     queryKey: ['contacts'],
@@ -860,54 +853,40 @@ export default function AllContacts() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Brand</Label>
-                {isBrandLocked ? (
-                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
-                    <span className="text-sm">{availableBrands.find(b => b.id === newContact.brand_id)?.name || 'No brand'}</span>
-                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
-                  </div>
-                ) : (
-                  <Select
-                    value={newContact.brand_id}
-                    onValueChange={(v) => setNewContact({ ...newContact, brand_id: v, location_id: '' })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBrands.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select
+                  value={newContact.brand_id}
+                  onValueChange={(v) => setNewContact({ ...newContact, brand_id: v, location_id: '' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableBrands.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Location</Label>
-                {isLocationLocked ? (
-                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
-                    <span className="text-sm">{availableLocations.find(l => l.id === newContact.location_id)?.name || 'No location'}</span>
-                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
-                  </div>
-                ) : (
-                  <Select
-                    value={newContact.location_id}
-                    onValueChange={(v) => setNewContact({ ...newContact, location_id: v })}
-                    disabled={!newContact.brand_id}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(newContact.brand_id ? getLocationsForBrand(newContact.brand_id) : availableLocations).map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
-                          {l.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select
+                  value={newContact.location_id}
+                  onValueChange={(v) => setNewContact({ ...newContact, location_id: v })}
+                  disabled={!newContact.brand_id}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(newContact.brand_id ? getLocationsForBrand(newContact.brand_id) : []).map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex items-center gap-2">
