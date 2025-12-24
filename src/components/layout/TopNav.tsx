@@ -36,17 +36,9 @@ export function TopNav() {
             alt={selectedBrand.name} 
             className="h-8 w-auto max-w-32 object-contain"
           />
-        ) : (
-          <>
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">U</span>
-            </div>
-            <span className="font-semibold text-lg tracking-tight hidden sm:inline">UserPulse</span>
-          </>
-        )}
-        {selectedBrand && !selectedBrand.logo_url && (
-          <span className="font-semibold text-lg tracking-tight hidden sm:inline">{selectedBrand.name}</span>
-        )}
+        ) : selectedBrand ? (
+          <span className="font-semibold text-lg tracking-tight">{selectedBrand.name}</span>
+        ) : null}
       </div>
 
       {/* Global Filters */}
