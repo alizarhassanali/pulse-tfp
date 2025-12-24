@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useFilterStore, DatePreset } from '@/stores/filterStore';
-import { DEMO_BRANDS, DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
+import { DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -25,7 +26,7 @@ import {
 } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, MapPin, Zap, Calendar as CalendarIcon, ChevronsUpDown } from 'lucide-react';
+import { Building2, MapPin, Zap, Calendar as CalendarIcon, ChevronsUpDown, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -131,12 +132,23 @@ export function GlobalFilters() {
     setDateRangeWithPreset,
   } = useFilterStore();
 
+  const {
+    accessibleBrands,
+    availableLocations,
+    isBrandLocked,
+    isLocationLocked,
+    effectiveBrandId,
+    effectiveLocationId,
+    getBrandName,
+    getLocationName,
+  } = useBrandLocationContext();
+
   const [customDateOpen, setCustomDateOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
 
-  const brands = DEMO_BRANDS.map(b => ({ value: b.id, label: b.name }));
-  const locations = getAvailableLocations(selectedBrands);
+  const brands = accessibleBrands.map(b => ({ value: b.id, label: b.name }));
+  const locations = availableLocations.map(l => ({ value: l.id, label: l.name }));
   const events = DEMO_EVENTS.map(e => ({ value: e.id, label: e.name }));
 
   const handleBrandsChange = (newBrands: string[]) => {
@@ -181,6 +193,10 @@ export function GlobalFilters() {
       default: return 'Last 30 days';
     }
   };
+
+  // Locked brand display (when only 1 brand accessible)
+  const lockedBrandName = effectiveBrandId ? getBrandName(effectiveBrandId) : null;
+  const lockedLocationName = effectiveLocationId ? getLocationName(effectiveLocationId) : null;
 
   return (
     <div className="flex items-center gap-2">
@@ -247,25 +263,41 @@ export function GlobalFilters() {
       {/* Divider */}
       <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
 
-      {/* Brand Filter */}
-      <FilterMultiSelect
-        options={brands}
-        selected={selectedBrands}
-        onChange={handleBrandsChange}
-        placeholder="Brand"
-        allLabel="All Brands"
-        icon={<Building2 className="h-4 w-4 opacity-70" />}
-      />
+      {/* Brand Filter - Show locked indicator or multi-select */}
+      {isBrandLocked && lockedBrandName ? (
+        <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
+          <Building2 className="h-4 w-4 opacity-70" />
+          <span className="text-sm font-medium">{lockedBrandName}</span>
+          <Lock className="h-3 w-3 opacity-50" />
+        </div>
+      ) : (
+        <FilterMultiSelect
+          options={brands}
+          selected={selectedBrands}
+          onChange={handleBrandsChange}
+          placeholder="Brand"
+          allLabel="All Brands"
+          icon={<Building2 className="h-4 w-4 opacity-70" />}
+        />
+      )}
 
-      {/* Location Filter */}
-      <FilterMultiSelect
-        options={locations}
-        selected={selectedLocations}
-        onChange={setSelectedLocations}
-        placeholder="Location"
-        allLabel="All Locations"
-        icon={<MapPin className="h-4 w-4 opacity-70" />}
-      />
+      {/* Location Filter - Show locked indicator or multi-select */}
+      {isLocationLocked && lockedLocationName ? (
+        <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
+          <MapPin className="h-4 w-4 opacity-70" />
+          <span className="text-sm font-medium">{lockedLocationName}</span>
+          <Lock className="h-3 w-3 opacity-50" />
+        </div>
+      ) : (
+        <FilterMultiSelect
+          options={locations}
+          selected={selectedLocations}
+          onChange={setSelectedLocations}
+          placeholder="Location"
+          allLabel="All Locations"
+          icon={<MapPin className="h-4 w-4 opacity-70" />}
+        />
+      )}
 
       {/* Event Filter (Single Select) */}
       <Select value={selectedEvent} onValueChange={setSelectedEvent}>

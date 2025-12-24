@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,8 +21,9 @@ import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { EditContactModal } from '@/components/contacts/EditContactModal';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
+import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Filter, Send, ChevronDown, X, Pencil, MoreHorizontal, Lock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { cn } from '@/lib/utils';
@@ -49,6 +50,17 @@ export default function AllContacts() {
   const [sendEventModalOpen, setSendEventModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   
+  // Use brand/location context hook
+  const {
+    availableBrands,
+    availableLocations,
+    isBrandLocked,
+    isLocationLocked,
+    effectiveBrandId,
+    effectiveLocationId,
+    getLocationsForBrand,
+  } = useBrandLocationContext();
+  
   // Selected contacts for bulk actions
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   
@@ -71,6 +83,17 @@ export default function AllContacts() {
     opt_in: false,
     tag_ids: [] as string[],
   });
+
+  // Auto-fill brand/location when modal opens if locked
+  useEffect(() => {
+    if (addModalOpen) {
+      setNewContact(prev => ({
+        ...prev,
+        brand_id: effectiveBrandId || prev.brand_id,
+        location_id: effectiveLocationId || prev.location_id,
+      }));
+    }
+  }, [addModalOpen, effectiveBrandId, effectiveLocationId]);
 
   const { data: dbContacts = [], isLoading } = useQuery({
     queryKey: ['contacts'],
@@ -837,40 +860,54 @@ export default function AllContacts() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Brand</Label>
-                <Select
-                  value={newContact.brand_id}
-                  onValueChange={(v) => setNewContact({ ...newContact, brand_id: v, location_id: '' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brands.map((b: any) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isBrandLocked ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
+                    <span className="text-sm">{availableBrands.find(b => b.id === newContact.brand_id)?.name || 'No brand'}</span>
+                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
+                  </div>
+                ) : (
+                  <Select
+                    value={newContact.brand_id}
+                    onValueChange={(v) => setNewContact({ ...newContact, brand_id: v, location_id: '' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableBrands.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Location</Label>
-                <Select
-                  value={newContact.location_id}
-                  onValueChange={(v) => setNewContact({ ...newContact, location_id: v })}
-                  disabled={!newContact.brand_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((l: any) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isLocationLocked ? (
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
+                    <span className="text-sm">{availableLocations.find(l => l.id === newContact.location_id)?.name || 'No location'}</span>
+                    <Lock className="h-3 w-3 opacity-50 ml-auto" />
+                  </div>
+                ) : (
+                  <Select
+                    value={newContact.location_id}
+                    onValueChange={(v) => setNewContact({ ...newContact, location_id: v })}
+                    disabled={!newContact.brand_id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(newContact.brand_id ? getLocationsForBrand(newContact.brand_id) : availableLocations).map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
