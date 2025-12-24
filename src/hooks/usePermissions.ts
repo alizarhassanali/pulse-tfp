@@ -44,29 +44,28 @@ export function usePermissions(): UsePermissionsReturn {
     }
 
     try {
-      // Use type assertion since the table may not be in generated types yet
-      const { data, error } = await (supabase
-        .from('user_section_permissions' as any)
-        .select('section, permission')
-        .eq('user_id', user.id) as any);
+      // Check if user has a custom role assigned
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role, custom_role_id, custom_roles(permissions)')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (roleError) throw roleError;
 
-      // Start with default permissions based on role
-      const defaultPerms = DEFAULT_PERMISSIONS[userRole as keyof typeof DEFAULT_PERMISSIONS] || DEFAULT_PERMISSIONS.read_only;
-      const perms = { ...defaultPerms };
-
-      // Override with specific permissions from database
-      if (data && data.length > 0) {
-        data.forEach((p: { section: string; permission: string }) => {
-          perms[p.section as AppSection] = p.permission as PermissionLevel;
-        });
+      // If user has a custom role, use those permissions
+      if (roleData?.custom_role_id && (roleData as any).custom_roles?.permissions) {
+        const customPerms = (roleData as any).custom_roles.permissions as Record<AppSection, PermissionLevel>;
+        setPermissions(customPerms);
+      } else {
+        // Use default permissions based on built-in role
+        const role = roleData?.role || userRole;
+        const defaultPerms = DEFAULT_PERMISSIONS[role as keyof typeof DEFAULT_PERMISSIONS] || DEFAULT_PERMISSIONS.read_only;
+        setPermissions(defaultPerms);
       }
-
-      setPermissions(perms);
     } catch (error) {
       console.error('Error fetching permissions:', error);
-      // Fall back to default permissions
+      // Fall back to default permissions based on role
       const defaultPerms = DEFAULT_PERMISSIONS[userRole as keyof typeof DEFAULT_PERMISSIONS] || DEFAULT_PERMISSIONS.read_only;
       setPermissions(defaultPerms);
     } finally {
