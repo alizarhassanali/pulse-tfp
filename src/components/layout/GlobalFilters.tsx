@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useFilterStore, DatePreset } from '@/stores/filterStore';
+import { X } from 'lucide-react';
 import { DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { Button } from '@/components/ui/button';
@@ -120,17 +121,20 @@ function FilterMultiSelect({ options, selected, onChange, placeholder, allLabel,
 }
 
 export function GlobalFilters() {
-  const { 
-    selectedBrands, 
-    selectedLocations, 
-    selectedEvent, 
+  const {
+    selectedBrands,
+    selectedLocations,
+    selectedEvent,
     dateRange,
     datePreset,
     setSelectedBrands,
     setSelectedLocations,
     setSelectedEvent,
     setDateRangeWithPreset,
+    clearFilters,
   } = useFilterStore();
+
+  const hasActiveFilters = selectedBrands.length > 0 || selectedLocations.length > 0 || selectedEvent !== 'all' || datePreset !== '30';
 
   const {
     accessibleBrands,
@@ -326,6 +330,21 @@ export function GlobalFilters() {
         </SelectContent>
       </Select>
 
+      {/* Clear All Filters Button */}
+      {hasActiveFilters && (
+        <>
+          <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="h-9 px-3 text-topbar-foreground hover:bg-topbar-foreground/10 gap-1.5"
+          >
+            <X className="h-4 w-4" />
+            <span className="text-sm">Clear</span>
+          </Button>
+        </>
+      )}
     </div>
   );
 }
