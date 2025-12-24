@@ -271,10 +271,10 @@ export function GlobalFilters() {
       <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
 
       {/* Brand Filter - Single Select */}
-      {isBrandLocked && lockedBrandName ? (
+      {accessibleBrands.length === 1 ? (
         <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
           <Building2 className="h-4 w-4 opacity-70" />
-          <span className="text-sm font-medium">{lockedBrandName}</span>
+          <span className="text-sm font-medium">{accessibleBrands[0].name}</span>
         </div>
       ) : (
         <Select 
