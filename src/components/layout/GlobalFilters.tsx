@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useFilterStore, DatePreset } from '@/stores/filterStore';
-import { X } from 'lucide-react';
 import { DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { Button } from '@/components/ui/button';
@@ -131,10 +130,7 @@ export function GlobalFilters() {
     setSelectedLocations,
     setSelectedEvent,
     setDateRangeWithPreset,
-    clearFilters,
   } = useFilterStore();
-
-  const hasActiveFilters = selectedBrands.length > 0 || selectedLocations.length > 0 || selectedEvent !== 'all' || datePreset !== '30';
 
   const {
     accessibleBrands,
@@ -275,17 +271,16 @@ export function GlobalFilters() {
         </div>
       ) : (
         <Select 
-          value={selectedBrands.length > 0 ? selectedBrands[0] : 'all'} 
-          onValueChange={(value) => handleBrandsChange(value === 'all' ? [] : [value])}
+          value={selectedBrands.length > 0 ? selectedBrands[0] : brands[0]?.value || ''} 
+          onValueChange={(value) => handleBrandsChange([value])}
         >
           <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 opacity-70" />
-              <SelectValue placeholder="All Brands" />
+              <SelectValue placeholder="Select Brand" />
             </div>
           </SelectTrigger>
           <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
-            <SelectItem value="all">All Brands</SelectItem>
             {brands.map((brand) => (
               <SelectItem key={brand.value} value={brand.value}>
                 {brand.label}
@@ -330,21 +325,6 @@ export function GlobalFilters() {
         </SelectContent>
       </Select>
 
-      {/* Clear All Filters Button */}
-      {hasActiveFilters && (
-        <>
-          <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-9 px-3 text-topbar-foreground hover:bg-topbar-foreground/10 gap-1.5"
-          >
-            <X className="h-4 w-4" />
-            <span className="text-sm">Clear</span>
-          </Button>
-        </>
-      )}
     </div>
   );
 }
