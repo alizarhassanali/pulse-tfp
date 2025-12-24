@@ -112,6 +112,8 @@ export function SendWizard({
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [filterLocation, setFilterLocation] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterSurveyHistory, setFilterSurveyHistory] = useState<string>('all');
+  const [filterDaysSinceSurvey, setFilterDaysSinceSurvey] = useState<string>('all');
 
   // Fetch locations for filter dropdown
   const { data: locations = [] } = useQuery({
@@ -138,6 +140,34 @@ export function SendWizard({
       return data || [];
     },
   });
+
+  // Fetch survey invitations to calculate last survey date per contact
+  const { data: surveyInvitations = [] } = useQuery({
+    queryKey: ['contact-survey-invitations-wizard'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('survey_invitations')
+        .select('contact_id, sent_at')
+        .not('sent_at', 'is', null)
+        .order('sent_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build a map of contact ID to last survey date
+  const contactLastSurveyMap = useMemo(() => {
+    const map: Record<string, Date> = {};
+    surveyInvitations.forEach((inv: any) => {
+      if (inv.contact_id && inv.sent_at) {
+        const sentDate = new Date(inv.sent_at);
+        if (!map[inv.contact_id] || sentDate > map[inv.contact_id]) {
+          map[inv.contact_id] = sentDate;
+        }
+      }
+    });
+    return map;
+  }, [surveyInvitations]);
 
   // Channel settings
   const [respectPreferredChannel, setRespectPreferredChannel] = useState(true);
@@ -176,8 +206,10 @@ export function SendWizard({
            filterTags.length > 0 || 
            filterLocation !== 'all' || 
            filterStatus !== 'all' ||
-           filterChannel !== 'all';
-  }, [filterHasEmail, filterHasPhone, filterTags, filterLocation, filterStatus, filterChannel]);
+           filterChannel !== 'all' ||
+           filterSurveyHistory !== 'all' ||
+           filterDaysSinceSurvey !== 'all';
+  }, [filterHasEmail, filterHasPhone, filterTags, filterLocation, filterStatus, filterChannel, filterSurveyHistory, filterDaysSinceSurvey]);
 
   // Clear all filters
   const clearFilters = () => {
@@ -187,11 +219,14 @@ export function SendWizard({
     setFilterLocation('all');
     setFilterStatus('all');
     setFilterChannel('all');
+    setFilterSurveyHistory('all');
+    setFilterDaysSinceSurvey('all');
     setSearchQuery('');
   };
 
   // Filter contacts by brand and eligibility
   const filteredContacts = useMemo(() => {
+    const now = new Date();
     return contacts.filter((c) => {
       // Must have email or phone
       if (!c.email && !c.phone) return false;
@@ -240,9 +275,21 @@ export function SendWizard({
         if (!hasMatchingTag) return false;
       }
 
+      // Survey history filter
+      const lastSurveyDate = contactLastSurveyMap[c.id];
+      if (filterSurveyHistory === 'never' && lastSurveyDate) return false;
+      if (filterSurveyHistory === 'surveyed' && !lastSurveyDate) return false;
+
+      // Days since last survey filter
+      if (filterDaysSinceSurvey !== 'all' && lastSurveyDate) {
+        const daysSince = Math.floor((now.getTime() - lastSurveyDate.getTime()) / (1000 * 60 * 60 * 24));
+        const threshold = parseInt(filterDaysSinceSurvey);
+        if (daysSince < threshold) return false;
+      }
+
       return true;
     });
-  }, [contacts, searchQuery, filterChannel, filterHasEmail, filterHasPhone, filterLocation, filterStatus, filterTags, tagAssignments]);
+  }, [contacts, searchQuery, filterChannel, filterHasEmail, filterHasPhone, filterLocation, filterStatus, filterTags, tagAssignments, filterSurveyHistory, filterDaysSinceSurvey, contactLastSurveyMap]);
 
   // Calculate channel breakdown
   const channelBreakdown = useMemo(() => {
@@ -479,15 +526,43 @@ export function SendWizard({
               </Select>
             </div>
 
-            {/* Filter Row 3: Tags */}
+            {/* Filter Row 3: Tags + Survey History */}
             <div className="flex flex-wrap gap-3 items-center">
-              <div className="min-w-[250px] max-w-[400px]">
+              <div className="min-w-[200px] max-w-[300px]">
                 <ContactTagsSelect
                   selectedTags={filterTags}
                   onTagsChange={setFilterTags}
                   placeholder="Filter by tags..."
                 />
               </div>
+
+              {/* Survey History Filter */}
+              <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
+                <SelectTrigger className="w-[160px]">
+                  <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Survey History" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Contacts</SelectItem>
+                  <SelectItem value="never">Never Surveyed</SelectItem>
+                  <SelectItem value="surveyed">Previously Surveyed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Days Since Survey Filter */}
+              <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Last Survey" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Time</SelectItem>
+                  <SelectItem value="30">30+ days ago</SelectItem>
+                  <SelectItem value="60">60+ days ago</SelectItem>
+                  <SelectItem value="90">90+ days ago</SelectItem>
+                  <SelectItem value="180">180+ days ago</SelectItem>
+                  <SelectItem value="365">1+ year ago</SelectItem>
+                </SelectContent>
+              </Select>
               
               {hasActiveFilters && (
                 <Button 
@@ -551,6 +626,23 @@ export function SendWizard({
                     <Tag className="h-3 w-3" />
                     {filterTags.length} tag{filterTags.length > 1 ? 's' : ''}
                     <button onClick={() => setFilterTags([])} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterSurveyHistory !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Clock className="h-3 w-3" />
+                    {filterSurveyHistory === 'never' ? 'Never Surveyed' : 'Previously Surveyed'}
+                    <button onClick={() => setFilterSurveyHistory('all')} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterDaysSinceSurvey !== 'all' && (
+                  <Badge variant="secondary" className="gap-1">
+                    {filterDaysSinceSurvey}+ days ago
+                    <button onClick={() => setFilterDaysSinceSurvey('all')} className="ml-1 hover:text-destructive">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
