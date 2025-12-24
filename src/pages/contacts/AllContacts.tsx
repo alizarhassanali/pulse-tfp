@@ -65,6 +65,8 @@ export default function AllContacts() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterMethod, setFilterMethod] = useState<string>('all');
   const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [filterSurveyHistory, setFilterSurveyHistory] = useState<string>('all');
+  const [filterDaysSinceSurvey, setFilterDaysSinceSurvey] = useState<string>('all');
   
   const [newContact, setNewContact] = useState({
     first_name: '',
@@ -149,6 +151,34 @@ export default function AllContacts() {
     },
   });
 
+  // Fetch survey invitations to calculate last survey date per contact
+  const { data: surveyInvitations = [] } = useQuery({
+    queryKey: ['contact-survey-invitations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('survey_invitations')
+        .select('contact_id, sent_at')
+        .not('sent_at', 'is', null)
+        .order('sent_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build a map of contact ID to last survey date
+  const contactLastSurveyMap = useMemo(() => {
+    const map: Record<string, Date> = {};
+    surveyInvitations.forEach((inv: any) => {
+      if (inv.contact_id && inv.sent_at) {
+        const sentDate = new Date(inv.sent_at);
+        if (!map[inv.contact_id] || sentDate > map[inv.contact_id]) {
+          map[inv.contact_id] = sentDate;
+        }
+      }
+    });
+    return map;
+  }, [surveyInvitations]);
+
   const { data: locations = [] } = useQuery({
     queryKey: ['locations-list', newContact.brand_id],
     queryFn: async () => {
@@ -204,6 +234,7 @@ export default function AllContacts() {
   }, [contacts, filterBrand]);
 
   const filteredContacts = useMemo(() => {
+    const now = new Date();
     return contacts.filter((c) => {
       // Search filter
       if (search) {
@@ -232,12 +263,24 @@ export default function AllContacts() {
         const hasMatchingTag = filterTags.some(tagId => contactTags.includes(tagId));
         if (!hasMatchingTag) return false;
       }
+
+      // Survey history filter
+      const lastSurveyDate = contactLastSurveyMap[c.id];
+      if (filterSurveyHistory === 'never' && lastSurveyDate) return false;
+      if (filterSurveyHistory === 'surveyed' && !lastSurveyDate) return false;
+
+      // Days since last survey filter
+      if (filterDaysSinceSurvey !== 'all' && lastSurveyDate) {
+        const daysSince = Math.floor((now.getTime() - lastSurveyDate.getTime()) / (1000 * 60 * 60 * 24));
+        const threshold = parseInt(filterDaysSinceSurvey);
+        if (daysSince < threshold) return false;
+      }
       
       return true;
     });
-  }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod, filterTags, contactTagMap]);
+  }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod, filterTags, contactTagMap, filterSurveyHistory, filterDaysSinceSurvey, contactLastSurveyMap]);
 
-  const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod].filter(f => f !== 'all').length + (filterTags.length > 0 ? 1 : 0);
+  const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod, filterSurveyHistory, filterDaysSinceSurvey].filter(f => f !== 'all').length + (filterTags.length > 0 ? 1 : 0);
 
   const clearAllFilters = () => {
     setFilterBrand('all');
@@ -245,6 +288,8 @@ export default function AllContacts() {
     setFilterStatus('all');
     setFilterMethod('all');
     setFilterTags([]);
+    setFilterSurveyHistory('all');
+    setFilterDaysSinceSurvey('all');
     setSearch('');
   };
   
@@ -522,6 +567,33 @@ export default function AllContacts() {
               placeholder="Filter by tags..."
               className="w-[200px]"
             />
+
+            {/* Survey History Filter */}
+            <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
+              <SelectTrigger className="w-[160px] bg-background">
+                <SelectValue placeholder="Survey History" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Contacts</SelectItem>
+                <SelectItem value="never">Never Surveyed</SelectItem>
+                <SelectItem value="surveyed">Previously Surveyed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Days Since Survey Filter */}
+            <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
+              <SelectTrigger className="w-[180px] bg-background">
+                <SelectValue placeholder="Last Survey Date" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Time</SelectItem>
+                <SelectItem value="30">30+ days ago</SelectItem>
+                <SelectItem value="60">60+ days ago</SelectItem>
+                <SelectItem value="90">90+ days ago</SelectItem>
+                <SelectItem value="180">180+ days ago</SelectItem>
+                <SelectItem value="365">1+ year ago</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Clear Filters */}
             {activeFiltersCount > 0 && (
