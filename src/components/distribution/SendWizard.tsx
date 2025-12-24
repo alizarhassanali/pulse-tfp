@@ -53,8 +53,6 @@ import {
   AlertTriangle,
   Clock,
   Eye,
-  MapPin,
-  Tag,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -446,9 +444,9 @@ export function SendWizard({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Filter Row 1: Search + Channel */}
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="relative flex-1 min-w-[200px]">
+            {/* Primary Filter Row: Search + Filters Button */}
+            <div className="flex gap-3 items-center">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, email, phone..."
@@ -457,207 +455,173 @@ export function SendWizard({
                   className="pl-9"
                 />
               </div>
-              <Select value={filterChannel} onValueChange={setFilterChannel}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Preferred Channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="email">Email Preferred</SelectItem>
-                  <SelectItem value="sms">SMS Preferred</SelectItem>
-                </SelectContent>
-              </Select>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <ChevronDown className="h-4 w-4" />
+                    Filters
+                    {hasActiveFilters && (
+                      <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                        {[
+                          filterChannel !== 'all',
+                          filterHasEmail !== null,
+                          filterHasPhone !== null,
+                          filterLocation !== 'all',
+                          filterStatus !== 'all',
+                          filterTags.length > 0,
+                          filterSurveyHistory !== 'all',
+                          filterDaysSinceSurvey !== 'all',
+                        ].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
+                    {/* Contact Info Group */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Info</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <Select value={filterChannel} onValueChange={setFilterChannel}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Channel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Channels</SelectItem>
+                            <SelectItem value="email">Email Preferred</SelectItem>
+                            <SelectItem value="sms">SMS Preferred</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select 
+                          value={filterHasEmail === null ? 'all' : filterHasEmail ? 'yes' : 'no'} 
+                          onValueChange={(v) => setFilterHasEmail(v === 'all' ? null : v === 'yes')}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Email" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Any Email</SelectItem>
+                            <SelectItem value="yes">Has Email</SelectItem>
+                            <SelectItem value="no">No Email</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select 
+                          value={filterHasPhone === null ? 'all' : filterHasPhone ? 'yes' : 'no'} 
+                          onValueChange={(v) => setFilterHasPhone(v === 'all' ? null : v === 'yes')}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Phone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Any Phone</SelectItem>
+                            <SelectItem value="yes">Has Phone</SelectItem>
+                            <SelectItem value="no">No Phone</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Segmentation Group */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Segmentation</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <Select value={filterLocation} onValueChange={setFilterLocation}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Locations</SelectItem>
+                            {locations.map((loc: any) => (
+                              <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="w-full">
+                          <ContactTagsSelect
+                            selectedTags={filterTags}
+                            onTagsChange={setFilterTags}
+                            placeholder="Tags..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Survey History Group */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Survey History</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Survey History" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Contacts</SelectItem>
+                            <SelectItem value="never">Never Surveyed</SelectItem>
+                            <SelectItem value="surveyed">Previously Surveyed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Last Survey" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Any Time</SelectItem>
+                            <SelectItem value="30">30+ days ago</SelectItem>
+                            <SelectItem value="60">60+ days ago</SelectItem>
+                            <SelectItem value="90">90+ days ago</SelectItem>
+                            <SelectItem value="180">180+ days ago</SelectItem>
+                            <SelectItem value="365">1+ year ago</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Clear Filters */}
+                    {hasActiveFilters && (
+                      <div className="pt-2 border-t">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={clearFilters}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Clear All Filters
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
-            {/* Filter Row 2: Has Email, Has Phone, Location, Status */}
-            <div className="flex flex-wrap gap-3 items-center">
-              <Select 
-                value={filterHasEmail === null ? 'all' : filterHasEmail ? 'yes' : 'no'} 
-                onValueChange={(v) => setFilterHasEmail(v === 'all' ? null : v === 'yes')}
-              >
-                <SelectTrigger className="w-[130px]">
-                  <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Has Email" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any Email</SelectItem>
-                  <SelectItem value="yes">Has Email</SelectItem>
-                  <SelectItem value="no">No Email</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={filterHasPhone === null ? 'all' : filterHasPhone ? 'yes' : 'no'} 
-                onValueChange={(v) => setFilterHasPhone(v === 'all' ? null : v === 'yes')}
-              >
-                <SelectTrigger className="w-[130px]">
-                  <MessageSquare className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Has Phone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any Phone</SelectItem>
-                  <SelectItem value="yes">Has Phone</SelectItem>
-                  <SelectItem value="no">No Phone</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filterLocation} onValueChange={setFilterLocation}>
-                <SelectTrigger className="w-[160px]">
-                  <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locations.map((loc: any) => (
-                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Filter Row 3: Tags + Survey History */}
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="min-w-[200px] max-w-[300px]">
-                <ContactTagsSelect
-                  selectedTags={filterTags}
-                  onTagsChange={setFilterTags}
-                  placeholder="Filter by tags..."
-                />
+            {/* Summary Row */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span className="font-medium text-foreground">{filteredContacts.length}</span> eligible
+                <span className="mx-1">•</span>
+                <span className="font-medium text-foreground">{selectedContacts.length}</span> selected
               </div>
-
-              {/* Survey History Filter */}
-              <Select value={filterSurveyHistory} onValueChange={setFilterSurveyHistory}>
-                <SelectTrigger className="w-[160px]">
-                  <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Survey History" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Contacts</SelectItem>
-                  <SelectItem value="never">Never Surveyed</SelectItem>
-                  <SelectItem value="surveyed">Previously Surveyed</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Days Since Survey Filter */}
-              <Select value={filterDaysSinceSurvey} onValueChange={setFilterDaysSinceSurvey}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Last Survey" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any Time</SelectItem>
-                  <SelectItem value="30">30+ days ago</SelectItem>
-                  <SelectItem value="60">60+ days ago</SelectItem>
-                  <SelectItem value="90">90+ days ago</SelectItem>
-                  <SelectItem value="180">180+ days ago</SelectItem>
-                  <SelectItem value="365">1+ year ago</SelectItem>
-                </SelectContent>
-              </Select>
-              
               {hasActiveFilters && (
                 <Button 
-                  variant="ghost" 
+                  variant="link" 
                   size="sm" 
                   onClick={clearFilters}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground h-auto p-0"
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Clear Filters
+                  Clear filters
                 </Button>
               )}
-            </div>
-
-            {/* Active Filter Badges */}
-            {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2">
-                {filterHasEmail !== null && (
-                  <Badge variant="secondary" className="gap-1">
-                    {filterHasEmail ? 'Has Email' : 'No Email'}
-                    <button onClick={() => setFilterHasEmail(null)} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterHasPhone !== null && (
-                  <Badge variant="secondary" className="gap-1">
-                    {filterHasPhone ? 'Has Phone' : 'No Phone'}
-                    <button onClick={() => setFilterHasPhone(null)} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterChannel !== 'all' && (
-                  <Badge variant="secondary" className="gap-1">
-                    {filterChannel === 'email' ? 'Email Preferred' : 'SMS Preferred'}
-                    <button onClick={() => setFilterChannel('all')} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterLocation !== 'all' && (
-                  <Badge variant="secondary" className="gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {locations.find((l: any) => l.id === filterLocation)?.name || 'Location'}
-                    <button onClick={() => setFilterLocation('all')} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterStatus !== 'all' && (
-                  <Badge variant="secondary" className="gap-1">
-                    {filterStatus === 'active' ? 'Active' : 'Inactive'}
-                    <button onClick={() => setFilterStatus('all')} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterTags.length > 0 && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Tag className="h-3 w-3" />
-                    {filterTags.length} tag{filterTags.length > 1 ? 's' : ''}
-                    <button onClick={() => setFilterTags([])} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterSurveyHistory !== 'all' && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Clock className="h-3 w-3" />
-                    {filterSurveyHistory === 'never' ? 'Never Surveyed' : 'Previously Surveyed'}
-                    <button onClick={() => setFilterSurveyHistory('all')} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {filterDaysSinceSurvey !== 'all' && (
-                  <Badge variant="secondary" className="gap-1">
-                    {filterDaysSinceSurvey}+ days ago
-                    <button onClick={() => setFilterDaysSinceSurvey('all')} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-              </div>
-            )}
-
-            {/* Stats */}
-            <div className="flex gap-4 text-sm">
-              <Badge variant="outline">
-                {filteredContacts.length} eligible contacts
-              </Badge>
-              <Badge variant={selectedContacts.length > 0 ? 'default' : 'outline'}>
-                {selectedContacts.length} selected
-              </Badge>
             </div>
 
             {/* Contact Table */}
