@@ -87,10 +87,18 @@ export function useBrandLocationContext(): BrandLocationContextResult {
     );
   }, [dbLocations]);
 
-  // Determine if brand is locked (only one accessible OR one selected in global filter)
+  // Available brands = accessible brands filtered by global selection
+  const availableBrands = useMemo(() => {
+    if (filterSelectedBrands.length === 0) {
+      return accessibleBrands;
+    }
+    return accessibleBrands.filter(b => filterSelectedBrands.includes(b.id));
+  }, [accessibleBrands, filterSelectedBrands]);
+
+  // Determine if brand is locked - ONLY when there's truly 1 option after filtering
   const isBrandLocked = useMemo(() => {
-    return accessibleBrands.length === 1 || filterSelectedBrands.length === 1;
-  }, [accessibleBrands.length, filterSelectedBrands.length]);
+    return availableBrands.length === 1;
+  }, [availableBrands.length]);
 
   // Effective brand IDs based on global filter or all accessible
   const effectiveBrandIds = useMemo(() => {
@@ -100,29 +108,19 @@ export function useBrandLocationContext(): BrandLocationContextResult {
     return accessibleBrands.map(b => b.id);
   }, [filterSelectedBrands, accessibleBrands]);
 
-  // Single effective brand (only when locked)
+  // Single effective brand (when only 1 available after filtering)
   const effectiveBrandId = useMemo(() => {
-    if (accessibleBrands.length === 1) {
-      return accessibleBrands[0].id;
-    }
-    if (filterSelectedBrands.length === 1) {
-      return filterSelectedBrands[0];
+    if (availableBrands.length === 1) {
+      return availableBrands[0].id;
     }
     return null;
-  }, [accessibleBrands, filterSelectedBrands]);
+  }, [availableBrands]);
 
-  // Available brands = accessible brands filtered by global selection
-  const availableBrands = useMemo(() => {
-    if (filterSelectedBrands.length === 0) {
-      return accessibleBrands;
-    }
-    return accessibleBrands.filter(b => filterSelectedBrands.includes(b.id));
-  }, [accessibleBrands, filterSelectedBrands]);
-
-  // Available locations = filtered by effective brands and global location filter
+  // Available locations = filtered by available brands (after brand filter) and global location filter
   const availableLocations = useMemo(() => {
+    const brandIds = availableBrands.map(b => b.id);
     let locs = accessibleLocations.filter(l => 
-      l.brand_id && effectiveBrandIds.includes(l.brand_id)
+      l.brand_id && brandIds.includes(l.brand_id)
     );
     
     // If global location filter is set, further filter
@@ -131,34 +129,25 @@ export function useBrandLocationContext(): BrandLocationContextResult {
     }
     
     return locs;
-  }, [accessibleLocations, effectiveBrandIds, filterSelectedLocations]);
+  }, [accessibleLocations, availableBrands, filterSelectedLocations]);
 
-  // Determine if location is locked
+  // Determine if location is locked - ONLY when there's truly 1 option after filtering
   const isLocationLocked = useMemo(() => {
     return availableLocations.length === 1;
   }, [availableLocations.length]);
 
-  // Effective location IDs
+  // Effective location IDs (all available after filtering)
   const effectiveLocationIds = useMemo(() => {
-    if (filterSelectedLocations.length > 0) {
-      return filterSelectedLocations.filter(id => 
-        availableLocations.some(l => l.id === id)
-      );
-    }
     return availableLocations.map(l => l.id);
-  }, [filterSelectedLocations, availableLocations]);
+  }, [availableLocations]);
 
-  // Single effective location (only when locked)
+  // Single effective location (when only 1 available after filtering)
   const effectiveLocationId = useMemo(() => {
     if (availableLocations.length === 1) {
       return availableLocations[0].id;
     }
-    if (filterSelectedLocations.length === 1) {
-      const loc = availableLocations.find(l => l.id === filterSelectedLocations[0]);
-      return loc ? loc.id : null;
-    }
     return null;
-  }, [availableLocations, filterSelectedLocations]);
+  }, [availableLocations]);
 
   // Helper: get locations for a specific brand
   const getLocationsForBrand = (brandId: string): Location[] => {

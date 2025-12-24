@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, MapPin, Zap, Calendar as CalendarIcon, ChevronsUpDown, Lock } from 'lucide-react';
+import { Building2, MapPin, Zap, Calendar as CalendarIcon, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -263,12 +263,11 @@ export function GlobalFilters() {
       {/* Divider */}
       <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
 
-      {/* Brand Filter - Show locked indicator or multi-select */}
+      {/* Brand Filter - Always show multi-select unless only 1 brand exists */}
       {isBrandLocked && lockedBrandName ? (
         <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
           <Building2 className="h-4 w-4 opacity-70" />
           <span className="text-sm font-medium">{lockedBrandName}</span>
-          <Lock className="h-3 w-3 opacity-50" />
         </div>
       ) : (
         <FilterMultiSelect
@@ -281,12 +280,11 @@ export function GlobalFilters() {
         />
       )}
 
-      {/* Location Filter - Show locked indicator or multi-select */}
+      {/* Location Filter - Always show multi-select unless only 1 location exists */}
       {isLocationLocked && lockedLocationName ? (
         <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
           <MapPin className="h-4 w-4 opacity-70" />
           <span className="text-sm font-medium">{lockedLocationName}</span>
-          <Lock className="h-3 w-3 opacity-50" />
         </div>
       ) : (
         <FilterMultiSelect
