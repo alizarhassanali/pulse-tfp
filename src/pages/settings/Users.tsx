@@ -21,9 +21,10 @@ interface UserData {
   name: string | null;
   status: string;
   role: AppRole;
+  custom_role_id: string | null;
+  custom_role_name: string | null;
   brands: { id: string; name: string }[];
   locations: { id: string; name: string }[];
-  permissions: Record<AppSection, PermissionLevel>;
 }
 
 export default function UsersPage() {
@@ -47,8 +48,10 @@ export default function UsersPage() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch roles
-      const { data: roles } = await supabase.from('user_roles').select('user_id, role');
+      // Fetch roles with custom role info
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role, custom_role_id, custom_roles(id, name)');
 
       // Fetch brand access
       const { data: brandAccess } = await supabase
@@ -67,8 +70,10 @@ export default function UsersPage() {
 
       // Combine data
       const usersData: UserData[] = (profiles || []).map(profile => {
-        const userRoles = roles?.filter(r => r.user_id === profile.user_id) || [];
-        const role = (userRoles[0]?.role as AppRole) || 'staff';
+        const userRole = roles?.find(r => r.user_id === profile.user_id);
+        const role = (userRole?.role as AppRole) || 'staff';
+        const customRoleId = userRole?.custom_role_id || null;
+        const customRoleName = (userRole as any)?.custom_roles?.name || null;
         
         const userBrands = brandAccess
           ?.filter(b => b.user_id === profile.user_id)
@@ -80,13 +85,6 @@ export default function UsersPage() {
           .map(l => (l as any).locations)
           .filter(Boolean) || [];
 
-        const userPerms = permissions
-          ?.filter(p => p.user_id === profile.user_id)
-          .reduce((acc, p) => {
-            acc[p.section as AppSection] = p.permission as PermissionLevel;
-            return acc;
-          }, { ...DEFAULT_PERMISSIONS[role] } as Record<AppSection, PermissionLevel>) || DEFAULT_PERMISSIONS[role];
-
         return {
           id: profile.id,
           user_id: profile.user_id,
@@ -94,9 +92,10 @@ export default function UsersPage() {
           name: profile.name,
           status: profile.status || 'active',
           role,
+          custom_role_id: customRoleId,
+          custom_role_name: customRoleName,
           brands: userBrands,
           locations: userLocations,
-          permissions: userPerms,
         };
       });
 
