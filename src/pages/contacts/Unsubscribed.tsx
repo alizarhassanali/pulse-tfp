@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { UserX, Info, Search } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { useSortableTable } from '@/hooks/useSortableTable';
 
 const demoUnsubscribed = [
   { id: 'demo-1', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', unsubscribed_at: '2025-12-10T10:00:00Z' },
@@ -36,6 +38,12 @@ export default function Unsubscribed() {
     return name.includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase());
   });
 
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: filtered,
+    defaultSortKey: 'unsubscribed_at',
+    defaultSortDirection: 'desc',
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Unsubscribed Contacts" description="Contacts who have opted out of communications" />
@@ -55,14 +63,14 @@ export default function Unsubscribed() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Unsubscribed Date</TableHead>
+                <SortableTableHead sortKey="first_name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="email" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Email</SortableTableHead>
+                <SortableTableHead sortKey="phone" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Phone</SortableTableHead>
+                <SortableTableHead sortKey="unsubscribed_at" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Unsubscribed Date</SortableTableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? <><TableRowSkeleton columns={4} /><TableRowSkeleton columns={4} /></> : filtered.length > 0 ? filtered.map(contact => (
+              {isLoading ? <><TableRowSkeleton columns={4} /><TableRowSkeleton columns={4} /></> : sortedData.length > 0 ? sortedData.map(contact => (
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">{contact.first_name} {contact.last_name}</TableCell>
                   <TableCell>{contact.email || '-'}</TableCell>

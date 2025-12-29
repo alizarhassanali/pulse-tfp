@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { DEMO_CONTACTS } from '@/data/demo-data';
 
@@ -264,12 +266,19 @@ export default function SentLogs() {
     return filtered;
   }, [displayData, search, statusFilter, channelFilter, invitations.length]);
 
+  // Sorting
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: filteredInvitations,
+    defaultSortKey: 'sent_at',
+    defaultSortDirection: 'desc',
+  });
+
   // Pagination
-  const totalPages = Math.ceil(filteredInvitations.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredInvitations.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredInvitations, currentPage]);
+    return sortedData.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedData, currentPage]);
 
   // Reset page when filters change
   useMemo(() => {
@@ -465,7 +474,7 @@ export default function SentLogs() {
       {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{paginatedData.length}</span> of <span className="font-medium text-foreground">{filteredInvitations.length}</span> records
+          Showing <span className="font-medium text-foreground">{paginatedData.length}</span> of <span className="font-medium text-foreground">{sortedData.length}</span> records
           {invitations.length === 0 && <span className="text-muted-foreground/70"> (demo data)</span>}
         </p>
       </div>
@@ -476,12 +485,12 @@ export default function SentLogs() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="font-semibold">Date Sent</TableHead>
-                <TableHead className="font-semibold">Contact Name</TableHead>
-                <TableHead className="font-semibold">Event</TableHead>
-                <TableHead className="font-semibold">Channel</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Score</TableHead>
+                <SortableTableHead sortKey="sent_at" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Date Sent</SortableTableHead>
+                <SortableTableHead sortKey="contact.first_name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Contact Name</SortableTableHead>
+                <SortableTableHead sortKey="event.name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Event</SortableTableHead>
+                <SortableTableHead sortKey="channel" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Channel</SortableTableHead>
+                <SortableTableHead sortKey="status" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Status</SortableTableHead>
+                <TableHead>Score</TableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>

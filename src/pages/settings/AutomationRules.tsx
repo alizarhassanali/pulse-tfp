@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { Plus, MoreVertical, Edit, Trash2, Zap, Mail, MessageSquare, Clock, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 interface AutomationRule {
@@ -352,6 +354,12 @@ export default function AutomationRules() {
   const toggleArrayItem = <T extends string,>(arr: T[], item: T): T[] => {
     return arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
   };
+
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: rules,
+    defaultSortKey: 'name',
+    defaultSortDirection: 'asc',
+  });
   return <TooltipProvider>
       <div className="space-y-6 animate-fade-in">
         <PageHeader title="Automation Rules" description="Create automated follow-up messages based on survey responses" actions={<Button className="btn-coral" onClick={() => setModalOpen(true)}>
@@ -364,12 +372,12 @@ export default function AutomationRules() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Event</TableHead>
+                  <SortableTableHead sortKey="name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Name</SortableTableHead>
+                  <SortableTableHead sortKey="event.name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Event</SortableTableHead>
                   <TableHead>Trigger</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Delay</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead sortKey="channel" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Channel</SortableTableHead>
+                  <SortableTableHead sortKey="delay_hours" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Delay</SortableTableHead>
+                  <SortableTableHead sortKey="status" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Status</SortableTableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -378,13 +386,13 @@ export default function AutomationRules() {
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Loading...
                     </TableCell>
-                  </TableRow> : rules.length === 0 ? <TableRow>
+                  </TableRow> : sortedData.length === 0 ? <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       <Zap className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No automation rules yet</p>
                       <p className="text-sm">Create your first rule to automate follow-ups</p>
                     </TableCell>
-                  </TableRow> : rules.map(rule => <TableRow key={rule.id}>
+                  </TableRow> : sortedData.map(rule => <TableRow key={rule.id}>
                       <TableCell className="font-medium">{rule.name}</TableCell>
                       <TableCell>{rule.event?.name || 'All Events'}</TableCell>
                       <TableCell>{getTriggerBadge(rule.trigger_group)}</TableCell>

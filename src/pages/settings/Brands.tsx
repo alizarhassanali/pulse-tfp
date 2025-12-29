@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -56,7 +58,7 @@ export default function Brands() {
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, locations: [] });
 
-  // Fetch brands with their locations
+  // Sorting hook - added after the query
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ['brands-with-locations'],
     queryFn: async () => {
@@ -87,6 +89,12 @@ export default function Brands() {
           })),
       })) as Brand[];
     },
+  });
+
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: brands,
+    defaultSortKey: 'name',
+    defaultSortDirection: 'asc',
   });
 
   // Create/Update brand mutation
@@ -267,9 +275,9 @@ export default function Brands() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Brand</TableHead>
-                <TableHead>Subdomain</TableHead>
-                <TableHead>Locations</TableHead>
+                <SortableTableHead sortKey="name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Brand</SortableTableHead>
+                <SortableTableHead sortKey="subdomain" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Subdomain</SortableTableHead>
+                <SortableTableHead sortKey="locations.length" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Locations</SortableTableHead>
                 <TableHead>Colors</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -285,14 +293,14 @@ export default function Brands() {
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
-              ) : brands.length === 0 ? (
+              ) : sortedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     No brands found. Create your first brand to get started.
                   </TableCell>
                 </TableRow>
               ) : (
-                brands.map(b => (
+                sortedData.map(b => (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">

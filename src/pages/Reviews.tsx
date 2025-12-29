@@ -22,7 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { Star, Search, ExternalLink, MessageSquare, TrendingUp, TrendingDown, MapPin, Building2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -221,6 +223,13 @@ export default function Reviews() {
     return Array.from(locationMap.values()).sort((a, b) => b.totalReviews - a.totalReviews);
   }, [reviews, isMultiLocationView]);
 
+  // Sorting for location breakdown table
+  const { sortKey: locSortKey, sortDirection: locSortDirection, sortedData: sortedLocationBreakdown, handleSort: handleLocSort } = useSortableTable({
+    data: locationBreakdown,
+    defaultSortKey: 'totalReviews',
+    defaultSortDirection: 'desc',
+  });
+
   // Calculate metrics
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) 
@@ -332,15 +341,15 @@ export default function Reviews() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Avg Rating</TableHead>
-                  <TableHead>Total Reviews</TableHead>
-                  <TableHead>Unresponded</TableHead>
-                  <TableHead>Last Review</TableHead>
+                  <SortableTableHead sortKey="name" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Location</SortableTableHead>
+                  <SortableTableHead sortKey="avgRating" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Avg Rating</SortableTableHead>
+                  <SortableTableHead sortKey="totalReviews" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Total Reviews</SortableTableHead>
+                  <SortableTableHead sortKey="unresponded" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Unresponded</SortableTableHead>
+                  <SortableTableHead sortKey="lastReviewDate" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Last Review</SortableTableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {locationBreakdown.map((loc) => (
+                {sortedLocationBreakdown.map((loc) => (
                   <TableRow 
                     key={loc.id} 
                     className="cursor-pointer hover:bg-muted/50 transition-colors"

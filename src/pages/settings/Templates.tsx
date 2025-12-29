@@ -6,11 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { Plus, MoreVertical, Edit, Copy, Trash2, Mail, MessageSquare, Star } from 'lucide-react';
 
 interface Template {
@@ -37,6 +39,12 @@ export default function Templates() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [form, setForm] = useState({ name: '', type: 'email' as Template['type'], subject: '', body: '', language: 'en' });
+
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: templates,
+    defaultSortKey: 'name',
+    defaultSortDirection: 'asc',
+  });
 
   const handleSave = () => {
     if (!form.name || !form.body) { 
@@ -127,16 +135,16 @@ export default function Templates() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
+                <SortableTableHead sortKey="name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="type" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Type</SortableTableHead>
                 <TableHead>Subject / Preview</TableHead>
-                <TableHead>Language</TableHead>
-                <TableHead>Used</TableHead>
+                <SortableTableHead sortKey="language" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Language</SortableTableHead>
+                <SortableTableHead sortKey="usage_count" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Used</SortableTableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {templates.map(t => (
+              {sortedData.map(t => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell>{getTypeBadge(t.type)}</TableCell>
