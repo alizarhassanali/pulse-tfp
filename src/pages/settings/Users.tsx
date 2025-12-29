@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -10,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { Plus, MoreVertical, Edit, UserX, UserCheck, Shield, Users, Eye, Mail, Loader2 } from 'lucide-react';
 import { InviteUserWizard } from '@/components/users/InviteUserWizard';
 import { ManageRolesTab } from '@/components/users/ManageRolesTab';
@@ -161,6 +163,12 @@ export default function UsersPage() {
     read_only: users.filter(u => u.role === 'read_only').length,
   };
 
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: users,
+    defaultSortKey: 'name',
+    defaultSortDirection: 'asc',
+  });
+
   if (!isSuperAdmin()) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -256,15 +264,15 @@ export default function UsersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Role</TableHead>
+                      <SortableTableHead sortKey="name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>User</SortableTableHead>
+                      <SortableTableHead sortKey="role" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Role</SortableTableHead>
                       <TableHead>Brand Access</TableHead>
-                      <TableHead>Status</TableHead>
+                      <SortableTableHead sortKey="status" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Status</SortableTableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map(user => (
+                    {sortedData.map(user => (
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -353,7 +361,7 @@ export default function UsersPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {users.length === 0 && (
+                    {sortedData.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                           No users found. Invite your first user to get started.

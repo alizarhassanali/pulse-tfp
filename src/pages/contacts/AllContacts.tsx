@@ -12,10 +12,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { useSortableTable } from '@/hooks/useSortableTable';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { EditContactModal } from '@/components/contacts/EditContactModal';
@@ -280,6 +282,12 @@ export default function AllContacts() {
       return true;
     });
   }, [contacts, search, filterBrand, filterLocation, filterStatus, filterMethod, filterTags, contactTagMap, filterSurveyHistory, filterDaysSinceSurvey, contactLastSurveyMap]);
+
+  const { sortKey, sortDirection, sortedData, handleSort } = useSortableTable({
+    data: filteredContacts,
+    defaultSortKey: 'first_name',
+    defaultSortDirection: 'asc',
+  });
 
   const activeFiltersCount = [filterBrand, filterLocation, filterStatus, filterMethod, filterSurveyHistory, filterDaysSinceSurvey].filter(f => f !== 'all').length + (filterTags.length > 0 ? 1 : 0);
 
@@ -636,7 +644,7 @@ export default function AllContacts() {
 
             {/* Summary */}
             <div className="text-sm text-muted-foreground">
-              {filteredContacts.length} of {contacts.length} contacts
+              {sortedData.length} of {contacts.length} contacts
             </div>
           </div>
           
@@ -663,19 +671,19 @@ export default function AllContacts() {
               <TableRow className="bg-muted/30">
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={filteredContacts.length > 0 && selectedContactIds.length === filteredContacts.length}
+                    checked={sortedData.length > 0 && selectedContactIds.length === sortedData.length}
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all"
                   />
                 </TableHead>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Contact</TableHead>
-                <TableHead className="font-semibold">Brand</TableHead>
-                <TableHead className="font-semibold">Location</TableHead>
-                <TableHead className="font-semibold">Tags</TableHead>
-                <TableHead className="font-semibold">Preferred Method</TableHead>
-                <TableHead className="font-semibold">Last Score</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
+                <SortableTableHead sortKey="first_name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Name</SortableTableHead>
+                <TableHead>Contact</TableHead>
+                <SortableTableHead sortKey="brand.name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Brand</SortableTableHead>
+                <SortableTableHead sortKey="location.name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Location</SortableTableHead>
+                <TableHead>Tags</TableHead>
+                <SortableTableHead sortKey="preferred_channel" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Preferred Method</SortableTableHead>
+                <TableHead>Last Score</TableHead>
+                <SortableTableHead sortKey="status" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Status</SortableTableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -685,8 +693,8 @@ export default function AllContacts() {
                   <TableRowSkeleton columns={10} />
                   <TableRowSkeleton columns={10} />
                 </>
-              ) : filteredContacts.length > 0 ? (
-                filteredContacts.map((contact: any) => (
+              ) : sortedData.length > 0 ? (
+                sortedData.map((contact: any) => (
                   <TableRow 
                     key={contact.id} 
                     className={cn(
