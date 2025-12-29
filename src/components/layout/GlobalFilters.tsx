@@ -67,7 +67,7 @@ function FilterMultiSelect({ options, selected, onChange, placeholder, allLabel,
           variant="ghost"
           role="combobox"
           aria-expanded={open}
-          className="h-9 px-3 justify-between text-topbar-foreground hover:bg-topbar-foreground/10 min-w-[140px] border-0"
+          className="h-9 px-3 justify-between text-foreground hover:bg-muted min-w-[140px] border-0"
         >
           <div className="flex items-center gap-2">
             {icon}
@@ -212,9 +212,9 @@ export function GlobalFilters() {
         <PopoverTrigger asChild>
           <div>
             <Select value={datePreset} onValueChange={handleDatePresetChange}>
-              <SelectTrigger className="h-10 min-w-[170px] bg-primary/10 border border-primary/30 text-topbar-foreground hover:bg-primary/20 focus:ring-1 focus:ring-primary/50 focus:ring-offset-0 rounded-lg font-medium">
+              <SelectTrigger className="h-10 min-w-[170px] bg-secondary/5 border border-secondary/20 text-foreground hover:bg-secondary/10 focus:ring-1 focus:ring-secondary/30 focus:ring-offset-0 rounded-lg font-medium">
                 <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-primary" />
+                  <CalendarIcon className="h-4 w-4 text-secondary" />
                   <span className="text-sm font-semibold">{getDateRangeLabel()}</span>
                 </div>
               </SelectTrigger>
@@ -268,12 +268,12 @@ export function GlobalFilters() {
       </Popover>
 
       {/* Divider */}
-      <div className="h-6 w-px bg-topbar-foreground/20 mx-1" />
+      <div className="h-6 w-px bg-border mx-1" />
 
       {/* Brand Filter - Single Select */}
       {accessibleBrands.length === 1 ? (
-        <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
-          <Building2 className="h-4 w-4 opacity-70" />
+        <div className="flex items-center gap-2 h-9 px-3 text-foreground">
+          <Building2 className="h-4 w-4 opacity-60" />
           <span className="text-sm font-medium">{accessibleBrands[0].name}</span>
         </div>
       ) : (
@@ -281,9 +281,9 @@ export function GlobalFilters() {
           value={selectedBrands.length > 0 ? selectedBrands[0] : brands[0]?.value || ''} 
           onValueChange={(value) => handleBrandsChange([value])}
         >
-          <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
+          <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-foreground hover:bg-muted focus:ring-0 focus:ring-offset-0">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 opacity-70" />
+              <Building2 className="h-4 w-4 opacity-60" />
               <SelectValue placeholder="Select Brand" />
             </div>
           </SelectTrigger>
@@ -299,8 +299,8 @@ export function GlobalFilters() {
 
       {/* Location Filter - Always show multi-select unless only 1 location exists */}
       {isLocationLocked && lockedLocationName ? (
-        <div className="flex items-center gap-2 h-9 px-3 text-topbar-foreground">
-          <MapPin className="h-4 w-4 opacity-70" />
+        <div className="flex items-center gap-2 h-9 px-3 text-foreground">
+          <MapPin className="h-4 w-4 opacity-60" />
           <span className="text-sm font-medium">{lockedLocationName}</span>
         </div>
       ) : (
@@ -310,15 +310,15 @@ export function GlobalFilters() {
           onChange={setSelectedLocations}
           placeholder="Location"
           allLabel="All Locations"
-          icon={<MapPin className="h-4 w-4 opacity-70" />}
+          icon={<MapPin className="h-4 w-4 opacity-60" />}
         />
       )}
 
       {/* Event Filter (Single Select) */}
       <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-        <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-topbar-foreground hover:bg-topbar-foreground/10 focus:ring-0 focus:ring-offset-0">
+        <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-foreground hover:bg-muted focus:ring-0 focus:ring-offset-0">
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 opacity-70" />
+            <Zap className="h-4 w-4 opacity-60" />
             <SelectValue placeholder="All Events" />
           </div>
         </SelectTrigger>

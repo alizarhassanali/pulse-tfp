@@ -27,7 +27,7 @@ export function TopNav() {
     : null;
 
   return (
-    <header className="h-16 bg-topbar text-topbar-foreground flex items-center justify-between px-4 border-b border-border z-50 sticky top-0">
+    <header className="h-16 bg-topbar text-topbar-foreground flex items-center justify-between px-4 border-b border-border/60 z-50 sticky top-0 shadow-sm">
       {/* Logo & Brand */}
       <div className="flex items-center gap-3 shrink-0">
         {selectedBrand?.logo_url ? (
