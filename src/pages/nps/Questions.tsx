@@ -212,27 +212,13 @@ export default function NPSQuestions() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
-  // Fetch feedback categories for filter
-  const { data: feedbackCategories = [] } = useQuery({
-    queryKey: ['feedback-categories-active'],
+  // Fetch response tag assignments (from new event-specific table)
+  const { data: tagAssignments = [] } = useQuery({
+    queryKey: ['response-tag-assignments'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('feedback_categories')
-        .select('*')
-        .eq('archived', false)
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch response category assignments
-  const { data: categoryAssignments = [] } = useQuery({
-    queryKey: ['response-category-assignments'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('response_category_assignments')
-        .select('response_id, category_id');
+        .from('response_tag_assignments')
+        .select('response_id, tag_id');
       if (error) throw error;
       return data || [];
     },
@@ -266,11 +252,11 @@ export default function NPSQuestions() {
   // Use demo data if no real data
   const displayData = responses.length > 0 ? responses : demoResponses;
 
-  // Helper to get categories for a response
+  // Helper to get tags for a response
   const getResponseCategories = (responseId: string): string[] => {
-    return categoryAssignments
+    return tagAssignments
       .filter((a: any) => a.response_id === responseId)
-      .map((a: any) => a.category_id);
+      .map((a: any) => a.tag_id);
   };
 
   // Filter responses
@@ -307,7 +293,7 @@ export default function NPSQuestions() {
 
       return true;
     });
-  }, [displayData, search, scoreFilter, channelFilter, categoryFilter, categoryAssignments]);
+  }, [displayData, search, scoreFilter, channelFilter, categoryFilter, tagAssignments]);
 
   // Pagination
   const totalPages = Math.ceil(filteredResponses.length / ITEMS_PER_PAGE);
@@ -351,11 +337,8 @@ export default function NPSQuestions() {
   const handleExport = (type: 'current' | 'all', format: 'csv' | 'excel') => {
     const dataToExport = type === 'current' ? filteredResponses : displayData;
     
-    // Get category names map
-    const categoryNameMap = new Map(feedbackCategories.map((c: any) => [c.id, c.name]));
-    
-    // Create CSV content
-    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given', 'Feedback Categories'];
+    // Create CSV content (tags are now event-specific, so we skip category names in export for now)
+    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given'];
     const rows = dataToExport.flatMap((response) => {
       const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.trim();
       const date = response.completed_at ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy') : '';
@@ -684,7 +667,8 @@ export default function NPSQuestions() {
                   </span>
                   <FeedbackCategorySelect
                     responseId={response.id}
-                    selectedCategories={getResponseCategories(response.id)}
+                    eventId={(response as any).event_id || ''}
+                    selectedTags={getResponseCategories(response.id)}
                     size="sm"
                   />
                 </div>

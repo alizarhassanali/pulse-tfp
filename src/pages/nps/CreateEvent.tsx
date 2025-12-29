@@ -72,6 +72,8 @@ interface EventFormData {
   };
   // For by-score-location mode: locationId -> { promoters, passives, detractors } -> { buttonText, buttonUrl }
   locationThankYouConfig: Record<string, Record<string, LocationThankYouConfig>>;
+  // Event-specific feedback tags
+  feedbackTags: string[];
 }
 
 const steps = [
@@ -133,6 +135,7 @@ export default function CreateEvent() {
       detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
     },
     locationThankYouConfig: {},
+    feedbackTags: [],
   });
 
   // Load existing event data when editing
@@ -190,6 +193,7 @@ export default function CreateEvent() {
               detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
             },
             locationThankYouConfig: {},
+            feedbackTags: [],
           });
           
           setIsLoadingEvent(false);
@@ -239,6 +243,18 @@ export default function CreateEvent() {
           console.error('[CreateEvent] Error fetching questions:', qError);
         }
 
+        // Fetch event-specific feedback tags
+        const { data: eventTags, error: tagsError } = await supabase
+          .from('event_feedback_tags')
+          .select('name')
+          .eq('event_id', eventId)
+          .eq('archived', false)
+          .order('name');
+        
+        if (tagsError) {
+          console.error('[CreateEvent] Error fetching feedback tags:', tagsError);
+        }
+
         // Parse config objects safely
         const consentConfig = (event.consent_config && typeof event.consent_config === 'object') 
           ? event.consent_config as any 
@@ -282,6 +298,7 @@ export default function CreateEvent() {
             detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttonText: '', buttonUrl: '' },
           },
           locationThankYouConfig: thankYouConfig?.locationConfig || {},
+          feedbackTags: eventTags?.map(t => t.name) || [],
         });
         
         if (import.meta.env.DEV) {
@@ -376,9 +393,10 @@ export default function CreateEvent() {
         if (eventError) throw eventError;
         event = data;
 
-        // Delete existing locations and questions before re-inserting
+        // Delete existing locations, questions, and feedback tags before re-inserting
         await supabase.from('event_locations').delete().eq('event_id', eventId);
         await supabase.from('event_questions').delete().eq('event_id', eventId);
+        await supabase.from('event_feedback_tags').delete().eq('event_id', eventId);
       } else {
         // Insert new event
         const { data, error: eventError } = await supabase
@@ -413,6 +431,17 @@ export default function CreateEvent() {
           }))
         );
         if (qError) throw qError;
+      }
+
+      // Save feedback tags
+      if (formData.feedbackTags.length > 0) {
+        const { error: tagsError } = await supabase.from('event_feedback_tags').insert(
+          formData.feedbackTags.map((tagName) => ({
+            event_id: event.id,
+            name: tagName,
+          }))
+        );
+        if (tagsError) throw tagsError;
       }
 
       return event;
@@ -936,6 +965,77 @@ export default function CreateEvent() {
                 </div>
               )}
             </div>
+
+            {/* Feedback Tags Section */}
+            <Card className="border-border/50 bg-muted/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Feedback Tags</CardTitle>
+                <CardDescription>
+                  Define tags for categorizing responses to this event. AI will automatically assign these tags based on feedback content.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {formData.feedbackTags.map((tag, idx) => (
+                    <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1">
+                      {tag}
+                      <button
+                        className="ml-1 ring-offset-background rounded-full outline-none hover:bg-muted"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          feedbackTags: prev.feedbackTags.filter((_, i) => i !== idx)
+                        }))}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="new-tag-input"
+                    placeholder="Add a new tag (e.g., Wait Time, Staff Experience)"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const input = e.target as HTMLInputElement;
+                        const value = input.value.trim();
+                        if (value && !formData.feedbackTags.includes(value)) {
+                          setFormData(prev => ({
+                            ...prev,
+                            feedbackTags: [...prev.feedbackTags, value]
+                          }));
+                          input.value = '';
+                        }
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const input = document.getElementById('new-tag-input') as HTMLInputElement;
+                      const value = input.value.trim();
+                      if (value && !formData.feedbackTags.includes(value)) {
+                        setFormData(prev => ({
+                          ...prev,
+                          feedbackTags: [...prev.feedbackTags, value]
+                        }));
+                        input.value = '';
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                {formData.feedbackTags.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No tags defined yet. Add tags to categorize feedback responses.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         );
 

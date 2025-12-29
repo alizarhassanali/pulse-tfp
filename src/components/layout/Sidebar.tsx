@@ -81,7 +81,6 @@ const navigation: (NavItem | NavGroup)[] = [
     items: [
       { icon: FileText, label: 'Message Templates', href: '/settings/templates', section: 'templates' },
       { icon: Zap, label: 'Automation Rules', href: '/settings/automations', section: 'templates' },
-      { icon: Tag, label: 'Feedback Tags', href: '/settings/feedback-categories', section: 'templates' },
     ],
   },
   {
