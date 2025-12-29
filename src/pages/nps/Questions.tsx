@@ -212,6 +212,19 @@ export default function NPSQuestions() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
+  // Fetch event feedback tags (event-specific)
+  const { data: eventFeedbackTags = [] } = useQuery({
+    queryKey: ['event-feedback-tags'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('event_feedback_tags')
+        .select('id, name, event_id')
+        .eq('archived', false);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch response tag assignments (from new event-specific table)
   const { data: tagAssignments = [] } = useQuery({
     queryKey: ['response-tag-assignments'],
@@ -223,6 +236,13 @@ export default function NPSQuestions() {
       return data || [];
     },
   });
+
+  // Create a map of tag id to name for export and display
+  const tagNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    eventFeedbackTags.forEach((tag: any) => map.set(tag.id, tag.name));
+    return map;
+  }, [eventFeedbackTags]);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['nps-questions-responses', selectedBrands, selectedEvent, dateRange, scoreFilter, channelFilter],
@@ -348,13 +368,13 @@ export default function NPSQuestions() {
       const email = response.contact?.email || '';
       const consent = response.consent_given ? 'Yes' : 'No';
       
-      // Get feedback categories for this response
-      const responseCatIds = getResponseCategories(response.id);
-      const responseCatNames = responseCatIds.map(id => categoryNameMap.get(id) || '').filter(Boolean).join(', ');
+      // Get feedback tags for this response
+      const responseTagIds = getResponseCategories(response.id);
+      const responseTagNames = responseTagIds.map(id => tagNameMap.get(id) || '').filter(Boolean).join(', ');
       
       const answers = Array.isArray(response.answers) ? response.answers : [];
       if (answers.length === 0) {
-        return [[name, date, score, scoreCategory, channel, '', '', email, consent, responseCatNames]];
+        return [[name, date, score, scoreCategory, channel, '', '', email, consent, responseTagNames]];
       }
       
       return answers.map((answer: any) => [
@@ -367,7 +387,7 @@ export default function NPSQuestions() {
         typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer),
         email,
         consent,
-        responseCatNames,
+        responseTagNames,
       ]);
     });
 
@@ -484,8 +504,8 @@ export default function NPSQuestions() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {feedbackCategories.map((cat: any) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                {eventFeedbackTags.map((tag: any) => (
+                  <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
