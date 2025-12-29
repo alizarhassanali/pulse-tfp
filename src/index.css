@@ -39,16 +39,16 @@
     /* Tertiary light */
     --tertiary-light: 206 50% 96%;
 
-    /* Secondary light - Coral tint */
-    --secondary-light: 5 87% 96%;
+    /* Secondary light - Sky blue tint */
+    --secondary-light: 206 50% 96%;
 
-    /* Sidebar - Cream/Off-white */
-    --sidebar: 30 25% 97%;
-    --sidebar-foreground: 218 35% 35%;
-    --sidebar-hover: 30 20% 94%;
-    --sidebar-active: 5 85% 95%;
-    --sidebar-active-foreground: 6 80% 50%;
-    --sidebar-border: 30 15% 90%;
+    /* Sidebar - Sky Blue Theme */
+    --sidebar: 206 60% 97%;
+    --sidebar-foreground: 218 46% 28%;
+    --sidebar-hover: 206 45% 93%;
+    --sidebar-active: 206 50% 88%;
+    --sidebar-active-foreground: 218 46% 28%;
+    --sidebar-border: 206 35% 90%;
     --sidebar-section: 218 25% 55%;
 
     /* Destructive */
@@ -70,7 +70,7 @@
     /* Border & Input */
     --border: 218 15% 90%;
     --input: 218 15% 90%;
-    --ring: 6 100% 74%;
+    --ring: 206 50% 60%;
 
     --radius: 0.5rem;
 
@@ -81,9 +81,9 @@
     --chart-4: 160 84% 39%;
     --chart-5: 38 92% 50%;
 
-    /* Topbar */
-    --topbar: 218 46% 28%;
-    --topbar-foreground: 0 0% 100%;
+    /* Topbar - Light Modern */
+    --topbar: 0 0% 100%;
+    --topbar-foreground: 218 46% 28%;
 
     /* Score badges */
     --promoter: 160 84% 39%;
