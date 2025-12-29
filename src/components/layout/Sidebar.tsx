@@ -17,10 +17,9 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
-  Tag,
   Zap,
-  PanelLeftClose,
-  PanelLeft,
+  ChevronLeft,
+  HelpCircle,
   MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,6 +48,7 @@ interface NavItem {
 interface NavGroup {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  sectionLabel?: string;
   items: NavItem[];
   defaultOpen?: boolean;
 }
@@ -57,6 +57,7 @@ const navigation: (NavItem | NavGroup)[] = [
   {
     icon: BarChart3,
     label: 'NPS',
+    sectionLabel: 'NPS',
     defaultOpen: true,
     items: [
       { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard', section: 'dashboard' },
@@ -70,6 +71,7 @@ const navigation: (NavItem | NavGroup)[] = [
   {
     icon: Users,
     label: 'Contacts',
+    sectionLabel: 'CONTACTS',
     items: [
       { icon: Users, label: 'All Contacts', href: '/contacts', section: 'contacts' },
       { icon: UserX, label: 'Unsubscribed', href: '/contacts/unsubscribe', section: 'contacts' },
@@ -78,6 +80,7 @@ const navigation: (NavItem | NavGroup)[] = [
   {
     icon: MessageCircle,
     label: 'Communication',
+    sectionLabel: 'COMMUNICATION',
     items: [
       { icon: FileText, label: 'Message Templates', href: '/settings/templates', section: 'templates' },
       { icon: Zap, label: 'Automation Rules', href: '/settings/automations', section: 'templates' },
@@ -86,6 +89,7 @@ const navigation: (NavItem | NavGroup)[] = [
   {
     icon: Settings,
     label: 'Settings',
+    sectionLabel: 'SETTINGS',
     items: [
       { icon: User, label: 'Profile', href: '/settings/profile' },
       { icon: Building2, label: 'Brands', href: '/settings/brands', section: 'brands' },
@@ -108,13 +112,13 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
           <Link
             to={item.href}
             className={cn(
-              'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
+              'flex items-center justify-center h-9 w-9 rounded-lg transition-all duration-150 mx-auto',
               isActive 
-                ? 'bg-primary text-primary-foreground' 
+                ? 'bg-sidebar-active text-sidebar-active-foreground' 
                 : 'text-sidebar-foreground hover:bg-sidebar-hover'
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
+            <Icon className="h-[18px] w-[18px] shrink-0" />
           </Link>
         </TooltipTrigger>
         <TooltipContent side="right" className="font-normal">
@@ -129,13 +133,13 @@ function NavItemComponent({ item, isActive, collapsed }: { item: NavItem; isActi
       to={item.href}
       className={cn('sidebar-item', isActive && 'sidebar-item-active')}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon className="h-[18px] w-[18px] shrink-0" />
       <span>{item.label}</span>
     </Link>
   );
 }
 
-function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean; collapsed: boolean }) {
+function NavGroupComponent({ group, canViewSection, collapsed, showSectionLabel }: { group: NavGroup; canViewSection: (section?: AppSection) => boolean; collapsed: boolean; showSectionLabel: boolean }) {
   const location = useLocation();
   
   const visibleItems = group.items.filter(item => {
@@ -157,13 +161,13 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
             <DropdownMenuTrigger asChild>
               <button
                 className={cn(
-                  'flex items-center justify-center h-10 w-10 rounded-lg transition-colors mx-auto',
+                  'flex items-center justify-center h-9 w-9 rounded-lg transition-all duration-150 mx-auto',
                   isGroupActive 
-                    ? 'bg-primary text-primary-foreground' 
+                    ? 'bg-sidebar-active text-sidebar-active-foreground' 
                     : 'text-sidebar-foreground hover:bg-sidebar-hover'
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                <Icon className="h-[18px] w-[18px] shrink-0" />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -192,36 +196,41 @@ function NavGroupComponent({ group, canViewSection, collapsed }: { group: NavGro
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="w-full">
-        <div
-          className={cn(
-            'sidebar-item justify-between',
-            isGroupActive && !isOpen && 'bg-sidebar-hover'
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <Icon className="h-5 w-5 shrink-0" />
-            <span>{group.label}</span>
+    <div>
+      {showSectionLabel && group.sectionLabel && (
+        <div className="sidebar-section-label">{group.sectionLabel}</div>
+      )}
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger className="w-full">
+          <div
+            className={cn(
+              'sidebar-item justify-between',
+              isGroupActive && !isOpen && 'bg-sidebar-hover'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Icon className="h-[18px] w-[18px] shrink-0" />
+              <span>{group.label}</span>
+            </div>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
           </div>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 shrink-0" />
-          ) : (
-            <ChevronRight className="h-4 w-4 shrink-0" />
-          )}
-        </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pl-4 mt-1 space-y-1">
-        {visibleItems.map((item) => (
-          <NavItemComponent
-            key={item.href}
-            item={item}
-            isActive={location.pathname === item.href}
-            collapsed={false}
-          />
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-4 mt-0.5 space-y-0.5">
+          {visibleItems.map((item) => (
+            <NavItemComponent
+              key={item.href}
+              item={item}
+              isActive={location.pathname === item.href}
+              collapsed={false}
+            />
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
 
@@ -248,10 +257,10 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center justify-center w-10 h-10 mx-auto rounded-lg hover:bg-sidebar-hover transition-colors">
-                <Avatar className="h-8 w-8">
+              <button className="flex items-center justify-center w-9 h-9 mx-auto rounded-lg hover:bg-sidebar-hover transition-colors">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -275,22 +284,21 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-sidebar-hover transition-colors text-left">
+        <button className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-sidebar-hover transition-colors text-left">
           <Avatar className="h-8 w-8">
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-normal text-sidebar-foreground truncate">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
               {profile?.name || 'User'}
             </p>
             <p className="text-xs text-muted-foreground truncate">
               {profile?.email}
             </p>
           </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-48">
@@ -318,27 +326,44 @@ export function Sidebar() {
     <TooltipProvider>
       <aside 
         className={cn(
-          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 shrink-0 relative',
-          collapsed ? 'w-16' : 'w-64'
+          'bg-sidebar h-[calc(100vh-64px)] overflow-y-auto scrollbar-thin flex flex-col transition-all duration-300 shrink-0 border-r border-sidebar-border',
+          collapsed ? 'w-[60px]' : 'w-60'
         )}
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 right-2 h-7 w-7 rounded-md bg-sidebar-hover hover:bg-primary/10 z-10"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4 text-sidebar-foreground" />
-          )}
-        </Button>
+        {/* User Profile at Top */}
+        <div className={cn('border-b border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
+          <div className="flex items-center justify-between">
+            {!collapsed && <UserMenu collapsed={collapsed} />}
+            {collapsed && <UserMenu collapsed={collapsed} />}
+          </div>
+        </div>
 
-        <nav className={cn('flex-1 space-y-1 pt-14 pb-4', collapsed ? 'px-2' : 'px-3')}>
+        {/* Collapse Button */}
+        <div className={cn('flex', collapsed ? 'justify-center py-2' : 'justify-end px-3 py-2')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-md hover:bg-sidebar-hover"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            <ChevronLeft className={cn('h-4 w-4 text-muted-foreground transition-transform', collapsed && 'rotate-180')} />
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className={cn('flex-1 space-y-1 pb-4', collapsed ? 'px-2' : 'px-3')}>
           {navigation.map((item, index) => {
             if (isNavGroup(item)) {
-              return <NavGroupComponent key={index} group={item} canViewSection={checkCanView} collapsed={collapsed} />;
+              const isFirstGroup = index === 0;
+              return (
+                <NavGroupComponent 
+                  key={index} 
+                  group={item} 
+                  canViewSection={checkCanView} 
+                  collapsed={collapsed}
+                  showSectionLabel={!isFirstGroup}
+                />
+              );
             }
             
             if (item.section && !checkCanView(item.section)) {
@@ -356,8 +381,31 @@ export function Sidebar() {
           })}
         </nav>
         
-        <div className={cn('border-t border-border/50', collapsed ? 'p-2' : 'p-3')}>
-          <UserMenu collapsed={collapsed} />
+        {/* Help Link at Bottom */}
+        <div className={cn('border-t border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
+          {collapsed ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <a
+                  href="#"
+                  className="flex items-center justify-center h-9 w-9 rounded-lg text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors mx-auto"
+                >
+                  <HelpCircle className="h-[18px] w-[18px]" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-normal">
+                Help & Support
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <a
+              href="#"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors text-sm"
+            >
+              <HelpCircle className="h-[18px] w-[18px]" />
+              <span>Help & Support</span>
+            </a>
+          )}
         </div>
       </aside>
     </TooltipProvider>
