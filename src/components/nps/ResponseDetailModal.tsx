@@ -188,8 +188,9 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
             </h4>
             <FeedbackCategorySelect
               responseId={response.id}
-              selectedCategories={selectedCategoryIds}
-              categoryAssignments={categoryAssignments}
+              eventId={response.event_id || ''}
+              selectedTags={selectedCategoryIds}
+              tagAssignments={categoryAssignments.map((a: any) => ({ tag_id: a.category_id, source: a.source }))}
             />
           </div>
 

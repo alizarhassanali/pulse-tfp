@@ -21,7 +21,7 @@ import AllContacts from './pages/contacts/AllContacts';
 import Unsubscribed from './pages/contacts/Unsubscribed';
 import ProfileSettings from './pages/settings/Profile';
 import Templates from './pages/settings/Templates';
-import FeedbackCategories from './pages/settings/FeedbackCategories';
+
 import AutomationRules from './pages/settings/AutomationRules';
 import Brands from './pages/settings/Brands';
 import UsersPage from './pages/settings/Users';
@@ -104,7 +104,7 @@ const App = () => (
               <Route path="settings/profile" element={<ProfileSettings />} />
               <Route path="settings/templates" element={<Templates />} />
               <Route path="settings/automations" element={<AutomationRules />} />
-              <Route path="settings/feedback-categories" element={<FeedbackCategories />} />
+              
               <Route path="settings/brands" element={<Brands />} />
               <Route path="settings/users" element={<UsersPage />} />
             </Route>
