@@ -18,7 +18,8 @@ import {
   ChevronRight,
   LogOut,
   Zap,
-  ChevronLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   HelpCircle,
   MessageCircle,
 } from 'lucide-react';
@@ -258,9 +259,9 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center justify-center w-9 h-9 mx-auto rounded-lg hover:bg-sidebar-hover transition-colors">
-                <Avatar className="h-7 w-7">
+          <Avatar className="h-7 w-7">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -287,7 +288,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
         <button className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-sidebar-hover transition-colors text-left">
           <Avatar className="h-8 w-8">
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -343,10 +344,14 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 rounded-md hover:bg-sidebar-hover"
+            className="h-7 w-7 rounded-md hover:bg-sidebar-hover border border-sidebar-border"
             onClick={() => setCollapsed(!collapsed)}
           >
-            <ChevronLeft className={cn('h-4 w-4 text-muted-foreground transition-transform', collapsed && 'rotate-180')} />
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+            )}
           </Button>
         </div>
 

@@ -550,7 +550,7 @@ export function InviteUserWizard({
                   <div
                     key={i}
                     className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      i <= currentStep ? 'bg-primary' : 'bg-muted'
+                      i <= currentStep ? 'bg-secondary' : 'bg-muted'
                     }`}
                   />
                 ))}

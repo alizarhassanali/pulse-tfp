@@ -25,7 +25,7 @@ export function BulkActionBar({
   return (
     <div
       className={cn(
-        'flex items-center gap-4 p-3 bg-primary/5 rounded-lg border border-primary/20 animate-fade-in',
+        'flex items-center gap-4 p-3 bg-secondary/5 rounded-lg border border-secondary/20 animate-fade-in',
         className
       )}
     >
