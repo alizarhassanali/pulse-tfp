@@ -47,7 +47,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { format, subDays } from 'date-fns';
+import { format, subDays, subWeeks, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SetAlertModal } from '@/components/nps/SetAlertModal';
 
@@ -72,14 +72,34 @@ const DEMO_SECONDARY_METRICS = {
   unsubscribed: 12,
 };
 
-const DEMO_TREND_DATA = [
-  { date: 'Dec 1', nps: 68, responses: 35 },
-  { date: 'Dec 5', nps: 70, responses: 42 },
-  { date: 'Dec 10', nps: 74, responses: 38 },
-  { date: 'Dec 15', nps: 72, responses: 45 },
-  { date: 'Dec 20', nps: 73, responses: 40 },
-  { date: 'Dec 25', nps: 75, responses: 48 },
-  { date: 'Dec 31', nps: 72, responses: 52 },
+const DEMO_DAILY_TREND_DATA = [
+  { date: 'Dec 23', nps: 68, responses: 35 },
+  { date: 'Dec 24', nps: 70, responses: 42 },
+  { date: 'Dec 25', nps: 74, responses: 38 },
+  { date: 'Dec 26', nps: 72, responses: 45 },
+  { date: 'Dec 27', nps: 73, responses: 40 },
+  { date: 'Dec 28', nps: 75, responses: 48 },
+  { date: 'Dec 29', nps: 72, responses: 52 },
+];
+
+const DEMO_WEEKLY_TREND_DATA = [
+  { date: 'Week 45', nps: 65, responses: 120 },
+  { date: 'Week 46', nps: 68, responses: 135 },
+  { date: 'Week 47', nps: 70, responses: 142 },
+  { date: 'Week 48', nps: 72, responses: 156 },
+  { date: 'Week 49', nps: 74, responses: 148 },
+  { date: 'Week 50', nps: 71, responses: 162 },
+  { date: 'Week 51', nps: 73, responses: 155 },
+  { date: 'Week 52', nps: 72, responses: 170 },
+];
+
+const DEMO_MONTHLY_TREND_DATA = [
+  { date: 'Jul', nps: 62, responses: 480 },
+  { date: 'Aug', nps: 65, responses: 520 },
+  { date: 'Sep', nps: 68, responses: 540 },
+  { date: 'Oct', nps: 70, responses: 580 },
+  { date: 'Nov', nps: 71, responses: 620 },
+  { date: 'Dec', nps: 72, responses: 650 },
 ];
 
 const DEMO_CHANNEL_DATA = [
@@ -194,24 +214,78 @@ export default function NPSDashboard() {
     ? invitations.filter(i => i.status === 'unsubscribed').length 
     : DEMO_SECONDARY_METRICS.unsubscribed;
 
-  // Trend data
-  const trendData = hasRealData ? Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(new Date(), 6 - i);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const dayResponses = responsesWithScores.filter((r) => 
-      r.completed_at?.startsWith(dateStr)
-    );
-    const dayTotal = dayResponses.length;
-    const dayPromoters = dayResponses.filter((r) => r.nps_score! >= 9).length;
-    const dayDetractors = dayResponses.filter((r) => r.nps_score! < 7).length;
-    const dayNPS = dayTotal > 0 ? Math.round(((dayPromoters - dayDetractors) / dayTotal) * 100) : null;
+  // Trend data - responds to trendView selection
+  const trendData = (() => {
+    if (!hasRealData) {
+      switch (trendView) {
+        case 'weekly':
+          return DEMO_WEEKLY_TREND_DATA;
+        case 'monthly':
+          return DEMO_MONTHLY_TREND_DATA;
+        default:
+          return DEMO_DAILY_TREND_DATA;
+      }
+    }
 
-    return {
-      date: format(date, 'MMM d'),
-      nps: dayNPS,
-      responses: dayTotal,
+    const calculateNPS = (responses: typeof responsesWithScores) => {
+      const total = responses.length;
+      if (total === 0) return null;
+      const promoters = responses.filter((r) => r.nps_score! >= 9).length;
+      const detractors = responses.filter((r) => r.nps_score! < 7).length;
+      return Math.round(((promoters - detractors) / total) * 100);
     };
-  }) : DEMO_TREND_DATA;
+
+    switch (trendView) {
+      case 'daily':
+        return Array.from({ length: 7 }, (_, i) => {
+          const date = subDays(new Date(), 6 - i);
+          const dateStr = format(date, 'yyyy-MM-dd');
+          const dayResponses = responsesWithScores.filter((r) => 
+            r.completed_at?.startsWith(dateStr)
+          );
+          return {
+            date: format(date, 'MMM d'),
+            nps: calculateNPS(dayResponses),
+            responses: dayResponses.length,
+          };
+        });
+
+      case 'weekly':
+        return Array.from({ length: 8 }, (_, i) => {
+          const weekEnd = subWeeks(new Date(), 7 - i);
+          const weekStart = startOfWeek(weekEnd, { weekStartsOn: 1 });
+          const weekEndDate = endOfWeek(weekEnd, { weekStartsOn: 1 });
+          const weekResponses = responsesWithScores.filter((r) => {
+            if (!r.completed_at) return false;
+            const responseDate = new Date(r.completed_at);
+            return isWithinInterval(responseDate, { start: weekStart, end: weekEndDate });
+          });
+          const weekNumber = format(weekStart, 'w');
+          return {
+            date: `Week ${weekNumber}`,
+            nps: calculateNPS(weekResponses),
+            responses: weekResponses.length,
+          };
+        });
+
+      case 'monthly':
+        return Array.from({ length: 6 }, (_, i) => {
+          const monthDate = subMonths(new Date(), 5 - i);
+          const monthStart = startOfMonth(monthDate);
+          const monthEnd = endOfMonth(monthDate);
+          const monthResponses = responsesWithScores.filter((r) => {
+            if (!r.completed_at) return false;
+            const responseDate = new Date(r.completed_at);
+            return isWithinInterval(responseDate, { start: monthStart, end: monthEnd });
+          });
+          return {
+            date: format(monthDate, 'MMM'),
+            nps: calculateNPS(monthResponses),
+            responses: monthResponses.length,
+          };
+        });
+    }
+  })();
 
   // Channel stats
   const channelStats = hasRealData ? invitations.reduce((acc, inv) => {
@@ -422,16 +496,18 @@ export default function NPSDashboard() {
               <Card className="shadow-soft border-border/50 lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-base font-normal">NPS Trend</CardTitle>
-                  <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+                  <div className="flex gap-1 bg-muted p-1 rounded-lg">
                     {(['daily', 'weekly', 'monthly'] as const).map((view) => (
                       <Button
                         key={view}
-                        variant={trendView === view ? 'secondary' : 'ghost'}
+                        variant="ghost"
                         size="sm"
                         onClick={() => setTrendView(view)}
                         className={cn(
                           "text-xs h-7 px-3",
-                          trendView === view && "bg-background shadow-sm"
+                          trendView === view 
+                            ? "bg-background text-foreground shadow-sm" 
+                            : "text-muted-foreground hover:text-foreground hover:bg-transparent"
                         )}
                       >
                         {view.charAt(0).toUpperCase() + view.slice(1)}
