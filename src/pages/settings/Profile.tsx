@@ -61,7 +61,7 @@ export default function ProfileSettings() {
           <div className="relative">
             <Avatar className="h-24 w-24">
               <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-secondary text-secondary-foreground text-2xl">{initials}</AvatarFallback>
             </Avatar>
             <Button size="icon" className="absolute bottom-0 right-0 h-8 w-8 rounded-full btn-coral"><Camera className="h-4 w-4" /></Button>
           </div>

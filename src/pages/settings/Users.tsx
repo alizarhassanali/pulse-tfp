@@ -269,7 +269,7 @@ export default function UsersPage() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              <AvatarFallback className="bg-secondary/10 text-secondary text-xs">
                                 {(user.name || user.email)
                                   .split(' ')
                                   .map(n => n[0])

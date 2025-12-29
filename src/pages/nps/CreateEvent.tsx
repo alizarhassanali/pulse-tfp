@@ -1481,7 +1481,7 @@ export default function CreateEvent() {
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all',
               currentStep === step.num
-                ? 'bg-primary text-primary-foreground'
+                ? 'bg-secondary text-secondary-foreground'
                 : currentStep > step.num
                 ? 'bg-success/20 text-success'
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -1491,7 +1491,7 @@ export default function CreateEvent() {
               className={cn(
                 'h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium',
                 currentStep === step.num
-                  ? 'bg-primary-foreground text-primary'
+                  ? 'bg-secondary-foreground text-secondary'
                   : currentStep > step.num
                   ? 'bg-success text-success-foreground'
                   : 'bg-muted-foreground/20'

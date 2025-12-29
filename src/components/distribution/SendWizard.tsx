@@ -416,9 +416,9 @@ export function SendWizard({
               className={cn(
                 'flex items-center gap-2 px-3 py-2 rounded-full transition-colors',
                 index === currentStep
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-secondary text-secondary-foreground'
                   : index < currentStep
-                  ? 'bg-primary/20 text-primary'
+                  ? 'bg-secondary/20 text-secondary'
                   : 'bg-muted text-muted-foreground'
               )}
             >
