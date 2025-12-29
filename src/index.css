@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* Brand Colors */
-    --background: 24 38% 97%;
+    --background: 0 0% 100%;
     --foreground: 218 46% 28%;
 
     --card: 0 0% 100%;
@@ -25,11 +25,11 @@
     --secondary-foreground: 0 0% 100%;
 
     /* Muted */
-    --muted: 24 20% 94%;
-    --muted-foreground: 218 30% 45%;
+    --muted: 30 20% 96%;
+    --muted-foreground: 218 25% 50%;
 
-    /* Accent - Tertiary light */
-    --accent: 206 60% 95%;
+    /* Accent - Soft cream */
+    --accent: 30 30% 96%;
     --accent-foreground: 218 46% 28%;
 
     /* Tertiary - Sky blue */
@@ -37,16 +37,19 @@
     --tertiary-foreground: 218 46% 28%;
 
     /* Tertiary light */
-    --tertiary-light: 206 60% 95%;
+    --tertiary-light: 206 50% 96%;
 
     /* Secondary light - Coral tint */
-    --secondary-light: 5 87% 94%;
+    --secondary-light: 5 87% 96%;
 
-    /* Sidebar */
-    --sidebar: 206 60% 95%;
-    --sidebar-foreground: 218 46% 28%;
-    --sidebar-hover: 206 50% 90%;
-    --sidebar-active: 6 100% 74%;
+    /* Sidebar - Cream/Off-white */
+    --sidebar: 30 25% 97%;
+    --sidebar-foreground: 218 35% 35%;
+    --sidebar-hover: 30 20% 94%;
+    --sidebar-active: 5 85% 95%;
+    --sidebar-active-foreground: 6 80% 50%;
+    --sidebar-border: 30 15% 90%;
+    --sidebar-section: 218 25% 55%;
 
     /* Destructive */
     --destructive: 0 72% 51%;
@@ -65,8 +68,8 @@
     --info-foreground: 0 0% 100%;
 
     /* Border & Input */
-    --border: 218 20% 88%;
-    --input: 218 20% 88%;
+    --border: 218 15% 90%;
+    --input: 218 15% 90%;
     --ring: 6 100% 74%;
 
     --radius: 0.5rem;
@@ -84,11 +87,11 @@
 
     /* Score badges */
     --promoter: 160 84% 39%;
-    --promoter-bg: 160 60% 94%;
+    --promoter-bg: 160 50% 95%;
     --passive: 38 92% 50%;
-    --passive-bg: 38 80% 94%;
+    --passive-bg: 38 70% 95%;
     --detractor: 0 72% 51%;
-    --detractor-bg: 0 60% 96%;
+    --detractor-bg: 0 50% 97%;
 
     /* Status badges */
     --status-sent: 204 74% 50%;
@@ -125,6 +128,9 @@
     --sidebar-foreground: 24 38% 95%;
     --sidebar-hover: 218 30% 18%;
     --sidebar-active: 6 100% 74%;
+    --sidebar-active-foreground: 0 0% 100%;
+    --sidebar-border: 218 30% 18%;
+    --sidebar-section: 218 20% 60%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 24 38% 95%;
@@ -150,22 +156,22 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Graphik', system-ui, sans-serif;
-    @apply font-normal tracking-tight;
+    @apply font-medium tracking-tight;
   }
 }
 
 @layer components {
   /* Score badges */
   .badge-promoter {
-    @apply bg-promoter-bg text-promoter font-normal;
+    @apply bg-promoter-bg text-promoter font-medium text-xs;
   }
 
   .badge-passive {
-    @apply bg-passive-bg text-passive font-normal;
+    @apply bg-passive-bg text-passive font-medium text-xs;
   }
 
   .badge-detractor {
-    @apply bg-detractor-bg text-detractor font-normal;
+    @apply bg-detractor-bg text-detractor font-medium text-xs;
   }
 
   /* Status badges */
@@ -195,16 +201,20 @@
 
   /* Card hover effect */
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-md hover:border-primary/30;
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
   }
 
-  /* Sidebar item */
+  /* Sidebar styles */
+  .sidebar-section-label {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-sidebar-section px-3 py-2 mt-4 first:mt-0;
+  }
+
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground transition-all duration-200 hover:bg-sidebar-hover;
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground transition-all duration-150 hover:bg-sidebar-hover text-sm;
   }
 
   .sidebar-item-active {
-    @apply bg-primary text-primary-foreground;
+    @apply bg-sidebar-active text-sidebar-active-foreground font-medium;
   }
 
   /* Input focus ring */
@@ -227,16 +237,29 @@
 
   /* Metric card */
   .metric-card {
-    @apply bg-card rounded-xl border border-border p-5 transition-all duration-200 hover:shadow-md;
+    @apply bg-card rounded-xl border border-border/60 p-5 transition-all duration-200 hover:shadow-md;
   }
 
   /* Filter chip */
   .filter-chip {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-normal bg-tertiary-light text-secondary border border-border hover:bg-tertiary/30 transition-colors cursor-pointer;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-normal bg-background text-foreground border border-border/80 hover:bg-muted transition-colors cursor-pointer;
   }
 
   .filter-chip-active {
-    @apply bg-primary text-primary-foreground border-primary;
+    @apply bg-secondary-light text-primary border-primary/30;
+  }
+
+  /* Page header */
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold text-foreground tracking-tight;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground mt-1;
   }
 }
 
@@ -247,8 +270,8 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -256,7 +279,7 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+    @apply bg-border/50 rounded-full;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
@@ -286,5 +309,10 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Content shadow for sidebar edge */
+  .content-shadow {
+    box-shadow: -1px 0 0 0 hsl(var(--border)), inset 4px 0 8px -4px rgba(0, 0, 0, 0.04);
   }
 }

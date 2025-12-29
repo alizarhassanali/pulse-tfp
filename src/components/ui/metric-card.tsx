@@ -35,24 +35,24 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        'bg-card rounded-xl p-6 shadow-soft border border-border/50 card-hover',
+        'bg-card rounded-xl p-6 shadow-soft border border-border/60 transition-all duration-200 hover:shadow-medium hover:-translate-y-0.5',
         className
       )}
     >
       <div className="flex items-start justify-between">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="text-sm font-normal text-muted-foreground">{title}</p>
-          <p className="text-3xl font-semibold tracking-tight">{value}</p>
+          <p className="text-3xl font-semibold tracking-tight text-foreground">{value}</p>
           {change !== undefined && (
-            <div className={cn('flex items-center gap-1 text-xs font-normal', getTrendColor())}>
+            <div className={cn('flex items-center gap-1.5 text-xs font-medium', getTrendColor())}>
               {getTrendIcon()}
               <span>{change > 0 ? '+' : ''}{change}%</span>
-              {changeLabel && <span className="text-muted-foreground ml-1">{changeLabel}</span>}
+              {changeLabel && <span className="text-muted-foreground font-normal ml-0.5">{changeLabel}</span>}
             </div>
           )}
         </div>
         {icon && (
-          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <div className="h-11 w-11 rounded-lg bg-secondary-light flex items-center justify-center text-primary">
             {icon}
           </div>
         )}

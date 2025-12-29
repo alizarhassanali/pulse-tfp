@@ -29,6 +29,7 @@ export default {
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+          light: "hsl(var(--secondary-light))",
         },
         tertiary: {
           DEFAULT: "hsl(var(--tertiary))",
@@ -72,6 +73,9 @@ export default {
           foreground: "hsl(var(--sidebar-foreground))",
           hover: "hsl(var(--sidebar-hover))",
           active: "hsl(var(--sidebar-active))",
+          "active-foreground": "hsl(var(--sidebar-active-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          section: "hsl(var(--sidebar-section))",
         },
         topbar: {
           DEFAULT: "hsl(var(--topbar))",
@@ -105,9 +109,10 @@ export default {
         "2xl": "calc(var(--radius) + 8px)",
       },
       boxShadow: {
-        "soft": "0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)",
-        "medium": "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
-        "card": "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 6px -1px rgb(0 0 0 / 0.02)",
+        "soft": "0 1px 2px 0 rgb(0 0 0 / 0.03)",
+        "medium": "0 4px 6px -1px rgb(0 0 0 / 0.04), 0 2px 4px -2px rgb(0 0 0 / 0.04)",
+        "card": "0 1px 3px 0 rgb(0 0 0 / 0.02), 0 1px 2px -1px rgb(0 0 0 / 0.02)",
+        "elevated": "0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04)",
       },
       keyframes: {
         "accordion-down": {
