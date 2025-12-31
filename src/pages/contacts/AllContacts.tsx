@@ -23,12 +23,13 @@ import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { EditContactModal } from '@/components/contacts/EditContactModal';
 import { DuplicateDetectionModal } from '@/components/contacts/DuplicateDetectionModal';
+import { ImportHistoryModal } from '@/components/contacts/ImportHistoryModal';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { ColumnVisibilityToggle, ColumnDef } from '@/components/ui/column-visibility-toggle';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Send, ChevronDown, X, Pencil, MoreHorizontal, SlidersHorizontal, Globe, GitMerge } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Send, ChevronDown, X, Pencil, MoreHorizontal, SlidersHorizontal, Globe, GitMerge, History } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
@@ -69,6 +70,7 @@ export default function AllContacts() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [sendEventModalOpen, setSendEventModalOpen] = useState(false);
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [importHistoryOpen, setImportHistoryOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   
   // Column visibility state - synced via onChange callback
@@ -289,6 +291,9 @@ export default function AllContacts() {
 
     setImportProgress({ current: 0, total: 0, isImporting: true });
 
+    let importRecordId: string | null = null;
+    const importErrors: { row: number; message: string }[] = [];
+
     try {
       const text = await importFile.text();
       const lines = text.split('\n').filter(line => line.trim());
@@ -302,10 +307,24 @@ export default function AllContacts() {
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
       const dataRows = lines.slice(1);
       
+      // Create import record
+      const { data: importRecord } = await supabase
+        .from('contact_imports')
+        .insert({
+          file_name: importFile.name,
+          total_rows: dataRows.length,
+          status: 'processing',
+        })
+        .select()
+        .single();
+      
+      if (importRecord) {
+        importRecordId = importRecord.id;
+      }
+
       setImportProgress({ current: 0, total: dataRows.length, isImporting: true });
 
       let successCount = 0;
-      const errors: string[] = [];
 
       for (let i = 0; i < dataRows.length; i++) {
         try {
@@ -327,7 +346,7 @@ export default function AllContacts() {
           }
 
           if (!firstName) {
-            errors.push(`Row ${i + 2}: Missing name`);
+            importErrors.push({ row: i + 2, message: 'Missing name' });
             continue;
           }
 
@@ -368,7 +387,7 @@ export default function AllContacts() {
           }).select().single();
 
           if (error) {
-            errors.push(`Row ${i + 2}: ${error.message}`);
+            importErrors.push({ row: i + 2, message: error.message });
             continue;
           }
 
@@ -390,23 +409,37 @@ export default function AllContacts() {
 
           successCount++;
         } catch (err: any) {
-          errors.push(`Row ${i + 2}: ${err.message}`);
+          importErrors.push({ row: i + 2, message: err.message });
         }
 
         setImportProgress({ current: i + 1, total: dataRows.length, isImporting: true });
       }
 
+      // Update import record with results
+      if (importRecordId) {
+        await supabase
+          .from('contact_imports')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            success_count: successCount,
+            error_count: importErrors.length,
+            errors: importErrors,
+          })
+          .eq('id', importRecordId);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['contact-tags'] });
       queryClient.invalidateQueries({ queryKey: ['contact-tag-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-imports'] });
 
-      if (errors.length > 0) {
+      if (importErrors.length > 0) {
         toast({
           title: `Imported ${successCount} of ${dataRows.length} contacts`,
-          description: `${errors.length} row(s) had errors. Check console for details.`,
+          description: `${importErrors.length} row(s) had errors. View import history for details.`,
           variant: successCount > 0 ? 'default' : 'destructive',
         });
-        console.warn('Import errors:', errors);
       } else {
         toast({ title: 'Import complete', description: `Successfully imported ${successCount} contacts.` });
       }
@@ -414,6 +447,18 @@ export default function AllContacts() {
       setImportModalOpen(false);
       setImportFile(null);
     } catch (err: any) {
+      // Update import record as failed
+      if (importRecordId) {
+        await supabase
+          .from('contact_imports')
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error_count: 1,
+            errors: [{ row: 0, message: err.message }],
+          })
+          .eq('id', importRecordId);
+      }
       toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
     } finally {
       setImportProgress({ current: 0, total: 0, isImporting: false });
@@ -550,7 +595,7 @@ export default function AllContacts() {
       <EditContactModal contactId={selectedContactId} open={editModalOpen} onOpenChange={setEditModalOpen} />
       <DuplicateDetectionModal open={duplicateModalOpen} onOpenChange={setDuplicateModalOpen} contacts={contacts} contactTagMap={contactTagMap} />
 
-      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle>Import Contacts from CSV</DialogTitle><DialogDescription>Upload a CSV file with your contacts.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
+      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle className="flex items-center justify-between">Import Contacts from CSV<Button variant="ghost" size="sm" onClick={() => { setImportModalOpen(false); setImportHistoryOpen(true); }} className="text-muted-foreground hover:text-foreground"><History className="h-4 w-4 mr-1" />History</Button></DialogTitle><DialogDescription>Upload a CSV file with your contacts.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
         <div className="space-y-2"><p className="text-sm"><strong>Step 1:</strong> Download the template</p><Button variant="outline" size="sm" onClick={handleDownloadTemplate}><FileDown className="h-4 w-4 mr-2" />Download Template</Button></div>
         <div className="space-y-2"><p className="text-sm"><strong>Step 2:</strong> Fill in the following fields:</p><ul className="text-sm text-muted-foreground list-disc list-inside"><li>full_name (required)</li><li>email</li><li>phone</li><li>brand</li><li>location</li><li>preferred_sms (TRUE/FALSE)</li><li>preferred_email (TRUE/FALSE)</li><li>preferred_language (en, es, fr, pt, zh, etc.)</li><li>tags (comma-separated)</li></ul></div>
         <div className="space-y-2"><p className="text-sm"><strong>Step 3:</strong> Upload your file</p>
@@ -576,6 +621,8 @@ export default function AllContacts() {
           </div>
         )}
       </div><DialogFooter><Button variant="outline" onClick={() => { setImportModalOpen(false); setImportFile(null); }}>Cancel</Button><Button className="btn-coral" onClick={handleImport} disabled={!importFile || importProgress.isImporting}>{importProgress.isImporting ? 'Importing...' : 'Import'}</Button></DialogFooter></DialogContent></Dialog>
+
+      <ImportHistoryModal open={importHistoryOpen} onOpenChange={setImportHistoryOpen} />
 
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}><DialogContent className="sm:max-w-[550px]"><DialogHeader><DialogTitle>Add Contact</DialogTitle><DialogDescription>Add a new contact to your database.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
         <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name *</Label><Input value={newContact.first_name} onChange={(e) => setNewContact({ ...newContact, first_name: e.target.value })} /></div><div className="space-y-2"><Label>Last Name</Label><Input value={newContact.last_name} onChange={(e) => setNewContact({ ...newContact, last_name: e.target.value })} /></div></div>
