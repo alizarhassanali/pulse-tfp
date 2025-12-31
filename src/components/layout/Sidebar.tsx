@@ -92,6 +92,7 @@ const navigation: (NavItem | NavGroup)[] = [
     items: [
       { icon: User, label: 'Profile', href: '/settings/profile' },
       { icon: Building2, label: 'Brands', href: '/settings/brands', section: 'brands' },
+      { icon: Star, label: 'Reviews', href: '/settings/reviews', section: 'reviews' },
       { icon: UserCog, label: 'Users & Roles', href: '/settings/users', section: 'users' },
     ],
   },

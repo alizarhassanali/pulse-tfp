@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
-import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2, ChevronDown, Settings } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2, ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface BrandColors {
@@ -29,19 +29,11 @@ interface BrandColors {
   buttonText?: string;
 }
 
-interface LocationGoogleReviewConfig {
-  enabled: boolean;
-  sync_frequency?: 'hourly' | 'every_4_hours' | 'every_8_hours' | 'daily' | 'weekly';
-  notification_email?: string;
-}
-
 interface Location {
   id: string;
   name: string;
   address: string;
   gmb_link: string;
-  google_place_id?: string;
-  google_review_config?: LocationGoogleReviewConfig;
   brand_id?: string;
 }
 
@@ -62,7 +54,6 @@ interface FormState {
 }
 
 const defaultColors: BrandColors = { topBar: '#263F6A', button: '#FF887C', text: '#263F6A', buttonText: '#FFFFFF' };
-const defaultLocationGoogleConfig: LocationGoogleReviewConfig = { enabled: false, sync_frequency: 'daily' };
 
 export default function Brands() {
   const { toast } = useToast();
@@ -98,8 +89,6 @@ export default function Brands() {
             name: loc.name,
             address: loc.address || '',
             gmb_link: loc.gmb_link || '',
-            google_place_id: loc.google_place_id || '',
-            google_review_config: (loc.google_review_config as unknown as LocationGoogleReviewConfig) || defaultLocationGoogleConfig,
             brand_id: loc.brand_id || undefined,
           })),
       })) as Brand[];
@@ -149,8 +138,6 @@ export default function Brands() {
             name: loc.name,
             address: loc.address || null,
             gmb_link: loc.gmb_link || null,
-            google_place_id: loc.google_place_id || null,
-            google_review_config: (loc.google_review_config || defaultLocationGoogleConfig) as unknown as Json,
           };
 
           if (loc.id.startsWith('temp-')) {
@@ -176,8 +163,6 @@ export default function Brands() {
             name: loc.name,
             address: loc.address || null,
             gmb_link: loc.gmb_link || null,
-            google_place_id: loc.google_place_id || null,
-            google_review_config: (loc.google_review_config || defaultLocationGoogleConfig) as unknown as Json,
             brand_id: brandId,
           }));
           const { error: locError } = await supabase.from('locations').insert(locationsPayload);
@@ -249,9 +234,7 @@ export default function Brands() {
         id: newId, 
         name: '', 
         address: '', 
-        gmb_link: '', 
-        google_place_id: '',
-        google_review_config: defaultLocationGoogleConfig,
+        gmb_link: '',
       }],
     });
     setExpandedLocations(prev => new Set([...prev, newId]));
@@ -261,17 +244,6 @@ export default function Brands() {
     setForm({
       ...form,
       locations: form.locations.map((l, i) => (i === idx ? { ...l, [field]: value } : l)),
-    });
-  };
-
-  const updateLocationGoogleConfig = (idx: number, field: keyof LocationGoogleReviewConfig, value: any) => {
-    setForm({
-      ...form,
-      locations: form.locations.map((l, i) => 
-        i === idx 
-          ? { ...l, google_review_config: { ...l.google_review_config, [field]: value } as LocationGoogleReviewConfig }
-          : l
-      ),
     });
   };
 
@@ -481,12 +453,6 @@ export default function Brands() {
                               className="h-8"
                             />
                           </div>
-                          {loc.google_review_config?.enabled && (
-                            <Badge variant="outline" className="shrink-0">
-                              <Settings className="h-3 w-3 mr-1" />
-                              Google
-                            </Badge>
-                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeLocation(idx)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -513,62 +479,6 @@ export default function Brands() {
                                   className="h-8"
                                 />
                               </div>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <Label className="text-xs">Google Place ID</Label>
-                              <Input
-                                placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
-                                value={loc.google_place_id || ''}
-                                onChange={e => updateLocation(idx, 'google_place_id', e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                            
-                            <div className="border-t pt-3 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Settings className="h-4 w-4 text-muted-foreground" />
-                                  <Label className="text-sm font-medium">Google Reviews</Label>
-                                </div>
-                                <Switch
-                                  checked={loc.google_review_config?.enabled || false}
-                                  onCheckedChange={checked => updateLocationGoogleConfig(idx, 'enabled', checked)}
-                                />
-                              </div>
-                              
-                              {loc.google_review_config?.enabled && (
-                                <div className="grid grid-cols-2 gap-3 pl-6">
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">Sync Frequency</Label>
-                                    <Select
-                                      value={loc.google_review_config?.sync_frequency || 'daily'}
-                                      onValueChange={value => updateLocationGoogleConfig(idx, 'sync_frequency', value)}
-                                    >
-                                      <SelectTrigger className="h-8">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="hourly">Every hour</SelectItem>
-                                        <SelectItem value="every_4_hours">Every 4 hours</SelectItem>
-                                        <SelectItem value="every_8_hours">Every 8 hours</SelectItem>
-                                        <SelectItem value="daily">Daily</SelectItem>
-                                        <SelectItem value="weekly">Weekly</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">Notification Email</Label>
-                                    <Input
-                                      type="email"
-                                      placeholder="alerts@company.com"
-                                      value={loc.google_review_config?.notification_email || ''}
-                                      onChange={e => updateLocationGoogleConfig(idx, 'notification_email', e.target.value)}
-                                      className="h-8"
-                                    />
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </CollapsibleContent>
