@@ -23,99 +23,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
+import { ChannelBadge } from '@/components/ui/channel-badge';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
-import { Star, Search, ExternalLink, MessageSquare, MapPin, Building2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Star, Search, ExternalLink, MessageSquare, MapPin, Building2, TrendingUp, TrendingDown, CalendarDays } from 'lucide-react';
+import { format, parseISO, subDays, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
+import { DEMO_REVIEWS } from '@/data/demo-data';
 
-// Demo reviews with location data
-const demoReviews = [
-  {
-    id: 'demo-1',
-    reviewer_name: 'Alice L.',
-    rating: 5,
-    review_text: 'Amazing experience! The staff was incredibly friendly and professional. Dr. Smith took the time to explain everything clearly. Highly recommend this clinic to anyone looking for quality care.',
-    created_at: '2025-12-21T10:00:00Z',
-    responded_at: null,
-    response_text: null,
-    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
-    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    source_url: 'https://google.com/review/1',
-  },
-  {
-    id: 'demo-2',
-    reviewer_name: 'Bob M.',
-    rating: 2,
-    review_text: 'Wait time was way too long. I had an appointment at 2pm but wasn\'t seen until 3:30pm. The actual care was fine but the scheduling needs improvement.',
-    created_at: '2025-12-20T14:00:00Z',
-    responded_at: null,
-    response_text: null,
-    location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
-    location: { name: 'Vaughan', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    source_url: 'https://google.com/review/2',
-  },
-  {
-    id: 'demo-3',
-    reviewer_name: 'Carol P.',
-    rating: 5,
-    review_text: 'Best fertility clinic in the city! After trying for years, we finally have good news thanks to the team here.',
-    created_at: '2025-12-19T09:00:00Z',
-    responded_at: '2025-12-19T15:00:00Z',
-    response_text: 'Thank you so much for sharing your wonderful news with us! We are thrilled to be part of your journey.',
-    location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
-    location: { name: 'NewMarket', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    source_url: 'https://google.com/review/3',
-  },
-  {
-    id: 'demo-4',
-    reviewer_name: 'David R.',
-    rating: 4,
-    review_text: 'Good service overall. Modern facilities and knowledgeable doctors. Only giving 4 stars because parking was difficult.',
-    created_at: '2025-12-18T11:00:00Z',
-    responded_at: '2025-12-18T16:00:00Z',
-    response_text: 'Thank you for your feedback! We appreciate your kind words and are working on improving parking options.',
-    location_id: 'l1a2c3d4-e5f6-4789-abcd-333333333333',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
-    location: { name: 'TorontoWest', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    source_url: 'https://google.com/review/4',
-  },
-  {
-    id: 'demo-5',
-    reviewer_name: 'Emily S.',
-    rating: 3,
-    review_text: 'Average experience. Nothing special but nothing terrible either.',
-    created_at: '2025-12-17T08:00:00Z',
-    responded_at: null,
-    response_text: null,
-    location_id: 'l1a2c3d4-e5f6-4789-abcd-444444444444',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222',
-    location: { name: 'Waterloo', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-    brand: { name: 'Generation Fertility' },
-    source_url: 'https://google.com/review/5',
-  },
-  {
-    id: 'demo-6',
-    reviewer_name: 'Frank G.',
-    rating: 5,
-    review_text: 'Excellent care at the Downtown location. Everyone was so kind and supportive.',
-    created_at: '2025-12-16T09:00:00Z',
-    responded_at: null,
-    response_text: null,
-    location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111',
-    brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111',
-    location: { name: 'Downtown', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
-    brand: { name: 'Conceptia Fertility' },
-    source_url: 'https://google.com/review/6',
-  },
+// Available review channels
+const REVIEW_CHANNELS = [
+  { value: 'all', label: 'All Channels' },
+  { value: 'google', label: 'Google' },
+  // Future channels can be added here
+  // { value: 'facebook', label: 'Facebook' },
 ];
 
 export default function Reviews() {
@@ -124,13 +45,14 @@ export default function Reviews() {
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [respondedFilter, setRespondedFilter] = useState('all');
+  const [channelFilter, setChannelFilter] = useState('all');
   const [respondModalOpen, setRespondModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [responseText, setResponseText] = useState('');
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
 
   const { data: dbReviews = [], isLoading } = useQuery({
-    queryKey: ['reviews', selectedBrands, selectedLocations, dateRange, ratingFilter, respondedFilter],
+    queryKey: ['reviews', selectedBrands, selectedLocations, dateRange, ratingFilter, respondedFilter, channelFilter],
     queryFn: async () => {
       let query = supabase
         .from('reviews')
@@ -150,24 +72,27 @@ export default function Reviews() {
       if (ratingFilter !== 'all') query = query.eq('rating', parseInt(ratingFilter));
       if (respondedFilter === 'responded') query = query.not('responded_at', 'is', null);
       if (respondedFilter === 'not_responded') query = query.is('responded_at', null);
+      if (channelFilter !== 'all') query = query.eq('channel', channelFilter);
+      
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
   });
 
-  // Use demo data if no db reviews and filter by brand/location
+  // Use demo data if no db reviews and filter by brand/location/channel
   const reviews = useMemo(() => {
-    const sourceReviews = dbReviews.length > 0 ? dbReviews : demoReviews;
+    const sourceReviews = dbReviews.length > 0 ? dbReviews : DEMO_REVIEWS;
     return sourceReviews.filter(r => {
       if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
       if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
       if (ratingFilter !== 'all' && r.rating !== parseInt(ratingFilter)) return false;
       if (respondedFilter === 'responded' && !r.responded_at) return false;
       if (respondedFilter === 'not_responded' && r.responded_at) return false;
+      if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
       return true;
     });
-  }, [dbReviews, selectedBrands, selectedLocations, ratingFilter, respondedFilter]);
+  }, [dbReviews, selectedBrands, selectedLocations, ratingFilter, respondedFilter, channelFilter]);
 
   // Apply search filter
   const filteredReviews = useMemo(() => {
@@ -230,7 +155,93 @@ export default function Reviews() {
     defaultSortDirection: 'desc',
   });
 
-  // Calculate metrics
+  // Calculate all reviews for trend and integration metrics (unfiltered by date for full history)
+  const allReviewsForMetrics = useMemo(() => {
+    const sourceReviews = dbReviews.length > 0 ? dbReviews : DEMO_REVIEWS;
+    return sourceReviews.filter(r => {
+      if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
+      if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
+      if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
+      return true;
+    });
+  }, [dbReviews, selectedBrands, selectedLocations, channelFilter]);
+
+  // Calculate current period and previous period for trends
+  const trendMetrics = useMemo(() => {
+    const now = new Date();
+    const periodLength = 7; // days
+    const currentPeriodStart = subDays(now, periodLength);
+    const previousPeriodStart = subDays(now, periodLength * 2);
+    
+    const currentPeriodReviews = allReviewsForMetrics.filter(r => 
+      isAfter(parseISO(r.created_at), currentPeriodStart)
+    );
+    
+    const previousPeriodReviews = allReviewsForMetrics.filter(r => 
+      isAfter(parseISO(r.created_at), previousPeriodStart) && 
+      isBefore(parseISO(r.created_at), currentPeriodStart)
+    );
+
+    // Current period metrics
+    const currentAvgRating = currentPeriodReviews.length > 0
+      ? currentPeriodReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / currentPeriodReviews.length
+      : 0;
+    
+    // Previous period metrics
+    const previousAvgRating = previousPeriodReviews.length > 0
+      ? previousPeriodReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / previousPeriodReviews.length
+      : 0;
+
+    // Calculate changes
+    const ratingChange = previousAvgRating > 0 
+      ? parseFloat((currentAvgRating - previousAvgRating).toFixed(1))
+      : 0;
+    
+    const reviewCountChange = previousPeriodReviews.length > 0
+      ? Math.round(((currentPeriodReviews.length - previousPeriodReviews.length) / previousPeriodReviews.length) * 100)
+      : 0;
+
+    return {
+      currentPeriodCount: currentPeriodReviews.length,
+      previousPeriodCount: previousPeriodReviews.length,
+      currentAvgRating,
+      ratingChange,
+      reviewCountChange,
+    };
+  }, [allReviewsForMetrics]);
+
+  // Calculate "since integration" metrics
+  const integrationMetrics = useMemo(() => {
+    if (allReviewsForMetrics.length === 0) {
+      return { totalReviews: 0, firstReviewDate: null, avgRatingImprovement: 0, startingRating: 0, currentRating: 0 };
+    }
+
+    // Sort by date to find oldest and calculate progression
+    const sorted = [...allReviewsForMetrics].sort((a, b) => 
+      parseISO(a.created_at).getTime() - parseISO(b.created_at).getTime()
+    );
+    
+    const firstReviewDate = sorted[0].created_at;
+    const totalReviews = sorted.length;
+    
+    // Calculate starting rating (first 3 reviews avg) vs current rating (last 3 reviews avg)
+    const firstThree = sorted.slice(0, Math.min(3, sorted.length));
+    const lastThree = sorted.slice(-Math.min(3, sorted.length));
+    
+    const startingRating = firstThree.reduce((sum, r) => sum + (r.rating || 0), 0) / firstThree.length;
+    const currentRating = lastThree.reduce((sum, r) => sum + (r.rating || 0), 0) / lastThree.length;
+    const avgRatingImprovement = parseFloat((currentRating - startingRating).toFixed(1));
+
+    return {
+      totalReviews,
+      firstReviewDate,
+      avgRatingImprovement,
+      startingRating: parseFloat(startingRating.toFixed(1)),
+      currentRating: parseFloat(currentRating.toFixed(1)),
+    };
+  }, [allReviewsForMetrics]);
+
+  // Calculate metrics for current filtered view
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) 
     : '0.0';
@@ -249,6 +260,16 @@ export default function Reviews() {
       percentage: reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0
     })).reverse(); // Reverse to show 5 stars first
   }, [reviews]);
+
+  // Channel breakdown
+  const channelBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allReviewsForMetrics.forEach(r => {
+      const channel = (r as any).channel || 'google';
+      counts[channel] = (counts[channel] || 0) + 1;
+    });
+    return counts;
+  }, [allReviewsForMetrics]);
 
   const toggleExpanded = (id: string) => {
     setExpandedReviews((prev) => {
@@ -283,9 +304,9 @@ export default function Reviews() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Google Reviews" description="Monitor and respond to patient reviews" />
+      <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
 
-      {/* Summary Cards */}
+      {/* Row 1: Core Metrics with Trends */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {isLoading ? (
           <>
@@ -297,7 +318,9 @@ export default function Reviews() {
           <>
             <MetricCard 
               title="Average Rating" 
-              value={avgRating} 
+              value={avgRating}
+              change={trendMetrics.ratingChange !== 0 ? trendMetrics.ratingChange * 10 : undefined}
+              changeLabel="vs last 7 days"
               icon={<Star className="h-6 w-6 fill-warning text-warning" />}
             >
               <div className="flex flex-col gap-1">
@@ -309,40 +332,126 @@ export default function Reviews() {
                 )}
               </div>
             </MetricCard>
+            
             <MetricCard 
               title="Total Reviews" 
-              value={reviews.length} 
+              value={reviews.length}
+              change={trendMetrics.reviewCountChange !== 0 ? trendMetrics.reviewCountChange : undefined}
+              changeLabel="vs last 7 days"
               icon={<MessageSquare className="h-6 w-6" />}
             >
-              {isMultiLocationView && locationBreakdown.length > 1 && (
-                <p className="text-xs text-muted-foreground">
-                  From {locationBreakdown.length} locations
-                </p>
-              )}
-            </MetricCard>
-            <MetricCard 
-              title="Star Distribution" 
-              value=""
-              icon={<Star className="h-6 w-6" />}
-            >
-              <div className="space-y-1.5 mt-1">
-                {starDistribution.map(({ stars, count, percentage }) => (
-                  <div key={stars} className="flex items-center gap-2 text-xs">
-                    <span className="w-8 text-muted-foreground">{stars}★</span>
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
-                        )}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-muted-foreground">{count}</span>
-                  </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {Object.entries(channelBreakdown).map(([channel, count]) => (
+                  <span key={channel} className="text-xs text-muted-foreground">
+                    {count} {channel.charAt(0).toUpperCase() + channel.slice(1)}
+                  </span>
                 ))}
               </div>
             </MetricCard>
+            
+            <MetricCard 
+              title="New This Period" 
+              value={trendMetrics.currentPeriodCount}
+              icon={<CalendarDays className="h-6 w-6" />}
+            >
+              <div className="flex items-center gap-2 mt-1">
+                {trendMetrics.currentPeriodCount > trendMetrics.previousPeriodCount ? (
+                  <span className="flex items-center gap-1 text-xs text-success">
+                    <TrendingUp className="h-3 w-3" />
+                    +{trendMetrics.currentPeriodCount - trendMetrics.previousPeriodCount} vs last week
+                  </span>
+                ) : trendMetrics.currentPeriodCount < trendMetrics.previousPeriodCount ? (
+                  <span className="flex items-center gap-1 text-xs text-destructive">
+                    <TrendingDown className="h-3 w-3" />
+                    {trendMetrics.currentPeriodCount - trendMetrics.previousPeriodCount} vs last week
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Same as last week</span>
+                )}
+              </div>
+            </MetricCard>
+          </>
+        )}
+      </div>
+
+      {/* Row 2: Star Distribution and Since Integration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {isLoading ? (
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        ) : (
+          <>
+            <Card className="shadow-soft border-border/60">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-normal text-muted-foreground">Star Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2.5">
+                  {starDistribution.map(({ stars, count, percentage }) => (
+                    <div key={stars} className="flex items-center gap-3">
+                      <span className="w-12 text-sm text-muted-foreground flex items-center gap-1">
+                        {stars} <Star className="h-3 w-3 fill-warning text-warning" />
+                      </span>
+                      <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
+                          )}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="w-12 text-sm text-right text-muted-foreground">{count} ({percentage}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft border-border/60">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-normal text-muted-foreground">Since Integration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">First connected</p>
+                    <p className="text-lg font-semibold">
+                      {integrationMetrics.firstReviewDate 
+                        ? format(parseISO(integrationMetrics.firstReviewDate), 'MMM d, yyyy')
+                        : 'Not connected'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total reviews collected</p>
+                      <p className="text-2xl font-semibold">+{integrationMetrics.totalReviews}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rating change</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {integrationMetrics.startingRating} → {integrationMetrics.currentRating}
+                        </span>
+                        {integrationMetrics.avgRatingImprovement > 0 ? (
+                          <span className="flex items-center gap-1 text-sm text-success">
+                            <TrendingUp className="h-3 w-3" />
+                            +{integrationMetrics.avgRatingImprovement}
+                          </span>
+                        ) : integrationMetrics.avgRatingImprovement < 0 ? (
+                          <span className="flex items-center gap-1 text-sm text-destructive">
+                            <TrendingDown className="h-3 w-3" />
+                            {integrationMetrics.avgRatingImprovement}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
@@ -415,6 +524,17 @@ export default function Reviews() {
           <Input placeholder="Search reviews..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
 
+        <Select value={channelFilter} onValueChange={setChannelFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Channel" />
+          </SelectTrigger>
+          <SelectContent>
+            {REVIEW_CHANNELS.map((c) => (
+              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={ratingFilter} onValueChange={setRatingFilter}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Rating" />
@@ -449,12 +569,14 @@ export default function Reviews() {
           filteredReviews.map((review) => {
             const isLongText = (review.review_text?.length || 0) > 200;
             const isExpanded = expandedReviews.has(review.id);
+            const reviewChannel = (review as any).channel || 'google';
 
             return (
               <Card key={review.id} className="shadow-soft border-border/50">
                 <CardContent className="pt-6 space-y-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
+                      <ChannelBadge channel={reviewChannel} />
                       {renderStars(review.rating)}
                       <span className="font-medium">{review.reviewer_name || 'Anonymous'}</span>
                       <span className="text-sm text-muted-foreground">
@@ -527,7 +649,7 @@ export default function Reviews() {
                     {review.source_url && (
                       <Button variant="ghost" size="sm" onClick={() => window.open(review.source_url, '_blank')}>
                         <ExternalLink className="h-4 w-4 mr-1" />
-                        View on Google
+                        View on {reviewChannel.charAt(0).toUpperCase() + reviewChannel.slice(1)}
                       </Button>
                     )}
                   </div>
@@ -539,7 +661,7 @@ export default function Reviews() {
           <EmptyState
             icon={<Star className="h-8 w-8" />}
             title="No reviews found"
-            description="Reviews from Google will appear here."
+            description="Reviews from connected channels will appear here."
           />
         )}
       </div>
@@ -549,12 +671,13 @@ export default function Reviews() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{selectedReview?.responded_at ? 'Edit Response' : 'Respond to Review'}</DialogTitle>
-            <DialogDescription>Your response will be posted publicly to Google.</DialogDescription>
+            <DialogDescription>Your response will be posted publicly.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {selectedReview && (
               <div className="bg-muted rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
+                  <ChannelBadge channel={(selectedReview as any).channel || 'google'} />
                   {renderStars(selectedReview.rating)}
                   <span className="font-medium">{selectedReview.reviewer_name}</span>
                   {selectedReview.location?.name && (
