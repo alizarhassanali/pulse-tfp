@@ -729,6 +729,9 @@ function App() {
                 {/* Message Templates */}
                 <div className="border-t pt-6 space-y-4">
                   <h4 className="font-medium">Message Templates</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Available variables: <code className="bg-muted px-1 rounded">{'{first_name}'}</code> <code className="bg-muted px-1 rounded">{'{last_name}'}</code> <code className="bg-muted px-1 rounded">{'{location_name}'}</code> <code className="bg-muted px-1 rounded">{'{brand_name}'}</code> <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>
+                  </p>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Email Subject</Label>
