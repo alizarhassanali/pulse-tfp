@@ -285,6 +285,83 @@ export const DEMO_INTEGRATIONS = [
   },
 ];
 
+// Demo SFTP sync logs for sync history feature
+export const DEMO_SFTP_SYNC_LOGS = [
+  {
+    id: 'sync-e5f6-4789-abcd-111111111111',
+    integration_id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    started_at: '2025-12-30T14:00:00Z',
+    completed_at: '2025-12-30T14:02:15Z',
+    status: 'success' as const,
+    total_rows: 125,
+    success_count: 125,
+    error_count: 0,
+    skipped_count: 0,
+    file_name: 'contacts_20251230.csv',
+    errors: [],
+  },
+  {
+    id: 'sync-e5f6-4789-abcd-222222222222',
+    integration_id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    started_at: '2025-12-27T14:00:00Z',
+    completed_at: '2025-12-27T14:03:45Z',
+    status: 'partial' as const,
+    total_rows: 105,
+    success_count: 98,
+    error_count: 7,
+    skipped_count: 0,
+    file_name: 'daily_sync.csv',
+    errors: [
+      { row: 12, error: 'Invalid email format', value: 'not-an-email' },
+      { row: 23, error: 'Missing required field: location_name', value: '' },
+      { row: 45, error: 'Phone number format invalid', value: '555-1234' },
+      { row: 67, error: 'Duplicate email found in batch', value: 'duplicate@example.com' },
+      { row: 78, error: 'Location not found', value: 'Unknown Location' },
+      { row: 89, error: 'Invalid preferred_channel value', value: 'fax' },
+      { row: 101, error: 'Email domain not allowed', value: 'test@invalid.local' },
+    ],
+  },
+  {
+    id: 'sync-e5f6-4789-abcd-333333333333',
+    integration_id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    started_at: '2025-12-25T14:00:00Z',
+    completed_at: '2025-12-25T14:00:05Z',
+    status: 'failed' as const,
+    total_rows: 0,
+    success_count: 0,
+    error_count: 0,
+    skipped_count: 0,
+    file_name: null,
+    errors: [{ error: 'Connection refused - server sftp.generationfertility.com:22 unreachable' }],
+  },
+  {
+    id: 'sync-e5f6-4789-abcd-444444444444',
+    integration_id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    started_at: '2025-12-23T14:00:00Z',
+    completed_at: '2025-12-23T14:01:30Z',
+    status: 'success' as const,
+    total_rows: 89,
+    success_count: 89,
+    error_count: 0,
+    skipped_count: 0,
+    file_name: 'contacts_20251223.csv',
+    errors: [],
+  },
+  {
+    id: 'sync-e5f6-4789-abcd-555555555555',
+    integration_id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    started_at: '2025-12-20T14:00:00Z',
+    completed_at: '2025-12-20T14:02:00Z',
+    status: 'success' as const,
+    total_rows: 156,
+    success_count: 156,
+    error_count: 0,
+    skipped_count: 0,
+    file_name: 'contacts_20251220.csv',
+    errors: [],
+  },
+];
+
 // Demo events for manage events page
 export const DEMO_MANAGE_EVENTS = [
   {
