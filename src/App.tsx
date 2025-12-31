@@ -15,7 +15,7 @@ import NPSQuestions from './pages/nps/Questions';
 import SentLogs from './pages/nps/SentLogs';
 import ManageEvents from './pages/nps/ManageEvents';
 import CreateEvent from './pages/nps/CreateEvent';
-import Integration from './pages/nps/Integration';
+import EventDetail from './pages/nps/EventDetail';
 import Reviews from './pages/Reviews';
 import AllContacts from './pages/contacts/AllContacts';
 import Unsubscribed from './pages/contacts/Unsubscribed';
@@ -96,7 +96,7 @@ const App = () => (
               <Route path="nps/manage-events" element={<ManageEvents />} />
               <Route path="nps/events/create" element={<CreateEvent />} />
               <Route path="nps/events/:id/edit" element={<CreateEvent />} />
-              <Route path="nps/integration" element={<Integration />} />
+              <Route path="nps/events/:id" element={<EventDetail />} />
               <Route path="reviews" element={<Reviews />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />

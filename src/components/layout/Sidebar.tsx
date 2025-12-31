@@ -5,7 +5,6 @@ import {
   MessageSquareText,
   Send,
   Calendar,
-  Share2,
   Star,
   Users,
   UserX,
@@ -63,9 +62,8 @@ const navigation: (NavItem | NavGroup)[] = [
     items: [
       { icon: BarChart3, label: 'Dashboard', href: '/nps/dashboard', section: 'dashboard' },
       { icon: MessageSquareText, label: 'Responses', href: '/nps/questions', section: 'questions' },
-      { icon: Send, label: 'Event History', href: '/nps/sent-logs', section: 'sent_logs' },
+      { icon: Send, label: 'Sent Logs', href: '/nps/sent-logs', section: 'sent_logs' },
       { icon: Calendar, label: 'Events & Surveys', href: '/nps/manage-events', section: 'manage_events' },
-      { icon: Share2, label: 'Distribution', href: '/nps/integration', section: 'integration' },
     ],
   },
   { icon: Star, label: 'Reviews', href: '/reviews', section: 'reviews' },
