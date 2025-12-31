@@ -16,17 +16,19 @@ import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { EditContactModal } from '@/components/contacts/EditContactModal';
+import { DuplicateDetectionModal } from '@/components/contacts/DuplicateDetectionModal';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { BulkActionBar } from '@/components/ui/bulk-action-bar';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
-import { ColumnVisibilityToggle, useColumnVisibility, ColumnDef } from '@/components/ui/column-visibility-toggle';
+import { ColumnVisibilityToggle, ColumnDef } from '@/components/ui/column-visibility-toggle';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Send, ChevronDown, X, Pencil, MoreHorizontal, SlidersHorizontal, Globe } from 'lucide-react';
+import { Search, Plus, Download, Upload, Users, Eye, Mail, Phone, FileDown, Send, ChevronDown, X, Pencil, MoreHorizontal, SlidersHorizontal, Globe, GitMerge } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
 import { ScoreBadge } from '@/components/ui/score-badge';
@@ -66,13 +68,22 @@ export default function AllContacts() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [sendEventModalOpen, setSendEventModalOpen] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   
-  const { isVisible } = useColumnVisibility(COLUMN_DEFS, 'contacts-columns');
+  // Column visibility state - synced via onChange callback
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    COLUMN_DEFS.filter(c => c.defaultVisible).map(c => c.key)
+  );
+  const isVisible = (key: string) => visibleColumns.includes(key);
   
   const { availableBrands, getLocationsForBrand } = useBrandLocationContext();
   
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  
+  // Import state
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, isImporting: false });
   
   // Filter states
   const [filterBrand, setFilterBrand] = useState<string>('all');
@@ -255,6 +266,160 @@ export default function AllContacts() {
   const handleConfirmSendEvent = () => { if (!selectedEventId) { toast({ title: 'Please select an event', variant: 'destructive' }); return; } navigate('/nps/integration', { state: { selectedEventId, preSelectedContacts: selectedContactIds } }); setSendEventModalOpen(false); };
   const getPreferredChannelDisplay = (channel: string | null) => { switch (channel) { case 'both': return 'SMS & Email'; case 'sms': return 'SMS'; case 'email': return 'Email'; default: return channel || '-'; } };
 
+  const handleDownloadTemplate = () => {
+    const headers = ['full_name', 'email', 'phone', 'brand', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags'];
+    const example = ['John Doe', 'john@example.com', '+1 555 123 4567', 'Main Brand', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning'];
+    const csv = [headers.join(','), example.join(',')].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contacts-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Template downloaded', description: 'Fill in the CSV and upload it to import contacts.' });
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      toast({ title: 'No file selected', description: 'Please select a CSV file to import.', variant: 'destructive' });
+      return;
+    }
+
+    setImportProgress({ current: 0, total: 0, isImporting: true });
+
+    try {
+      const text = await importFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast({ title: 'Invalid file', description: 'CSV must have a header row and at least one data row.', variant: 'destructive' });
+        setImportProgress({ current: 0, total: 0, isImporting: false });
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+      const dataRows = lines.slice(1);
+      
+      setImportProgress({ current: 0, total: dataRows.length, isImporting: true });
+
+      let successCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < dataRows.length; i++) {
+        try {
+          const values = dataRows[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+          const row: Record<string, string> = {};
+          headers.forEach((header, idx) => {
+            row[header] = values[idx] || '';
+          });
+
+          // Parse name
+          let firstName = '', lastName = '';
+          if (row.full_name) {
+            const parts = row.full_name.split(' ');
+            firstName = parts[0] || '';
+            lastName = parts.slice(1).join(' ') || '';
+          } else {
+            firstName = row.first_name || '';
+            lastName = row.last_name || '';
+          }
+
+          if (!firstName) {
+            errors.push(`Row ${i + 2}: Missing name`);
+            continue;
+          }
+
+          // Parse preferred channel
+          const preferSms = row.preferred_sms?.toLowerCase() === 'true';
+          const preferEmail = row.preferred_email?.toLowerCase() === 'true' || (!row.preferred_sms && !row.preferred_email);
+          let preferred_channel = 'email';
+          if (preferSms && preferEmail) preferred_channel = 'both';
+          else if (preferSms) preferred_channel = 'sms';
+          else if (preferEmail) preferred_channel = 'email';
+
+          // Find brand ID
+          let brand_id = null;
+          if (row.brand) {
+            const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.toLowerCase());
+            if (brand) brand_id = brand.id;
+          }
+
+          // Find location ID (from all locations query)
+          let location_id = null;
+          if (row.location && brand_id) {
+            const { data: locs } = await supabase.from('locations').select('id, name').eq('brand_id', brand_id);
+            const loc = locs?.find(l => l.name.toLowerCase() === row.location.toLowerCase());
+            if (loc) location_id = loc.id;
+          }
+
+          // Insert contact
+          const { data: contact, error } = await supabase.from('contacts').insert({
+            first_name: firstName,
+            last_name: lastName || null,
+            email: row.email || null,
+            phone: row.phone || null,
+            preferred_channel,
+            preferred_language: row.preferred_language || 'en',
+            brand_id,
+            location_id,
+            status: 'active',
+          }).select().single();
+
+          if (error) {
+            errors.push(`Row ${i + 2}: ${error.message}`);
+            continue;
+          }
+
+          // Handle tags
+          if (row.tags && contact) {
+            const tagNames = row.tags.split(/[,;]/).map(t => t.trim()).filter(Boolean);
+            for (const tagName of tagNames) {
+              // Find or create tag
+              let tag = contactTags.find((t: any) => t.name.toLowerCase() === tagName.toLowerCase());
+              if (!tag) {
+                const { data: newTag } = await supabase.from('contact_tags').insert({ name: tagName }).select().single();
+                if (newTag) tag = newTag;
+              }
+              if (tag) {
+                await supabase.from('contact_tag_assignments').insert({ contact_id: contact.id, tag_id: tag.id });
+              }
+            }
+          }
+
+          successCount++;
+        } catch (err: any) {
+          errors.push(`Row ${i + 2}: ${err.message}`);
+        }
+
+        setImportProgress({ current: i + 1, total: dataRows.length, isImporting: true });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-tags'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-tag-assignments'] });
+
+      if (errors.length > 0) {
+        toast({
+          title: `Imported ${successCount} of ${dataRows.length} contacts`,
+          description: `${errors.length} row(s) had errors. Check console for details.`,
+          variant: successCount > 0 ? 'default' : 'destructive',
+        });
+        console.warn('Import errors:', errors);
+      } else {
+        toast({ title: 'Import complete', description: `Successfully imported ${successCount} contacts.` });
+      }
+
+      setImportModalOpen(false);
+      setImportFile(null);
+    } catch (err: any) {
+      toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setImportProgress({ current: 0, total: 0, isImporting: false });
+    }
+  };
+
   const handleExport = (type: 'current' | 'all') => {
     const dataToExport = type === 'current' ? filteredContacts : contacts;
     const csv = [
@@ -307,6 +472,7 @@ export default function AllContacts() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="All Contacts" description="Manage your patient contacts" actions={
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setDuplicateModalOpen(true)}><GitMerge className="h-4 w-4 mr-2" />Find Duplicates</Button>
           <Button variant="outline" onClick={() => setImportModalOpen(true)}><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline"><Download className="h-4 w-4 mr-2" />Export<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => handleExport('current')}>Export current view ({filteredContacts.length})</DropdownMenuItem><DropdownMenuItem onClick={() => handleExport('all')}>Export all ({contacts.length})</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
           <Button className="btn-coral" onClick={() => setAddModalOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Contact</Button>
@@ -337,7 +503,7 @@ export default function AllContacts() {
               </div>
             </div></PopoverContent>
           </Popover>
-          <ColumnVisibilityToggle columns={COLUMN_DEFS} storageKey="contacts-columns" />
+          <ColumnVisibilityToggle columns={COLUMN_DEFS} storageKey="contacts-columns" onChange={setVisibleColumns} />
           <div className="text-sm text-muted-foreground">{sortedData.length} of {contacts.length} contacts</div>
         </div>
         <BulkActionBar selectedCount={selectedContactIds.length} itemLabel="contact" onClearSelection={() => setSelectedContactIds([])} className="mt-3"><Button size="sm" onClick={handleSendEvent} className="btn-coral"><Send className="h-4 w-4 mr-2" />Send Event</Button></BulkActionBar>
@@ -382,8 +548,34 @@ export default function AllContacts() {
 
       <ContactDetailsModal contactId={selectedContactId} open={contactDetailOpen} onOpenChange={setContactDetailOpen} onEdit={() => { setContactDetailOpen(false); setEditModalOpen(true); }} />
       <EditContactModal contactId={selectedContactId} open={editModalOpen} onOpenChange={setEditModalOpen} />
+      <DuplicateDetectionModal open={duplicateModalOpen} onOpenChange={setDuplicateModalOpen} contacts={contacts} contactTagMap={contactTagMap} />
 
-      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle>Import Contacts from CSV</DialogTitle><DialogDescription>Upload a CSV file with your contacts.</DialogDescription></DialogHeader><div className="space-y-4 py-4"><div className="space-y-2"><p className="text-sm"><strong>Step 1:</strong> Download the template</p><Button variant="outline" size="sm"><FileDown className="h-4 w-4 mr-2" />Download Template</Button></div><div className="space-y-2"><p className="text-sm"><strong>Step 2:</strong> Fill in the following fields:</p><ul className="text-sm text-muted-foreground list-disc list-inside"><li>full_name (required)</li><li>email</li><li>phone</li><li>brand</li><li>location</li><li>preferred_sms (TRUE/FALSE)</li><li>preferred_email (TRUE/FALSE)</li><li>preferred_language (en, es, fr, pt, zh, etc.)</li><li>tags (comma-separated)</li></ul></div><div className="space-y-2"><p className="text-sm"><strong>Step 3:</strong> Upload your file</p><div className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/20"><p className="text-muted-foreground text-sm mb-4">Drop your CSV file here or click to browse</p><Input type="file" accept=".csv" className="max-w-xs mx-auto" /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setImportModalOpen(false)}>Cancel</Button><Button className="btn-coral" onClick={() => { toast({ title: 'Import started' }); setImportModalOpen(false); }}>Import</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle>Import Contacts from CSV</DialogTitle><DialogDescription>Upload a CSV file with your contacts.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
+        <div className="space-y-2"><p className="text-sm"><strong>Step 1:</strong> Download the template</p><Button variant="outline" size="sm" onClick={handleDownloadTemplate}><FileDown className="h-4 w-4 mr-2" />Download Template</Button></div>
+        <div className="space-y-2"><p className="text-sm"><strong>Step 2:</strong> Fill in the following fields:</p><ul className="text-sm text-muted-foreground list-disc list-inside"><li>full_name (required)</li><li>email</li><li>phone</li><li>brand</li><li>location</li><li>preferred_sms (TRUE/FALSE)</li><li>preferred_email (TRUE/FALSE)</li><li>preferred_language (en, es, fr, pt, zh, etc.)</li><li>tags (comma-separated)</li></ul></div>
+        <div className="space-y-2"><p className="text-sm"><strong>Step 3:</strong> Upload your file</p>
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center bg-muted/20">
+            {importFile ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm font-medium">{importFile.name}</span>
+                <Button variant="ghost" size="sm" onClick={() => setImportFile(null)}><X className="h-4 w-4" /></Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm mb-4">Drop your CSV file here or click to browse</p>
+            )}
+            <Input type="file" accept=".csv" className="max-w-xs mx-auto" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+          </div>
+        </div>
+        {importProgress.isImporting && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Importing...</span>
+              <span>{importProgress.current} / {importProgress.total}</span>
+            </div>
+            <Progress value={(importProgress.current / importProgress.total) * 100} />
+          </div>
+        )}
+      </div><DialogFooter><Button variant="outline" onClick={() => { setImportModalOpen(false); setImportFile(null); }}>Cancel</Button><Button className="btn-coral" onClick={handleImport} disabled={!importFile || importProgress.isImporting}>{importProgress.isImporting ? 'Importing...' : 'Import'}</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}><DialogContent className="sm:max-w-[550px]"><DialogHeader><DialogTitle>Add Contact</DialogTitle><DialogDescription>Add a new contact to your database.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
         <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name *</Label><Input value={newContact.first_name} onChange={(e) => setNewContact({ ...newContact, first_name: e.target.value })} /></div><div className="space-y-2"><Label>Last Name</Label><Input value={newContact.last_name} onChange={(e) => setNewContact({ ...newContact, last_name: e.target.value })} /></div></div>
