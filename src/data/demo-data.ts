@@ -265,6 +265,26 @@ export const DEMO_REVIEWS = [
   },
 ];
 
+// Demo integrations for SFTP
+export const DEMO_INTEGRATIONS = [
+  {
+    id: 'int-sftp-e5f6-4789-abcd-111111111111',
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-111111111111',
+    type: 'sftp',
+    status: 'active',
+    config: {
+      host: 'sftp.generationfertility.com',
+      port: 22,
+      username: 'survey_sync',
+      remote_path: '/incoming/surveys/',
+      schedule: 'Mon, Wed, Fri at 9:00 AM',
+    },
+    last_used_at: '2025-12-30T14:00:00Z',
+    sends_count: 1250,
+    created_at: '2025-11-15T10:00:00Z',
+  },
+];
+
 // Demo events for manage events page
 export const DEMO_MANAGE_EVENTS = [
   {
@@ -278,11 +298,15 @@ export const DEMO_MANAGE_EVENTS = [
     event_locations: [
       { location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111' },
       { location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222' },
+      { location_id: 'l1a2c3d4-e5f6-4789-abcd-333333333333' },
+      { location_id: 'l1a2c3d4-e5f6-4789-abcd-444444444444' },
     ],
     invitations: Array(3500).fill({ id: '1', completed_at: null }).map((_, i) => ({ 
       id: `inv-${i}`, 
       completed_at: i < 1050 ? '2025-12-01' : null 
     })),
+    // Demo integrations
+    integrations: [DEMO_INTEGRATIONS[0]],
   },
   {
     id: 'e1a2c3d4-e5f6-4789-abcd-222222222222',
@@ -292,11 +316,15 @@ export const DEMO_MANAGE_EVENTS = [
     created_at: '2025-12-10T10:00:00Z',
     brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333',
     brand: { name: 'Grace Fertility' },
-    event_locations: [{ location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111' }],
+    event_locations: [
+      { location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111' },
+      { location_id: 'l3a2c3d4-e5f6-4789-abcd-222222222222' },
+    ],
     invitations: Array(1200).fill({}).map((_, i) => ({ 
       id: `inv-${i}`, 
       completed_at: i < 480 ? '2025-12-01' : null 
     })),
+    integrations: [],
   },
   {
     id: 'e1a2c3d4-e5f6-4789-abcd-333333333333',
@@ -306,8 +334,12 @@ export const DEMO_MANAGE_EVENTS = [
     created_at: '2025-12-05T10:00:00Z',
     brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111',
     brand: { name: 'Conceptia Fertility' },
-    event_locations: [],
+    event_locations: [
+      { location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111' },
+      { location_id: 'l2a2c3d4-e5f6-4789-abcd-222222222222' },
+    ],
     invitations: [],
+    integrations: [],
   },
 ];
 

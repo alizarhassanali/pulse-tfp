@@ -343,33 +343,33 @@ export default function ManageEvents() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => navigate(`/nps/events/${event.id}/edit`)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => {
-                        if (event.status !== 'active') {
-                          // Show activation confirmation before sending
-                          setActivateId(event.id);
-                        } else {
-                          // Already active, go directly to distribution
-                          navigate('/nps/integration', { state: { eventId: event.id } });
-                        }
-                      }}
-                    >
-                      <Send className="h-4 w-4 mr-1" />
-                      Send
-                    </Button>
-                  </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/nps/events/${event.id}/edit`)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          if (event.status !== 'active') {
+                            // Show activation confirmation before sending
+                            setActivateId(event.id);
+                          } else {
+                            // Already active, go to event detail with distribution tab
+                            navigate(`/nps/events/${event.id}`, { state: { tab: 'distribution' } });
+                          }
+                        }}
+                      >
+                        <Send className="h-4 w-4 mr-1" />
+                        Send
+                      </Button>
+                    </div>
                 </CardContent>
               </Card>
             );
@@ -435,7 +435,7 @@ export default function ManageEvents() {
                 if (activateId.startsWith('e1a2c3d4')) {
                   toast({ title: 'Event activated', description: 'Demo event activated successfully.' });
                   setActivateId(null);
-                  navigate('/nps/integration', { state: { eventId: activateId } });
+                  navigate(`/nps/events/${activateId}`, { state: { tab: 'distribution' } });
                   return;
                 }
                 
@@ -449,7 +449,7 @@ export default function ManageEvents() {
                   
                   queryClient.invalidateQueries({ queryKey: ['events'] });
                   toast({ title: 'Event activated' });
-                  navigate('/nps/integration', { state: { eventId: activateId } });
+                  navigate(`/nps/events/${activateId}`, { state: { tab: 'distribution' } });
                 } catch (error: any) {
                   toast({ title: 'Failed to activate event', description: error.message, variant: 'destructive' });
                 } finally {

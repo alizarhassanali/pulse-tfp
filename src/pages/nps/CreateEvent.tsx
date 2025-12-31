@@ -449,7 +449,7 @@ export default function CreateEvent() {
     onSuccess: (event, status) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       if (status === 'active') {
-        navigate('/nps/integration', { state: { eventId: event.id } });
+        navigate(`/nps/events/${event.id}`, { state: { tab: 'distribution' } });
       } else {
         navigate('/nps/manage-events');
       }
