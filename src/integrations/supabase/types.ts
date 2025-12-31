@@ -628,6 +628,7 @@ export type Database = {
           google_review_config: Json | null
           id: string
           name: string
+          review_channels_config: Json | null
           timezone: string | null
           updated_at: string | null
         }
@@ -640,6 +641,7 @@ export type Database = {
           google_review_config?: Json | null
           id?: string
           name: string
+          review_channels_config?: Json | null
           timezone?: string | null
           updated_at?: string | null
         }
@@ -652,6 +654,7 @@ export type Database = {
           google_review_config?: Json | null
           id?: string
           name?: string
+          review_channels_config?: Json | null
           timezone?: string | null
           updated_at?: string | null
         }
@@ -794,8 +797,10 @@ export type Database = {
       reviews: {
         Row: {
           brand_id: string | null
+          channel: string | null
           created_at: string | null
           external_id: string | null
+          fetched_at: string | null
           id: string
           location_id: string | null
           rating: number | null
@@ -807,8 +812,10 @@ export type Database = {
         }
         Insert: {
           brand_id?: string | null
+          channel?: string | null
           created_at?: string | null
           external_id?: string | null
+          fetched_at?: string | null
           id?: string
           location_id?: string | null
           rating?: number | null
@@ -820,8 +827,10 @@ export type Database = {
         }
         Update: {
           brand_id?: string | null
+          channel?: string | null
           created_at?: string | null
           external_id?: string | null
+          fetched_at?: string | null
           id?: string
           location_id?: string | null
           rating?: number | null
