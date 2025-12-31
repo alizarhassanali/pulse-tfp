@@ -330,14 +330,6 @@ export function Sidebar() {
           collapsed ? 'w-[60px]' : 'w-60'
         )}
       >
-        {/* User Profile at Top */}
-        <div className={cn('border-b border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
-          <div className="flex items-center justify-between">
-            {!collapsed && <UserMenu collapsed={collapsed} />}
-            {collapsed && <UserMenu collapsed={collapsed} />}
-          </div>
-        </div>
-
         {/* Collapse Button */}
         <div className={cn('flex', collapsed ? 'justify-center py-2' : 'justify-end px-3 py-2')}>
           <Button
@@ -385,8 +377,8 @@ export function Sidebar() {
           })}
         </nav>
         
-        {/* Help Link at Bottom */}
-        <div className={cn('border-t border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
+        {/* Help Link */}
+        <div className={cn('', collapsed ? 'px-2 pb-2' : 'px-3 pb-2')}>
           {collapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
@@ -410,6 +402,11 @@ export function Sidebar() {
               <span>Help & Support</span>
             </a>
           )}
+        </div>
+
+        {/* User Profile at Bottom */}
+        <div className={cn('border-t border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
+          <UserMenu collapsed={collapsed} />
         </div>
       </aside>
     </TooltipProvider>
