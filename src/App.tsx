@@ -24,6 +24,7 @@ import Templates from './pages/settings/Templates';
 
 import AutomationRules from './pages/settings/AutomationRules';
 import Brands from './pages/settings/Brands';
+import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
 import NotFound from './pages/NotFound';
 
@@ -104,8 +105,8 @@ const App = () => (
               <Route path="settings/profile" element={<ProfileSettings />} />
               <Route path="settings/templates" element={<Templates />} />
               <Route path="settings/automations" element={<AutomationRules />} />
-              
               <Route path="settings/brands" element={<Brands />} />
+              <Route path="settings/reviews" element={<ReviewSettings />} />
               <Route path="settings/users" element={<UsersPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
