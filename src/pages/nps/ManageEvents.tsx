@@ -25,9 +25,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, MoreVertical, Edit, Copy, Trash2, Power, Building2, Send, Search, HelpCircle, MapPin } from 'lucide-react';
+import { Plus, Calendar, MoreVertical, Edit, Copy, Trash2, Power, Building2, Send, Search, HelpCircle, MapPin, Server } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { DEMO_MANAGE_EVENTS, DEMO_BRANDS, getLocationName } from '@/data/demo-data';
 
@@ -77,6 +82,27 @@ export default function ManageEvents() {
       return filteredData;
     },
   });
+
+  // Fetch integrations for all events
+  const { data: integrations = [] } = useQuery({
+    queryKey: ['event-integrations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('event_id, type, status, last_used_at')
+        .eq('type', 'sftp');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build map of event_id to SFTP integration
+  const eventSftpMap = integrations.reduce((acc: Record<string, any>, integration: any) => {
+    if (integration.event_id) {
+      acc[integration.event_id] = integration;
+    }
+    return acc;
+  }, {});
 
   // Use demo data if no real data, but filter by selected brands
   const events = dbEvents.length > 0 ? dbEvents : DEMO_MANAGE_EVENTS.filter(event => {
@@ -218,7 +244,27 @@ export default function ManageEvents() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold font-mono">{event.name}</CardTitle>
-                      {getStatusBadge(event.status)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(event.status)}
+                        {eventSftpMap[event.id] && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                                <Server className="h-3 w-3" />
+                                SFTP
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>SFTP Integration: {eventSftpMap[event.id].status === 'active' ? 'Active' : 'Configured'}</p>
+                              {eventSftpMap[event.id].last_used_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  Last sync: {format(parseISO(eventSftpMap[event.id].last_used_at), 'MMM d, h:mm a')}
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
