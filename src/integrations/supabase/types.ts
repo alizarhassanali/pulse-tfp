@@ -848,6 +848,59 @@ export type Database = {
           },
         ]
       }
+      sftp_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_count: number | null
+          errors: Json | null
+          file_name: string | null
+          id: string
+          integration_id: string | null
+          skipped_count: number | null
+          started_at: string
+          status: string
+          success_count: number | null
+          total_rows: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_count?: number | null
+          errors?: Json | null
+          file_name?: string | null
+          id?: string
+          integration_id?: string | null
+          skipped_count?: number | null
+          started_at?: string
+          status?: string
+          success_count?: number | null
+          total_rows?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_count?: number | null
+          errors?: Json | null
+          file_name?: string | null
+          id?: string
+          integration_id?: string | null
+          skipped_count?: number | null
+          started_at?: string
+          status?: string
+          success_count?: number | null
+          total_rows?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sftp_sync_logs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submission_notes: {
         Row: {
           created_at: string | null

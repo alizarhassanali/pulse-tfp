@@ -29,7 +29,10 @@ import {
   Clock,
   RefreshCw,
   Info,
+  History,
 } from 'lucide-react';
+import { SftpSyncHistoryModal, SftpSyncLog } from './SftpSyncHistoryModal';
+import { DEMO_SFTP_SYNC_LOGS } from '@/data/demo-data';
 
 interface Event {
   id: string;
@@ -159,7 +162,9 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // SFTP state
+  // Sync history modal state
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<SftpSyncLog[]>(DEMO_SFTP_SYNC_LOGS);
 
   // SFTP state
   const [sftpHost, setSftpHost] = useState('');
@@ -449,12 +454,43 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
                         Next: {sftpScheduleDays.map(d => d.slice(0, 3)).join(', ')} at {sftpScheduleTime}
                       </p>
                     )}
+                    {/* Recent sync indicators */}
+                    {sftpStatus === 'connected' && syncLogs.length > 0 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-muted-foreground">Recent syncs:</span>
+                        <div className="flex items-center gap-1">
+                          {syncLogs.slice(0, 5).map((log) => (
+                            <span
+                              key={log.id}
+                              className={`w-2 h-2 rounded-full ${
+                                log.status === 'success' ? 'bg-green-500' :
+                                log.status === 'partial' ? 'bg-yellow-500' :
+                                log.status === 'failed' ? 'bg-red-500' :
+                                'bg-blue-500'
+                              }`}
+                              title={`${log.status} - ${new Date(log.started_at).toLocaleDateString()}`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          ({syncLogs.filter(l => l.status === 'success').length}/{syncLogs.length} successful)
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleSftpTest}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Test Connection
-                </Button>
+                <div className="flex items-center gap-2">
+                  {sftpStatus === 'connected' && (
+                    <Button variant="outline" size="sm" onClick={() => setShowSyncHistory(true)}>
+                      <History className="h-4 w-4 mr-2" />
+                      View History
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={handleSftpTest}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Test Connection
+                  </Button>
+                </div>
               </div>
 
               {/* SFTP Credentials */}
@@ -695,6 +731,13 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
           </Button>
         </CardContent>
       </Card>
+
+      {/* SFTP Sync History Modal */}
+      <SftpSyncHistoryModal
+        open={showSyncHistory}
+        onOpenChange={setShowSyncHistory}
+        syncLogs={syncLogs}
+      />
     </div>
   );
 }
