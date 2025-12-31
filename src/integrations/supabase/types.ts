@@ -625,6 +625,7 @@ export type Database = {
           created_at: string | null
           gmb_link: string | null
           google_place_id: string | null
+          google_review_config: Json | null
           id: string
           name: string
           timezone: string | null
@@ -636,6 +637,7 @@ export type Database = {
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
+          google_review_config?: Json | null
           id?: string
           name: string
           timezone?: string | null
@@ -647,6 +649,7 @@ export type Database = {
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
+          google_review_config?: Json | null
           id?: string
           name?: string
           timezone?: string | null

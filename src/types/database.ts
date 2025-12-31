@@ -13,6 +13,12 @@ export interface Brand {
   updated_at: string;
 }
 
+export interface LocationGoogleReviewConfig {
+  enabled: boolean;
+  sync_frequency?: 'hourly' | 'every_4_hours' | 'every_8_hours' | 'daily' | 'weekly';
+  notification_email?: string;
+}
+
 export interface Location {
   id: string;
   brand_id: string;
@@ -20,6 +26,8 @@ export interface Location {
   address: string | null;
   timezone: string;
   gmb_link: string | null;
+  google_place_id?: string | null;
+  google_review_config?: LocationGoogleReviewConfig | null;
   created_at: string;
   updated_at: string;
   brand?: Brand;
