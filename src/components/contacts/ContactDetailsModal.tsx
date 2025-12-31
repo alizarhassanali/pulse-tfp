@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
-import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil } from 'lucide-react';
+import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil, Globe, Calendar, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations } from '@/data/demo-data';
+import { getLanguageLabel } from '@/types/database';
 
 interface ContactDetailsModalProps {
   contactId: string | null;
@@ -44,7 +45,6 @@ const getDemoContact = (id: string) => {
     ...demoContact,
     brand: brand ? { name: brand.name } : null,
     location: location ? { name: location.name } : null,
-    created_at: '2025-01-01T00:00:00Z',
   };
 };
 
@@ -265,9 +265,25 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: C
                   <p className="font-medium capitalize">{getPreferredMethodDisplay(contact.preferred_channel)}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-muted-foreground">Created</span>
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Globe className="h-3 w-3" /> Language
+                  </span>
+                  <p className="font-medium">{getLanguageLabel(contact.preferred_language || 'en')}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Created
+                  </span>
                   <p className="font-medium">
                     {contact.created_at ? format(parseISO(contact.created_at), 'MMM d, yyyy') : '-'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Updated
+                  </span>
+                  <p className="font-medium">
+                    {contact.updated_at ? format(parseISO(contact.updated_at), 'MMM d, yyyy') : '-'}
                   </p>
                 </div>
               </div>

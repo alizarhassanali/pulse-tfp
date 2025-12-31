@@ -1,12 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown, X, Tag } from 'lucide-react';
+import { Check, ChevronsUpDown, X, Tag, Plus, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ContactTagsSelectProps {
   selectedTags: string[];
@@ -22,6 +24,10 @@ export function ContactTagsSelect({
   className 
 }: ContactTagsSelectProps) {
   const [open, setOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: tags = [] } = useQuery({
     queryKey: ['contact-tags-list'],
@@ -32,6 +38,30 @@ export function ContactTagsSelect({
         .order('name');
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  const createTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from('contact_tags')
+        .insert({ name: name.trim() })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contact-tags-list'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-tags'] });
+      // Auto-select the newly created tag
+      onTagsChange([...selectedTags, data.id]);
+      setNewTagName('');
+      setIsCreating(false);
+      toast({ title: 'Tag created', description: `"${data.name}" has been created and selected.` });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to create tag', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -46,6 +76,20 @@ export function ContactTagsSelect({
   const handleRemove = (tagId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onTagsChange(selectedTags.filter(id => id !== tagId));
+  };
+
+  const handleCreateTag = () => {
+    if (!newTagName.trim()) {
+      toast({ title: 'Please enter a tag name', variant: 'destructive' });
+      return;
+    }
+    // Check if tag already exists
+    const exists = tags.some((tag: any) => tag.name.toLowerCase() === newTagName.trim().toLowerCase());
+    if (exists) {
+      toast({ title: 'Tag already exists', variant: 'destructive' });
+      return;
+    }
+    createTagMutation.mutate(newTagName);
   };
 
   const selectedTagNames = tags.filter((tag: any) => selectedTags.includes(tag.id));
@@ -103,6 +147,61 @@ export function ContactTagsSelect({
               ))}
             </CommandGroup>
           </CommandList>
+          
+          {/* Create new tag section */}
+          <div className="border-t p-2">
+            {isCreating ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="New tag name..."
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCreateTag();
+                    }
+                    if (e.key === 'Escape') {
+                      setIsCreating(false);
+                      setNewTagName('');
+                    }
+                  }}
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                <Button 
+                  size="sm" 
+                  className="h-8 px-2" 
+                  onClick={handleCreateTag}
+                  disabled={createTagMutation.isPending}
+                >
+                  {createTagMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-8 px-2" 
+                  onClick={() => { setIsCreating(false); setNewTagName(''); }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-muted-foreground hover:text-foreground"
+                onClick={() => setIsCreating(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create new tag
+              </Button>
+            )}
+          </div>
         </Command>
       </PopoverContent>
     </Popover>

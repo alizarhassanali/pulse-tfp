@@ -11,6 +11,7 @@ import { ContactTagsSelect } from '@/components/contacts/ContactTagsSelect';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { LANGUAGE_OPTIONS } from '@/types/database';
 
 interface EditContactModalProps {
   contactId: string | null;
@@ -36,6 +37,7 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
     phone: '',
     prefer_sms: false,
     prefer_email: true,
+    preferred_language: 'en',
     brand_id: '',
     location_id: '',
     status: 'active',
@@ -91,6 +93,7 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
         phone: contact.phone || '',
         prefer_sms: preferSms,
         prefer_email: preferEmail,
+        preferred_language: contact.preferred_language || 'en',
         brand_id: contact.brand_id || '',
         location_id: contact.location_id || '',
         status: contact.status || 'active',
@@ -122,6 +125,7 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
           email: formData.email || null,
           phone: formData.phone || null,
           preferred_channel,
+          preferred_language: formData.preferred_language,
           brand_id: formData.brand_id || null,
           location_id: formData.location_id || null,
           status: formData.status,
@@ -255,6 +259,23 @@ export function EditContactModal({ contactId, open, onOpenChange, onSuccess }: E
                   <Label htmlFor="prefer_sms" className="font-normal">SMS</Label>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Preferred Language</Label>
+              <Select 
+                value={formData.preferred_language} 
+                onValueChange={(v) => setFormData(prev => ({ ...prev, preferred_language: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

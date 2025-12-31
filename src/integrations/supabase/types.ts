@@ -250,6 +250,7 @@ export type Database = {
           location_id: string | null
           phone: string | null
           preferred_channel: string | null
+          preferred_language: string | null
           status: string | null
           tags: Json | null
           unsubscribed_at: string | null
@@ -265,6 +266,7 @@ export type Database = {
           location_id?: string | null
           phone?: string | null
           preferred_channel?: string | null
+          preferred_language?: string | null
           status?: string | null
           tags?: Json | null
           unsubscribed_at?: string | null
@@ -280,6 +282,7 @@ export type Database = {
           location_id?: string | null
           phone?: string | null
           preferred_channel?: string | null
+          preferred_language?: string | null
           status?: string | null
           tags?: Json | null
           unsubscribed_at?: string | null

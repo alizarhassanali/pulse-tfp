@@ -35,13 +35,13 @@ export const DEMO_EVENTS = [
   { id: 'e1a2c3d4-e5f6-4789-abcd-333333333333', name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
 ];
 
-// Demo contacts with all required fields
+// Demo contacts with all required fields including preferred_language
 export const DEMO_CONTACTS = [
-  { id: 'c1a2c3d4-e5f6-4789-abcd-111111111111', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 9 },
-  { id: 'c1a2c3d4-e5f6-4789-abcd-222222222222', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111', status: 'unsubscribed', last_score: 6 },
-  { id: 'c1a2c3d4-e5f6-4789-abcd-333333333333', first_name: 'Emma', last_name: 'Johnson', email: 'emma@example.com', phone: '+15552345678', preferred_channel: 'both', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 10 },
-  { id: 'c1a2c3d4-e5f6-4789-abcd-444444444444', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+15553456789', preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 8 },
-  { id: 'c1a2c3d4-e5f6-4789-abcd-555555555555', first_name: 'Sarah', last_name: 'Williams', email: 'sarah.w@example.com', phone: null, preferred_channel: 'email', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', location_id: 'l4a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 7 },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-111111111111', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 9, created_at: '2025-11-01T10:00:00Z', updated_at: '2025-12-15T14:30:00Z' },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-222222222222', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', preferred_language: 'es', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111', status: 'unsubscribed', last_score: 6, created_at: '2025-10-15T09:00:00Z', updated_at: '2025-12-10T11:00:00Z' },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-333333333333', first_name: 'Emma', last_name: 'Johnson', email: 'emma@example.com', phone: '+15552345678', preferred_channel: 'both', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 10, created_at: '2025-09-20T08:00:00Z', updated_at: '2025-12-20T16:45:00Z' },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-444444444444', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+15553456789', preferred_channel: 'email', preferred_language: 'zh', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 8, created_at: '2025-08-10T12:00:00Z', updated_at: '2025-12-18T09:30:00Z' },
+  { id: 'c1a2c3d4-e5f6-4789-abcd-555555555555', first_name: 'Sarah', last_name: 'Williams', email: 'sarah.w@example.com', phone: null, preferred_channel: 'email', preferred_language: 'fr', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', location_id: 'l4a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 7, created_at: '2025-07-05T15:00:00Z', updated_at: '2025-12-22T10:15:00Z' },
 ];
 
 // Demo sent logs with complete information

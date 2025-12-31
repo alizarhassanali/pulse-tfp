@@ -34,6 +34,7 @@ export interface Contact {
   email: string | null;
   phone: string | null;
   preferred_channel: string;
+  preferred_language?: string;
   tags: string[];
   status: string;
   unsubscribed_at: string | null;
@@ -175,4 +176,22 @@ export const getScoreBadgeClass = (score: number): string => {
     case 'detractors':
       return 'badge-detractor';
   }
+};
+
+// Language options for contacts
+export const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'de', label: 'German' },
+];
+
+export const getLanguageLabel = (code: string): string => {
+  return LANGUAGE_OPTIONS.find(l => l.value === code)?.label || code;
 };
