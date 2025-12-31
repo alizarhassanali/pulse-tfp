@@ -37,11 +37,28 @@ export const DEMO_EVENTS = [
 
 // Demo contacts with all required fields including preferred_language
 export const DEMO_CONTACTS = [
+  // Original contacts
   { id: 'c1a2c3d4-e5f6-4789-abcd-111111111111', first_name: 'Jane', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15551234567', preferred_channel: 'email', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 9, created_at: '2025-11-01T10:00:00Z', updated_at: '2025-12-15T14:30:00Z' },
   { id: 'c1a2c3d4-e5f6-4789-abcd-222222222222', first_name: 'John', last_name: 'Smith', email: null, phone: '+15557654321', preferred_channel: 'sms', preferred_language: 'es', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', location_id: 'l3a2c3d4-e5f6-4789-abcd-111111111111', status: 'unsubscribed', last_score: 6, created_at: '2025-10-15T09:00:00Z', updated_at: '2025-12-10T11:00:00Z' },
   { id: 'c1a2c3d4-e5f6-4789-abcd-333333333333', first_name: 'Emma', last_name: 'Johnson', email: 'emma@example.com', phone: '+15552345678', preferred_channel: 'both', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 10, created_at: '2025-09-20T08:00:00Z', updated_at: '2025-12-20T16:45:00Z' },
   { id: 'c1a2c3d4-e5f6-4789-abcd-444444444444', first_name: 'Michael', last_name: 'Chen', email: 'michael.chen@example.com', phone: '+15553456789', preferred_channel: 'email', preferred_language: 'zh', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', location_id: 'l2a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 8, created_at: '2025-08-10T12:00:00Z', updated_at: '2025-12-18T09:30:00Z' },
   { id: 'c1a2c3d4-e5f6-4789-abcd-555555555555', first_name: 'Sarah', last_name: 'Williams', email: 'sarah.w@example.com', phone: null, preferred_channel: 'email', preferred_language: 'fr', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', location_id: 'l4a2c3d4-e5f6-4789-abcd-111111111111', status: 'active', last_score: 7, created_at: '2025-07-05T15:00:00Z', updated_at: '2025-12-22T10:15:00Z' },
+  
+  // Duplicate contacts for testing duplicate detection
+  // Duplicate of Jane Doe - same email (jane@clinic.com)
+  { id: 'c1a2c3d4-e5f6-4789-abcd-666666666666', first_name: 'Janet', last_name: 'Doe', email: 'jane@clinic.com', phone: '+15559876543', preferred_channel: 'sms', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: null, created_at: '2025-12-01T10:00:00Z', updated_at: '2025-12-25T14:30:00Z' },
+  
+  // Duplicate of John Smith - same phone (+15557654321)
+  { id: 'c1a2c3d4-e5f6-4789-abcd-777777777777', first_name: 'J.', last_name: 'Smith', email: 'jsmith@email.com', phone: '+15557654321', preferred_channel: 'email', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', location_id: 'l3a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 8, created_at: '2025-11-15T09:00:00Z', updated_at: '2025-12-20T11:00:00Z' },
+  
+  // Duplicate of Emma Johnson - same email (emma@example.com)
+  { id: 'c1a2c3d4-e5f6-4789-abcd-888888888888', first_name: 'Emma', last_name: 'J.', email: 'emma@example.com', phone: '+15559999999', preferred_channel: 'email', preferred_language: 'es', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', location_id: 'l1a2c3d4-e5f6-4789-abcd-333333333333', status: 'active', last_score: 7, created_at: '2025-10-05T08:00:00Z', updated_at: '2025-12-15T16:45:00Z' },
+  
+  // Duplicate of Michael Chen - same phone (+15553456789)
+  { id: 'c1a2c3d4-e5f6-4789-abcd-999999999999', first_name: 'Mike', last_name: 'Chen', email: 'm.chen@example.com', phone: '+15553456789', preferred_channel: 'both', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', location_id: 'l2a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 9, created_at: '2025-09-01T12:00:00Z', updated_at: '2025-12-10T09:30:00Z' },
+  
+  // Additional duplicate of Sarah Williams - same email (sarah.w@example.com)
+  { id: 'c1a2c3d4-e5f6-4789-abcd-aaaaaaaaaaaa', first_name: 'Sara', last_name: 'Williams', email: 'sarah.w@example.com', phone: '+15551112222', preferred_channel: 'sms', preferred_language: 'en', brand_id: 'b1a2c3d4-e5f6-4789-abcd-444444444444', location_id: 'l4a2c3d4-e5f6-4789-abcd-222222222222', status: 'active', last_score: 5, created_at: '2025-06-15T15:00:00Z', updated_at: '2025-12-18T10:15:00Z' },
 ];
 
 // Demo sent logs with complete information
