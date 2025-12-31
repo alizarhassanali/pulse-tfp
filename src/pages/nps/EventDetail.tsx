@@ -32,7 +32,7 @@ import { format, parseISO } from 'date-fns';
 // Import distribution components
 import { SendWizard } from '@/components/distribution/SendWizard';
 import { ShareLinkTab } from '@/components/distribution/ShareLinkTab';
-import { IntegrationsTab } from '@/components/distribution/IntegrationsTab';
+import { AutomatedSendsTab } from '@/components/distribution/AutomatedSendsTab';
 
 // Import the event setup components (we'll extract these)
 import EventSetupTab from '@/components/events/EventSetupTab';
@@ -266,11 +266,14 @@ export default function EventDetail() {
           </CardContent>
         </Card>
         
-        {/* Integration Status */}
-        <Card className={cn(
-          "shadow-soft border-border/50",
-          eventData.sftpIntegration?.status === 'active' && "border-success/50 bg-success/5"
-        )}>
+        {/* Integration Status - Clickable */}
+        <Card 
+          className={cn(
+            "shadow-soft border-border/50 cursor-pointer transition-all hover:border-primary/50 hover:shadow-md",
+            eventData.sftpIntegration?.status === 'active' && "border-success/50 bg-success/5"
+          )}
+          onClick={() => setActiveTab('automated')}
+        >
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
               <Server className={cn(
@@ -281,10 +284,12 @@ export default function EventDetail() {
                 <p className="text-sm font-medium">
                   {eventData.sftpIntegration ? 'SFTP Active' : 'No SFTP'}
                 </p>
-                {eventData.sftpIntegration?.last_used_at && (
+                {eventData.sftpIntegration?.last_used_at ? (
                   <p className="text-xs text-muted-foreground">
                     Last: {format(parseISO(eventData.sftpIntegration.last_used_at), 'MMM d, h:mm a')}
                   </p>
+                ) : (
+                  <p className="text-xs text-primary/70">Click to configure</p>
                 )}
               </div>
             </div>
@@ -296,16 +301,16 @@ export default function EventDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="distribution" className="flex items-center gap-2">
-            <Share2 className="h-4 w-4" />
-            Distribution
+            <Send className="h-4 w-4" />
+            Send Now
+          </TabsTrigger>
+          <TabsTrigger value="automated" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            Automated Sends
           </TabsTrigger>
           <TabsTrigger value="share" className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
             Share & QR
-          </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center gap-2">
-            <Server className="h-4 w-4" />
-            Integrations
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -348,17 +353,17 @@ export default function EventDetail() {
           )}
         </TabsContent>
 
-        {/* Share & QR Tab */}
-        <TabsContent value="share">
-          <ShareLinkTab eventId={eventId || ''} />
-        </TabsContent>
-
-        {/* Integrations Tab */}
-        <TabsContent value="integrations">
-          <IntegrationsTab
+        {/* Automated Sends Tab */}
+        <TabsContent value="automated">
+          <AutomatedSendsTab
             eventId={eventId || ''}
             events={events}
           />
+        </TabsContent>
+
+        {/* Share & QR Tab */}
+        <TabsContent value="share">
+          <ShareLinkTab eventId={eventId || ''} />
         </TabsContent>
 
         {/* Analytics Tab */}
