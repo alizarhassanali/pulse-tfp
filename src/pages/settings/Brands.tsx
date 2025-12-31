@@ -14,9 +14,11 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
-import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2, Settings } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2, ChevronDown, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface BrandColors {
@@ -27,12 +29,10 @@ interface BrandColors {
   buttonText?: string;
 }
 
-interface GoogleReviewConfig {
+interface LocationGoogleReviewConfig {
   enabled: boolean;
-  google_place_id?: string;
-  sync_frequency?: 'daily' | 'weekly' | 'manual';
+  sync_frequency?: 'hourly' | 'every_4_hours' | 'every_8_hours' | 'daily' | 'weekly';
   notification_email?: string;
-  minimum_rating_alert?: number;
 }
 
 interface Location {
@@ -41,6 +41,7 @@ interface Location {
   address: string;
   gmb_link: string;
   google_place_id?: string;
+  google_review_config?: LocationGoogleReviewConfig;
   brand_id?: string;
 }
 
@@ -50,7 +51,6 @@ interface Brand {
   subdomain: string | null;
   logo_url: string | null;
   colors: BrandColors | null;
-  google_review_config: GoogleReviewConfig | null;
   locations: Location[];
 }
 
@@ -58,21 +58,20 @@ interface FormState {
   name: string;
   subdomain: string;
   colors: BrandColors;
-  google_review_config: GoogleReviewConfig;
   locations: Location[];
 }
 
 const defaultColors: BrandColors = { topBar: '#263F6A', button: '#FF887C', text: '#263F6A', buttonText: '#FFFFFF' };
-const defaultGoogleReviewConfig: GoogleReviewConfig = { enabled: false, sync_frequency: 'daily', minimum_rating_alert: 3 };
+const defaultLocationGoogleConfig: LocationGoogleReviewConfig = { enabled: false, sync_frequency: 'daily' };
 
 export default function Brands() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, google_review_config: defaultGoogleReviewConfig, locations: [] });
+  const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
 
-  // Sorting hook - added after the query
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ['brands-with-locations'],
     queryFn: async () => {
@@ -92,7 +91,6 @@ export default function Brands() {
       return brandsData.map(brand => ({
         ...brand,
         colors: brand.colors as unknown as BrandColors | null,
-        google_review_config: brand.google_review_config as unknown as GoogleReviewConfig | null,
         locations: locationsData
           .filter(loc => loc.brand_id === brand.id)
           .map(loc => ({
@@ -101,6 +99,7 @@ export default function Brands() {
             address: loc.address || '',
             gmb_link: loc.gmb_link || '',
             google_place_id: loc.google_place_id || '',
+            google_review_config: (loc.google_review_config as unknown as LocationGoogleReviewConfig) || defaultLocationGoogleConfig,
             brand_id: loc.brand_id || undefined,
           })),
       })) as Brand[];
@@ -113,7 +112,6 @@ export default function Brands() {
     defaultSortDirection: 'asc',
   });
 
-  // Create/Update brand mutation
   const saveMutation = useMutation({
     mutationFn: async (data: { brand: FormState; editingId?: string }) => {
       const { brand, editingId } = data;
@@ -121,13 +119,11 @@ export default function Brands() {
         name: brand.name,
         subdomain: brand.subdomain || null,
         colors: brand.colors as unknown as Json,
-        google_review_config: brand.google_review_config as unknown as Json,
       };
 
       let brandId: string;
 
       if (editingId) {
-        // Update existing brand
         const { error } = await supabase
           .from('brands')
           .update(brandPayload)
@@ -135,7 +131,6 @@ export default function Brands() {
         if (error) throw error;
         brandId = editingId;
 
-        // Get existing locations for this brand
         const { data: existingLocations } = await supabase
           .from('locations')
           .select('id')
@@ -145,34 +140,29 @@ export default function Brands() {
         const newLocationIds = brand.locations.filter(l => !l.id.startsWith('temp-')).map(l => l.id);
         const toDelete = existingIds.filter(id => !newLocationIds.includes(id));
 
-        // Delete removed locations
         if (toDelete.length > 0) {
           await supabase.from('locations').delete().in('id', toDelete);
         }
 
-        // Upsert locations
         for (const loc of brand.locations) {
+          const locationPayload = {
+            name: loc.name,
+            address: loc.address || null,
+            gmb_link: loc.gmb_link || null,
+            google_place_id: loc.google_place_id || null,
+            google_review_config: (loc.google_review_config || defaultLocationGoogleConfig) as unknown as Json,
+          };
+
           if (loc.id.startsWith('temp-')) {
-            // Insert new location
             await supabase.from('locations').insert({
-              name: loc.name,
-              address: loc.address || null,
-              gmb_link: loc.gmb_link || null,
-              google_place_id: loc.google_place_id || null,
+              ...locationPayload,
               brand_id: brandId,
             });
           } else {
-            // Update existing location
-            await supabase.from('locations').update({
-              name: loc.name,
-              address: loc.address || null,
-              gmb_link: loc.gmb_link || null,
-              google_place_id: loc.google_place_id || null,
-            }).eq('id', loc.id);
+            await supabase.from('locations').update(locationPayload).eq('id', loc.id);
           }
         }
       } else {
-        // Create new brand
         const { data: newBrand, error } = await supabase
           .from('brands')
           .insert(brandPayload)
@@ -181,13 +171,13 @@ export default function Brands() {
         if (error) throw error;
         brandId = newBrand.id;
 
-        // Insert locations
         if (brand.locations.length > 0) {
           const locationsPayload = brand.locations.map(loc => ({
             name: loc.name,
             address: loc.address || null,
             gmb_link: loc.gmb_link || null,
             google_place_id: loc.google_place_id || null,
+            google_review_config: (loc.google_review_config || defaultLocationGoogleConfig) as unknown as Json,
             brand_id: brandId,
           }));
           const { error: locError } = await supabase.from('locations').insert(locationsPayload);
@@ -210,12 +200,9 @@ export default function Brands() {
     },
   });
 
-  // Delete brand mutation
   const deleteMutation = useMutation({
     mutationFn: async (brandId: string) => {
-      // Delete locations first (foreign key constraint)
       await supabase.from('locations').delete().eq('brand_id', brandId);
-      // Then delete brand
       const { error } = await supabase.from('brands').delete().eq('id', brandId);
       if (error) throw error;
     },
@@ -244,9 +231,9 @@ export default function Brands() {
       name: brand.name,
       subdomain: brand.subdomain || '',
       colors: brand.colors || defaultColors,
-      google_review_config: brand.google_review_config || defaultGoogleReviewConfig,
       locations: brand.locations || [],
     });
+    setExpandedLocations(new Set());
     setModalOpen(true);
   };
 
@@ -255,10 +242,19 @@ export default function Brands() {
   };
 
   const addLocation = () => {
+    const newId = `temp-${crypto.randomUUID()}`;
     setForm({
       ...form,
-      locations: [...form.locations, { id: `temp-${crypto.randomUUID()}`, name: '', address: '', gmb_link: '', google_place_id: '' }],
+      locations: [...form.locations, { 
+        id: newId, 
+        name: '', 
+        address: '', 
+        gmb_link: '', 
+        google_place_id: '',
+        google_review_config: defaultLocationGoogleConfig,
+      }],
     });
+    setExpandedLocations(prev => new Set([...prev, newId]));
   };
 
   const updateLocation = (idx: number, field: string, value: string) => {
@@ -268,13 +264,37 @@ export default function Brands() {
     });
   };
 
+  const updateLocationGoogleConfig = (idx: number, field: keyof LocationGoogleReviewConfig, value: any) => {
+    setForm({
+      ...form,
+      locations: form.locations.map((l, i) => 
+        i === idx 
+          ? { ...l, google_review_config: { ...l.google_review_config, [field]: value } as LocationGoogleReviewConfig }
+          : l
+      ),
+    });
+  };
+
   const removeLocation = (idx: number) => {
     setForm({ ...form, locations: form.locations.filter((_, i) => i !== idx) });
   };
 
+  const toggleLocationExpanded = (id: string) => {
+    setExpandedLocations(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const openCreateModal = () => {
     setEditingBrand(null);
-    setForm({ name: '', subdomain: '', colors: defaultColors, google_review_config: defaultGoogleReviewConfig, locations: [] });
+    setForm({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+    setExpandedLocations(new Set());
     setModalOpen(true);
   };
 
@@ -384,8 +404,15 @@ export default function Brands() {
           <DialogHeader>
             <DialogTitle>{editingBrand ? 'Edit' : 'Create'} Brand</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="locations">Locations</TabsTrigger>
+              <TabsTrigger value="branding">Branding</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="details" className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Brand Name *</Label>
                 <Input
@@ -413,17 +440,148 @@ export default function Brands() {
                   </span>
                 </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Logo</Label>
-              <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload logo</p>
+              <div className="space-y-2">
+                <Label>Logo</Label>
+                <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                  <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Click to upload logo</p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Brand Colors</Label>
-              <div className="grid grid-cols-4 gap-4">
+            </TabsContent>
+            
+            <TabsContent value="locations" className="space-y-4 py-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base">Locations ({form.locations.length})</Label>
+                <Button variant="outline" size="sm" onClick={addLocation}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Location
+                </Button>
+              </div>
+              
+              {form.locations.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                  No locations added yet. Click "Add Location" to get started.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {form.locations.map((loc, idx) => (
+                    <Card key={loc.id} className="overflow-hidden">
+                      <Collapsible open={expandedLocations.has(loc.id)} onOpenChange={() => toggleLocationExpanded(loc.id)}>
+                        <div className="p-3 flex items-center gap-3">
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                              <ChevronDown className={`h-4 w-4 transition-transform ${expandedLocations.has(loc.id) ? 'rotate-180' : ''}`} />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <div className="flex-1 min-w-0">
+                            <Input
+                              placeholder="Location name"
+                              value={loc.name}
+                              onChange={e => updateLocation(idx, 'name', e.target.value)}
+                              className="h-8"
+                            />
+                          </div>
+                          {loc.google_review_config?.enabled && (
+                            <Badge variant="outline" className="shrink-0">
+                              <Settings className="h-3 w-3 mr-1" />
+                              Google
+                            </Badge>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeLocation(idx)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <CollapsibleContent>
+                          <div className="px-3 pb-3 pt-0 space-y-3 border-t">
+                            <div className="grid grid-cols-2 gap-3 pt-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Address</Label>
+                                <Input
+                                  placeholder="123 Main St"
+                                  value={loc.address}
+                                  onChange={e => updateLocation(idx, 'address', e.target.value)}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">GMB Link</Label>
+                                <Input
+                                  placeholder="https://g.page/..."
+                                  value={loc.gmb_link}
+                                  onChange={e => updateLocation(idx, 'gmb_link', e.target.value)}
+                                  className="h-8"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs">Google Place ID</Label>
+                              <Input
+                                placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
+                                value={loc.google_place_id || ''}
+                                onChange={e => updateLocation(idx, 'google_place_id', e.target.value)}
+                                className="h-8"
+                              />
+                            </div>
+                            
+                            <div className="border-t pt-3 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Settings className="h-4 w-4 text-muted-foreground" />
+                                  <Label className="text-sm font-medium">Google Reviews</Label>
+                                </div>
+                                <Switch
+                                  checked={loc.google_review_config?.enabled || false}
+                                  onCheckedChange={checked => updateLocationGoogleConfig(idx, 'enabled', checked)}
+                                />
+                              </div>
+                              
+                              {loc.google_review_config?.enabled && (
+                                <div className="grid grid-cols-2 gap-3 pl-6">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Sync Frequency</Label>
+                                    <Select
+                                      value={loc.google_review_config?.sync_frequency || 'daily'}
+                                      onValueChange={value => updateLocationGoogleConfig(idx, 'sync_frequency', value)}
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hourly">Every hour</SelectItem>
+                                        <SelectItem value="every_4_hours">Every 4 hours</SelectItem>
+                                        <SelectItem value="every_8_hours">Every 8 hours</SelectItem>
+                                        <SelectItem value="daily">Daily</SelectItem>
+                                        <SelectItem value="weekly">Weekly</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Notification Email</Label>
+                                    <Input
+                                      type="email"
+                                      placeholder="alerts@company.com"
+                                      value={loc.google_review_config?.notification_email || ''}
+                                      onChange={e => updateLocationGoogleConfig(idx, 'notification_email', e.target.value)}
+                                      className="h-8"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="branding" className="space-y-4 py-4">
+              <Label className="text-base">Brand Colors</Label>
+              <div className="grid grid-cols-2 gap-4">
                 {[
                   ['topBar', 'Top Bar'],
                   ['button', 'Button'],
@@ -432,169 +590,25 @@ export default function Brands() {
                 ].map(([key, label]) => (
                   <div key={key} className="space-y-1">
                     <Label className="text-xs">{label}</Label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2">
                       <Input
                         type="color"
                         value={(form.colors as any)[key] || '#000000'}
                         onChange={e => setForm({ ...form, colors: { ...form.colors, [key]: e.target.value } })}
-                        className="w-10 h-8 p-0.5"
+                        className="w-12 h-9 p-1"
                       />
                       <Input
                         value={(form.colors as any)[key] || ''}
                         onChange={e => setForm({ ...form, colors: { ...form.colors, [key]: e.target.value } })}
-                        className="h-8 text-xs"
+                        className="h-9 font-mono text-sm"
                       />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Locations</Label>
-                <Button variant="outline" size="sm" onClick={addLocation}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add
-                </Button>
-              </div>
-              {form.locations.map((loc, idx) => (
-                <Card key={loc.id} className="p-3">
-                  <div className="grid grid-cols-4 gap-2">
-                    <Input
-                      placeholder="Name"
-                      value={loc.name}
-                      onChange={e => updateLocation(idx, 'name', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Address"
-                      value={loc.address}
-                      onChange={e => updateLocation(idx, 'address', e.target.value)}
-                    />
-                    <Input
-                      placeholder="GMB Link"
-                      value={loc.gmb_link}
-                      onChange={e => updateLocation(idx, 'gmb_link', e.target.value)}
-                    />
-                    <div className="flex gap-1">
-                      <Input
-                        placeholder="Google Place ID"
-                        value={loc.google_place_id || ''}
-                        onChange={e => updateLocation(idx, 'google_place_id', e.target.value)}
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => removeLocation(idx)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-            
-            {/* Google Reviews Integration Section */}
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-base font-medium">Google Reviews Integration</Label>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Enable Google Reviews</Label>
-                  <p className="text-xs text-muted-foreground">Sync and manage Google reviews for this brand</p>
-                </div>
-                <Switch
-                  checked={form.google_review_config.enabled}
-                  onCheckedChange={checked => setForm({ 
-                    ...form, 
-                    google_review_config: { ...form.google_review_config, enabled: checked } 
-                  })}
-                />
-              </div>
-              
-              {form.google_review_config.enabled && (
-                <div className="space-y-4 pl-4 border-l-2 border-muted">
-                  <div className="space-y-2">
-                    <Label>Default Google Place ID</Label>
-                    <Input
-                      placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
-                      value={form.google_review_config.google_place_id || ''}
-                      onChange={e => setForm({ 
-                        ...form, 
-                        google_review_config: { ...form.google_review_config, google_place_id: e.target.value } 
-                      })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Find your Place ID at{' '}
-                      <a 
-                        href="https://developers.google.com/maps/documentation/places/web-service/place-id" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary underline"
-                      >
-                        Google Places
-                      </a>
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Sync Frequency</Label>
-                    <Select
-                      value={form.google_review_config.sync_frequency || 'daily'}
-                      onValueChange={value => setForm({ 
-                        ...form, 
-                        google_review_config: { ...form.google_review_config, sync_frequency: value as 'daily' | 'weekly' | 'manual' } 
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="manual">Manual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Notification Email</Label>
-                    <Input
-                      type="email"
-                      placeholder="alerts@yourbrand.com"
-                      value={form.google_review_config.notification_email || ''}
-                      onChange={e => setForm({ 
-                        ...form, 
-                        google_review_config: { ...form.google_review_config, notification_email: e.target.value } 
-                      })}
-                    />
-                    <p className="text-xs text-muted-foreground">Receive alerts for new reviews</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Alert for reviews below rating</Label>
-                    <Select
-                      value={String(form.google_review_config.minimum_rating_alert || 3)}
-                      onValueChange={value => setForm({ 
-                        ...form, 
-                        google_review_config: { ...form.google_review_config, minimum_rating_alert: parseInt(value) } 
-                      })}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 star</SelectItem>
-                        <SelectItem value="2">2 stars</SelectItem>
-                        <SelectItem value="3">3 stars</SelectItem>
-                        <SelectItem value="4">4 stars</SelectItem>
-                        <SelectItem value="5">5 stars</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>
               Cancel
