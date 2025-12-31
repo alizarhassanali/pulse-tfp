@@ -25,7 +25,7 @@ import {
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
-import { Star, Search, ExternalLink, MessageSquare, TrendingUp, TrendingDown, MapPin, Building2 } from 'lucide-react';
+import { Star, Search, ExternalLink, MessageSquare, MapPin, Building2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DEMO_BRANDS, DEMO_LOCATIONS } from '@/data/demo-data';
@@ -234,16 +234,21 @@ export default function Reviews() {
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) 
     : '0.0';
-  const thisMonth = reviews.filter((r) => new Date(r.created_at).getMonth() === new Date().getMonth()).length;
-  const lastMonth = reviews.filter((r) => {
-    const d = new Date(r.created_at);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() - 1 || (now.getMonth() === 0 && d.getMonth() === 11);
-  }).length;
-  const monthChange = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : 0;
-  const replyRate = reviews.length > 0 
-    ? Math.round((reviews.filter((r) => r.responded_at).length / reviews.length) * 100) 
-    : 0;
+
+  // Calculate star distribution
+  const starDistribution = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0]; // Index 0 = 1 star, etc.
+    reviews.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) {
+        counts[r.rating - 1]++;
+      }
+    });
+    return counts.map((count, i) => ({
+      stars: i + 1,
+      count,
+      percentage: reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0
+    })).reverse(); // Reverse to show 5 stars first
+  }, [reviews]);
 
   const toggleExpanded = (id: string) => {
     setExpandedReviews((prev) => {
@@ -281,10 +286,9 @@ export default function Reviews() {
       <PageHeader title="Google Reviews" description="Monitor and respond to patient reviews" />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {isLoading ? (
           <>
-            <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
@@ -300,7 +304,7 @@ export default function Reviews() {
                 {renderStars(Math.round(parseFloat(avgRating)))}
                 {isMultiLocationView && locationBreakdown.length > 1 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Aggregated across {locationBreakdown.length} locations
+                    Across {locationBreakdown.length} locations
                   </p>
                 )}
               </div>
@@ -316,14 +320,29 @@ export default function Reviews() {
                 </p>
               )}
             </MetricCard>
-            <MetricCard
-              title="This Month"
-              value={thisMonth}
-              change={monthChange}
-              changeLabel="vs last month"
-              icon={monthChange >= 0 ? <TrendingUp className="h-6 w-6 text-success" /> : <TrendingDown className="h-6 w-6 text-destructive" />}
-            />
-            <MetricCard title="Reply Rate" value={`${replyRate}%`} />
+            <MetricCard 
+              title="Star Distribution" 
+              value=""
+              icon={<Star className="h-6 w-6" />}
+            >
+              <div className="space-y-1.5 mt-1">
+                {starDistribution.map(({ stars, count, percentage }) => (
+                  <div key={stars} className="flex items-center gap-2 text-xs">
+                    <span className="w-8 text-muted-foreground">{stars}★</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
+                        )}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-right text-muted-foreground">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </MetricCard>
           </>
         )}
       </div>

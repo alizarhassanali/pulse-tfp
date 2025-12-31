@@ -162,6 +162,7 @@ export type Database = {
         Row: {
           colors: Json | null
           created_at: string | null
+          google_review_config: Json | null
           id: string
           logo_url: string | null
           name: string
@@ -171,6 +172,7 @@ export type Database = {
         Insert: {
           colors?: Json | null
           created_at?: string | null
+          google_review_config?: Json | null
           id?: string
           logo_url?: string | null
           name: string
@@ -180,6 +182,7 @@ export type Database = {
         Update: {
           colors?: Json | null
           created_at?: string | null
+          google_review_config?: Json | null
           id?: string
           logo_url?: string | null
           name?: string
@@ -621,6 +624,7 @@ export type Database = {
           brand_id: string | null
           created_at: string | null
           gmb_link: string | null
+          google_place_id: string | null
           id: string
           name: string
           timezone: string | null
@@ -631,6 +635,7 @@ export type Database = {
           brand_id?: string | null
           created_at?: string | null
           gmb_link?: string | null
+          google_place_id?: string | null
           id?: string
           name: string
           timezone?: string | null
@@ -641,6 +646,7 @@ export type Database = {
           brand_id?: string | null
           created_at?: string | null
           gmb_link?: string | null
+          google_place_id?: string | null
           id?: string
           name?: string
           timezone?: string | null

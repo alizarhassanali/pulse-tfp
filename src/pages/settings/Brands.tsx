@@ -12,9 +12,11 @@ import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useSortableTable } from '@/hooks/useSortableTable';
-import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2 } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2, Building2, MapPin, Image, Loader2, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface BrandColors {
@@ -25,11 +27,20 @@ interface BrandColors {
   buttonText?: string;
 }
 
+interface GoogleReviewConfig {
+  enabled: boolean;
+  google_place_id?: string;
+  sync_frequency?: 'daily' | 'weekly' | 'manual';
+  notification_email?: string;
+  minimum_rating_alert?: number;
+}
+
 interface Location {
   id: string;
   name: string;
   address: string;
   gmb_link: string;
+  google_place_id?: string;
   brand_id?: string;
 }
 
@@ -39,6 +50,7 @@ interface Brand {
   subdomain: string | null;
   logo_url: string | null;
   colors: BrandColors | null;
+  google_review_config: GoogleReviewConfig | null;
   locations: Location[];
 }
 
@@ -46,17 +58,19 @@ interface FormState {
   name: string;
   subdomain: string;
   colors: BrandColors;
+  google_review_config: GoogleReviewConfig;
   locations: Location[];
 }
 
 const defaultColors: BrandColors = { topBar: '#263F6A', button: '#FF887C', text: '#263F6A', buttonText: '#FFFFFF' };
+const defaultGoogleReviewConfig: GoogleReviewConfig = { enabled: false, sync_frequency: 'daily', minimum_rating_alert: 3 };
 
 export default function Brands() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+  const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, google_review_config: defaultGoogleReviewConfig, locations: [] });
 
   // Sorting hook - added after the query
   const { data: brands = [], isLoading } = useQuery({
@@ -78,6 +92,7 @@ export default function Brands() {
       return brandsData.map(brand => ({
         ...brand,
         colors: brand.colors as unknown as BrandColors | null,
+        google_review_config: brand.google_review_config as unknown as GoogleReviewConfig | null,
         locations: locationsData
           .filter(loc => loc.brand_id === brand.id)
           .map(loc => ({
@@ -85,6 +100,7 @@ export default function Brands() {
             name: loc.name,
             address: loc.address || '',
             gmb_link: loc.gmb_link || '',
+            google_place_id: loc.google_place_id || '',
             brand_id: loc.brand_id || undefined,
           })),
       })) as Brand[];
@@ -105,6 +121,7 @@ export default function Brands() {
         name: brand.name,
         subdomain: brand.subdomain || null,
         colors: brand.colors as unknown as Json,
+        google_review_config: brand.google_review_config as unknown as Json,
       };
 
       let brandId: string;
@@ -141,6 +158,7 @@ export default function Brands() {
               name: loc.name,
               address: loc.address || null,
               gmb_link: loc.gmb_link || null,
+              google_place_id: loc.google_place_id || null,
               brand_id: brandId,
             });
           } else {
@@ -149,6 +167,7 @@ export default function Brands() {
               name: loc.name,
               address: loc.address || null,
               gmb_link: loc.gmb_link || null,
+              google_place_id: loc.google_place_id || null,
             }).eq('id', loc.id);
           }
         }
@@ -168,6 +187,7 @@ export default function Brands() {
             name: loc.name,
             address: loc.address || null,
             gmb_link: loc.gmb_link || null,
+            google_place_id: loc.google_place_id || null,
             brand_id: brandId,
           }));
           const { error: locError } = await supabase.from('locations').insert(locationsPayload);
@@ -224,6 +244,7 @@ export default function Brands() {
       name: brand.name,
       subdomain: brand.subdomain || '',
       colors: brand.colors || defaultColors,
+      google_review_config: brand.google_review_config || defaultGoogleReviewConfig,
       locations: brand.locations || [],
     });
     setModalOpen(true);
@@ -236,7 +257,7 @@ export default function Brands() {
   const addLocation = () => {
     setForm({
       ...form,
-      locations: [...form.locations, { id: `temp-${crypto.randomUUID()}`, name: '', address: '', gmb_link: '' }],
+      locations: [...form.locations, { id: `temp-${crypto.randomUUID()}`, name: '', address: '', gmb_link: '', google_place_id: '' }],
     });
   };
 
@@ -253,7 +274,7 @@ export default function Brands() {
 
   const openCreateModal = () => {
     setEditingBrand(null);
-    setForm({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+    setForm({ name: '', subdomain: '', colors: defaultColors, google_review_config: defaultGoogleReviewConfig, locations: [] });
     setModalOpen(true);
   };
 
@@ -438,7 +459,7 @@ export default function Brands() {
               </div>
               {form.locations.map((loc, idx) => (
                 <Card key={loc.id} className="p-3">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     <Input
                       placeholder="Name"
                       value={loc.name}
@@ -449,11 +470,16 @@ export default function Brands() {
                       value={loc.address}
                       onChange={e => updateLocation(idx, 'address', e.target.value)}
                     />
+                    <Input
+                      placeholder="GMB Link"
+                      value={loc.gmb_link}
+                      onChange={e => updateLocation(idx, 'gmb_link', e.target.value)}
+                    />
                     <div className="flex gap-1">
                       <Input
-                        placeholder="GMB Link"
-                        value={loc.gmb_link}
-                        onChange={e => updateLocation(idx, 'gmb_link', e.target.value)}
+                        placeholder="Google Place ID"
+                        value={loc.google_place_id || ''}
+                        onChange={e => updateLocation(idx, 'google_place_id', e.target.value)}
                       />
                       <Button variant="ghost" size="icon" onClick={() => removeLocation(idx)}>
                         <Trash2 className="h-4 w-4" />
@@ -462,6 +488,111 @@ export default function Brands() {
                   </div>
                 </Card>
               ))}
+            </div>
+            
+            {/* Google Reviews Integration Section */}
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-base font-medium">Google Reviews Integration</Label>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Enable Google Reviews</Label>
+                  <p className="text-xs text-muted-foreground">Sync and manage Google reviews for this brand</p>
+                </div>
+                <Switch
+                  checked={form.google_review_config.enabled}
+                  onCheckedChange={checked => setForm({ 
+                    ...form, 
+                    google_review_config: { ...form.google_review_config, enabled: checked } 
+                  })}
+                />
+              </div>
+              
+              {form.google_review_config.enabled && (
+                <div className="space-y-4 pl-4 border-l-2 border-muted">
+                  <div className="space-y-2">
+                    <Label>Default Google Place ID</Label>
+                    <Input
+                      placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
+                      value={form.google_review_config.google_place_id || ''}
+                      onChange={e => setForm({ 
+                        ...form, 
+                        google_review_config: { ...form.google_review_config, google_place_id: e.target.value } 
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Find your Place ID at{' '}
+                      <a 
+                        href="https://developers.google.com/maps/documentation/places/web-service/place-id" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        Google Places
+                      </a>
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Sync Frequency</Label>
+                    <Select
+                      value={form.google_review_config.sync_frequency || 'daily'}
+                      onValueChange={value => setForm({ 
+                        ...form, 
+                        google_review_config: { ...form.google_review_config, sync_frequency: value as 'daily' | 'weekly' | 'manual' } 
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="manual">Manual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Notification Email</Label>
+                    <Input
+                      type="email"
+                      placeholder="alerts@yourbrand.com"
+                      value={form.google_review_config.notification_email || ''}
+                      onChange={e => setForm({ 
+                        ...form, 
+                        google_review_config: { ...form.google_review_config, notification_email: e.target.value } 
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">Receive alerts for new reviews</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Alert for reviews below rating</Label>
+                    <Select
+                      value={String(form.google_review_config.minimum_rating_alert || 3)}
+                      onValueChange={value => setForm({ 
+                        ...form, 
+                        google_review_config: { ...form.google_review_config, minimum_rating_alert: parseInt(value) } 
+                      })}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 star</SelectItem>
+                        <SelectItem value="2">2 stars</SelectItem>
+                        <SelectItem value="3">3 stars</SelectItem>
+                        <SelectItem value="4">4 stars</SelectItem>
+                        <SelectItem value="5">5 stars</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
