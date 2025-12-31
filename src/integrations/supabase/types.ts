@@ -188,6 +188,56 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_imports: {
+        Row: {
+          brand_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_count: number
+          errors: Json | null
+          file_name: string
+          id: string
+          status: string
+          success_count: number
+          total_rows: number
+        }
+        Insert: {
+          brand_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_count?: number
+          errors?: Json | null
+          file_name: string
+          id?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Update: {
+          brand_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_count?: number
+          errors?: Json | null
+          file_name?: string
+          id?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_imports_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_tag_assignments: {
         Row: {
           contact_id: string
