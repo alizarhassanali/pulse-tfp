@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Settings, MapPin, Loader2, Globe, Check, Clock } from "lucide-react";
+import { Settings, MapPin, Loader2, Globe, Check, Clock, Plus } from "lucide-react";
 import { useBrandLocationContext } from "@/hooks/useBrandLocationContext";
 import { REVIEW_CHANNELS, type ReviewChannel } from "@/types/database";
 
@@ -134,6 +134,7 @@ export default function ReviewSettings() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [activeTab, setActiveTab] = useState<ReviewChannel>("google");
+  const [showAddChannel, setShowAddChannel] = useState(false);
   const [configForm, setConfigForm] = useState<ConfigForm>({
     enabled: false,
     placeId: "",
@@ -234,13 +235,30 @@ export default function ReviewSettings() {
     return { status: "not_available" as const, label: "—" };
   };
 
-  // Count connected channels
+  // Count connected channels per channel type
   const getConnectedCount = (channel: ReviewChannel) => {
     if (!filteredLocations) return 0;
     return filteredLocations.filter(loc => {
       const status = getChannelStatus(loc, channel);
       return status.status === "active" || status.status === "paused";
     }).length;
+  };
+
+  // Get list of connected channel types (for display)
+  const connectedChannelTypes = REVIEW_CHANNELS.filter(({ value }) => {
+    const count = getConnectedCount(value as ReviewChannel);
+    return count > 0;
+  });
+
+  // Get connected channels for a specific location
+  const getLocationConnectedChannels = (location: Location) => {
+    const connected: { channel: ReviewChannel; status: "active" | "paused" }[] = [];
+    const googleStatus = getChannelStatus(location, "google");
+    if (googleStatus.status === "active" || googleStatus.status === "paused") {
+      connected.push({ channel: "google", status: googleStatus.status });
+    }
+    // Add other channels here when available
+    return connected;
   };
 
   const renderStatusBadge = (status: "active" | "paused" | "not_configured" | "not_available", label: string) => {
@@ -261,54 +279,53 @@ export default function ReviewSettings() {
         description="Connect and manage sites where customers review your business"
       />
 
-      {/* Available Channels */}
+      {/* Connected Channels */}
       <div className="space-y-4">
-        <h2 className="text-lg font-medium">Available Channels</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {REVIEW_CHANNELS.map(({ value, label }) => {
+        <h2 className="text-lg font-medium">Connected Channels</h2>
+        <div className="flex flex-wrap gap-4">
+          {connectedChannelTypes.map(({ value, label }) => {
             const config = CHANNEL_CONFIG[value as ReviewChannel];
             const connectedCount = getConnectedCount(value as ReviewChannel);
             
             return (
-              <Card key={value} className="relative overflow-hidden">
+              <Card key={value} className="relative overflow-hidden min-w-[200px]">
                 <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2">
                     <Globe className="h-5 w-5 text-muted-foreground" />
                     <CardTitle className="text-base">{config.name}</CardTitle>
                   </div>
-                  <CardDescription className="text-xs">
-                    {config.description}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between">
-                    {config.available ? (
-                      <>
-                        <span className="text-sm text-muted-foreground">
-                          {connectedCount > 0 
-                            ? `${connectedCount} location${connectedCount > 1 ? 's' : ''} connected`
-                            : 'Not connected'}
-                        </span>
-                        <Badge variant="outline" className="text-success border-success">
-                          Available
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sm text-muted-foreground">Integration pending</span>
-                        <Badge variant="secondary">Coming Soon</Badge>
-                      </>
-                    )}
-                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {connectedCount} location{connectedCount !== 1 ? 's' : ''} connected
+                  </span>
                 </CardContent>
               </Card>
             );
           })}
+          
+          {/* Add Channel Button */}
+          <Card 
+            className="min-w-[200px] border-dashed cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowAddChannel(true)}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-base">Add Channel</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <span className="text-sm text-muted-foreground">
+                Connect a review site
+              </span>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Connected Review Sites Table */}
+      {/* Locations Table */}
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Locations</h2>
         
@@ -331,39 +348,13 @@ export default function ReviewSettings() {
                 <TableRow>
                   <TableHead>Location</TableHead>
                   <TableHead>Brand</TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${CHANNEL_CONFIG.google.color}`} />
-                      Google
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${CHANNEL_CONFIG.facebook.color}`} />
-                      Facebook
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${CHANNEL_CONFIG.yelp.color}`} />
-                      Yelp
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${CHANNEL_CONFIG.tripadvisor.color}`} />
-                      TripAdvisor
-                    </div>
-                  </TableHead>
+                  <TableHead>Connected Channels</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLocations.map((location) => {
-                  const googleStatus = getChannelStatus(location, "google");
-                  const facebookStatus = getChannelStatus(location, "facebook");
-                  const yelpStatus = getChannelStatus(location, "yelp");
-                  const tripadvisorStatus = getChannelStatus(location, "tripadvisor");
+                  const connectedChannels = getLocationConnectedChannels(location);
 
                   return (
                     <TableRow key={location.id}>
@@ -376,17 +367,27 @@ export default function ReviewSettings() {
                         </div>
                       </TableCell>
                       <TableCell>{location.brand?.name || "—"}</TableCell>
-                      <TableCell className="text-center">
-                        {renderStatusBadge(googleStatus.status, googleStatus.label)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {renderStatusBadge(facebookStatus.status, facebookStatus.label)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {renderStatusBadge(yelpStatus.status, yelpStatus.label)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {renderStatusBadge(tripadvisorStatus.status, tripadvisorStatus.label)}
+                      <TableCell>
+                        {connectedChannels.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {connectedChannels.map(({ channel, status }) => (
+                              <Badge 
+                                key={channel}
+                                variant={status === "active" ? "default" : "outline"}
+                                className={status === "active" 
+                                  ? "bg-success text-success-foreground" 
+                                  : "text-warning border-warning"
+                                }
+                              >
+                                <div className={`w-2 h-2 rounded-full mr-1 ${CHANNEL_CONFIG[channel].color}`} />
+                                {CHANNEL_CONFIG[channel].name}
+                                {status === "paused" && <Clock className="h-3 w-3 ml-1" />}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No channels connected</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -544,6 +545,68 @@ export default function ReviewSettings() {
             >
               {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Configuration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Channel Dialog */}
+      <Dialog open={showAddChannel} onOpenChange={setShowAddChannel}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Add Review Channel
+            </DialogTitle>
+            <DialogDescription>
+              Select a review platform to connect
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 py-4">
+            {REVIEW_CHANNELS.map(({ value, label }) => {
+              const config = CHANNEL_CONFIG[value as ReviewChannel];
+              
+              return (
+                <Card 
+                  key={value}
+                  className={`relative overflow-hidden cursor-pointer transition-colors ${
+                    config.available ? 'hover:bg-muted/50' : 'opacity-60 cursor-not-allowed'
+                  }`}
+                  onClick={() => {
+                    if (config.available) {
+                      setShowAddChannel(false);
+                      // Open first location's config for this channel
+                      if (filteredLocations && filteredLocations.length > 0) {
+                        handleOpenConfig(filteredLocations[0]);
+                        setActiveTab(value as ReviewChannel);
+                      }
+                    }
+                  }}
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <Globe className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{config.name}</p>
+                        <p className="text-xs text-muted-foreground">{config.description}</p>
+                      </div>
+                    </div>
+                    {config.available ? (
+                      <Badge variant="outline" className="text-success border-success">Available</Badge>
+                    ) : (
+                      <Badge variant="secondary">Coming Soon</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddChannel(false)}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

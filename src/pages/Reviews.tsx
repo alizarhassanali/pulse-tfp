@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Link } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -80,16 +81,30 @@ export default function Reviews() {
     },
   });
 
-  // Use demo data if no db reviews and filter by brand/location/channel
+  // Track if using demo data
+  const usingDemoData = dbReviews.length === 0;
+
+  // Use demo data if no db reviews - skip brand/location filters for demo since IDs won't match
   const reviews = useMemo(() => {
-    const sourceReviews = dbReviews.length > 0 ? dbReviews : DEMO_REVIEWS;
-    return sourceReviews.filter(r => {
-      if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
-      if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
+    if (dbReviews.length > 0) {
+      // Real data - apply all filters
+      return dbReviews.filter(r => {
+        if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
+        if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
+        if (ratingFilter !== 'all' && r.rating !== parseInt(ratingFilter)) return false;
+        if (respondedFilter === 'responded' && !r.responded_at) return false;
+        if (respondedFilter === 'not_responded' && r.responded_at) return false;
+        if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
+        return true;
+      });
+    }
+    
+    // Demo mode - skip brand/location filters (IDs won't match real DB)
+    return DEMO_REVIEWS.filter(r => {
       if (ratingFilter !== 'all' && r.rating !== parseInt(ratingFilter)) return false;
       if (respondedFilter === 'responded' && !r.responded_at) return false;
       if (respondedFilter === 'not_responded' && r.responded_at) return false;
-      if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
+      if (channelFilter !== 'all' && r.channel !== channelFilter) return false;
       return true;
     });
   }, [dbReviews, selectedBrands, selectedLocations, ratingFilter, respondedFilter, channelFilter]);
@@ -157,11 +172,17 @@ export default function Reviews() {
 
   // Calculate all reviews for trend and integration metrics (unfiltered by date for full history)
   const allReviewsForMetrics = useMemo(() => {
-    const sourceReviews = dbReviews.length > 0 ? dbReviews : DEMO_REVIEWS;
-    return sourceReviews.filter(r => {
-      if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
-      if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
-      if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
+    if (dbReviews.length > 0) {
+      return dbReviews.filter(r => {
+        if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
+        if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
+        if (channelFilter !== 'all' && (r as any).channel !== channelFilter) return false;
+        return true;
+      });
+    }
+    // Demo mode - skip brand/location filters
+    return DEMO_REVIEWS.filter(r => {
+      if (channelFilter !== 'all' && r.channel !== channelFilter) return false;
       return true;
     });
   }, [dbReviews, selectedBrands, selectedLocations, channelFilter]);
@@ -305,6 +326,21 @@ export default function Reviews() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
+
+      {/* Demo Mode Indicator */}
+      {usingDemoData && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+          <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+            Demo Mode
+          </Badge>
+          <span className="text-sm text-amber-700 dark:text-amber-300">
+            Viewing sample reviews. Connect review channels in Settings to see real data.
+          </span>
+          <Button variant="outline" size="sm" asChild className="ml-auto">
+            <Link to="/settings/reviews">Connect Channels</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Row 1: Core Metrics with Trends */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
