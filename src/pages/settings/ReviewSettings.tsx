@@ -106,12 +106,13 @@ export default function ReviewSettings() {
   const [selectedChannel, setSelectedChannel] = useState<ChannelKey | null>(null);
   const [showAddIntegration, setShowAddIntegration] = useState(false);
   const [configuringLocation, setConfiguringLocation] = useState<Location | null>(null);
-  const [configForm, setConfigForm] = useState<ConfigForm>({
+const [configForm, setConfigForm] = useState<ConfigForm>({
     enabled: true,
     placeId: "",
     syncFrequency: "daily",
     notificationEmail: "",
   });
+  const [selectedLocationForSetup, setSelectedLocationForSetup] = useState<string>("");
 
   const { effectiveBrandIds, effectiveLocationIds } = useBrandLocationContext();
 
@@ -253,8 +254,18 @@ export default function ReviewSettings() {
 
   const handleSelectIntegration = (channel: ChannelKey) => {
     if (!CHANNEL_CONFIG[channel].available) return;
-    setShowAddIntegration(false);
     setSelectedChannel(channel);
+    setSelectedLocationForSetup("");
+  };
+
+  const handleContinueFromDialog = () => {
+    const unconnected = getUnconnectedLocations(selectedChannel!);
+    const loc = unconnected.find(l => l.id === selectedLocationForSetup);
+    if (loc) {
+      setShowAddIntegration(false);
+      handleOpenLocationConfig(loc);
+      setSelectedLocationForSetup("");
+    }
   };
 
   // Main view: show integrations or manage specific channel
@@ -285,10 +296,36 @@ export default function ReviewSettings() {
                 <MapPin className="h-8 w-8 text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground mb-4">No locations connected yet</p>
                 {unconnectedLocations.length > 0 && (
-                  <Button onClick={() => handleOpenLocationConfig(unconnectedLocations[0])}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Connect First Location
-                  </Button>
+                  <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+                    <Select 
+                      value={selectedLocationForSetup}
+                      onValueChange={setSelectedLocationForSetup}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unconnectedLocations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.name} {loc.brand?.name && `(${loc.brand.name})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={() => {
+                        const loc = unconnectedLocations.find(l => l.id === selectedLocationForSetup);
+                        if (loc) {
+                          handleOpenLocationConfig(loc);
+                          setSelectedLocationForSetup("");
+                        }
+                      }}
+                      disabled={!selectedLocationForSetup}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Configure
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -523,60 +560,108 @@ export default function ReviewSettings() {
       </div>
 
       {/* Add Integration Dialog */}
-      <Dialog open={showAddIntegration} onOpenChange={setShowAddIntegration}>
+      <Dialog open={showAddIntegration} onOpenChange={(open) => {
+        setShowAddIntegration(open);
+        if (!open) {
+          setSelectedChannel(null);
+          setSelectedLocationForSetup("");
+        }
+      }}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle>Add Review Platform</DialogTitle>
             <DialogDescription>
-              Select a platform to connect
+              {selectedChannel 
+                ? `Select a location to connect to ${CHANNEL_CONFIG[selectedChannel].name}`
+                : "Select a platform to connect"
+              }
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 py-4">
-            {(Object.keys(CHANNEL_CONFIG) as ChannelKey[]).map((channel) => {
-              const config = CHANNEL_CONFIG[channel];
-              const isConnected = connectedIntegrations.some(i => i.channel === channel);
-              
-              return (
-                <Card 
-                  key={channel}
-                  className={`relative overflow-hidden ${
-                    config.available && !isConnected 
-                      ? 'cursor-pointer hover:bg-muted/50' 
-                      : 'opacity-60 cursor-not-allowed'
-                  }`}
-                  onClick={() => {
-                    if (config.available && !isConnected) {
-                      handleSelectIntegration(channel);
-                    }
-                  }}
-                >
-                  <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{config.name}</p>
-                        <p className="text-xs text-muted-foreground">{config.description}</p>
+          {!selectedChannel ? (
+            <div className="grid gap-3 py-4">
+              {(Object.keys(CHANNEL_CONFIG) as ChannelKey[]).map((channel) => {
+                const config = CHANNEL_CONFIG[channel];
+                const isConnected = connectedIntegrations.some(i => i.channel === channel);
+                
+                return (
+                  <Card 
+                    key={channel}
+                    className={`relative overflow-hidden ${
+                      config.available && !isConnected 
+                        ? 'cursor-pointer hover:bg-muted/50' 
+                        : 'opacity-60 cursor-not-allowed'
+                    }`}
+                    onClick={() => {
+                      if (config.available && !isConnected) {
+                        handleSelectIntegration(channel);
+                      }
+                    }}
+                  >
+                    <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{config.name}</p>
+                          <p className="text-xs text-muted-foreground">{config.description}</p>
+                        </div>
                       </div>
-                    </div>
-                    {isConnected ? (
-                      <Badge variant="secondary">Connected</Badge>
-                    ) : config.available ? (
-                      <Badge variant="outline" className="text-success border-success">Available</Badge>
-                    ) : (
-                      <Badge variant="secondary">Coming Soon</Badge>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                      {isConnected ? (
+                        <Badge variant="secondary">Connected</Badge>
+                      ) : config.available ? (
+                        <Badge variant="outline" className="text-success border-success">Available</Badge>
+                      ) : (
+                        <Badge variant="secondary">Coming Soon</Badge>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Select 
+                  value={selectedLocationForSetup}
+                  onValueChange={setSelectedLocationForSetup}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getUnconnectedLocations(selectedChannel).map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name} {loc.brand?.name && `(${loc.brand.name})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
+            {selectedChannel && (
+              <Button variant="outline" onClick={() => {
+                setSelectedChannel(null);
+                setSelectedLocationForSetup("");
+              }}>
+                Back
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowAddIntegration(false)}>
               Cancel
             </Button>
+            {selectedChannel && (
+              <Button 
+                onClick={handleContinueFromDialog}
+                disabled={!selectedLocationForSetup}
+              >
+                Continue
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
