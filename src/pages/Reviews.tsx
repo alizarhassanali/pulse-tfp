@@ -280,13 +280,13 @@ export default function Reviews() {
               value={avgRating}
               change={trendMetrics.ratingChange !== 0 ? trendMetrics.ratingChange * 10 : undefined}
               changeLabel="vs last 7 days"
-              icon={<Star className="h-6 w-6 fill-warning text-warning" />}
+              icon={<Star className="h-5 w-5 fill-warning text-warning" />}
             >
-              <div className="space-y-1.5">
-                {starDistribution.map(({ stars, percentage }) => (
-                  <div key={stars} className="flex items-center gap-2">
-                    <span className="w-3 text-xs text-muted-foreground">{stars}</span>
-                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+                {starDistribution.slice(0, 3).map(({ stars, percentage }) => (
+                  <div key={stars} className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground w-4">{stars}★</span>
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden min-w-6">
                       <div 
                         className={cn(
                           "h-full rounded-full",
@@ -295,7 +295,24 @@ export default function Reviews() {
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <span className="w-7 text-xs text-right text-muted-foreground">{percentage}%</span>
+                    <span className="text-[10px] text-muted-foreground w-6 text-right">{percentage}%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 mt-1">
+                {starDistribution.slice(3).map(({ stars, percentage }) => (
+                  <div key={stars} className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground w-4">{stars}★</span>
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden min-w-6">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full",
+                          stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
+                        )}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground w-6 text-right">{percentage}%</span>
                   </div>
                 ))}
               </div>
