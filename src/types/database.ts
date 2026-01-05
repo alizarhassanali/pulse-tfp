@@ -151,6 +151,51 @@ export interface Template {
   updated_at: string;
 }
 
+// Review channel types
+export type ReviewChannel = 'google' | 'facebook' | 'yelp' | 'tripadvisor';
+
+export const REVIEW_CHANNELS = [
+  { value: 'google', label: 'Google' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'yelp', label: 'Yelp' },
+  { value: 'tripadvisor', label: 'TripAdvisor' },
+] as const;
+
+// Base config that all review channels share
+export interface ReviewChannelBaseConfig {
+  enabled: boolean;
+  sync_frequency?: 'hourly' | 'every_4_hours' | 'every_8_hours' | 'daily' | 'weekly';
+  notification_email?: string;
+}
+
+// Google-specific config
+export interface GoogleReviewConfig extends ReviewChannelBaseConfig {
+  place_id?: string;
+}
+
+// Facebook-specific config
+export interface FacebookReviewConfig extends ReviewChannelBaseConfig {
+  page_id?: string;
+}
+
+// Yelp-specific config
+export interface YelpReviewConfig extends ReviewChannelBaseConfig {
+  business_id?: string;
+}
+
+// TripAdvisor-specific config
+export interface TripAdvisorReviewConfig extends ReviewChannelBaseConfig {
+  location_id?: string;
+}
+
+// Union type for location's review channel configurations
+export interface LocationReviewChannelsConfig {
+  google?: GoogleReviewConfig;
+  facebook?: FacebookReviewConfig;
+  yelp?: YelpReviewConfig;
+  tripadvisor?: TripAdvisorReviewConfig;
+}
+
 export interface Review {
   id: string;
   brand_id: string;
@@ -162,8 +207,11 @@ export interface Review {
   response_text: string | null;
   source_url: string | null;
   external_id: string | null;
+  channel: ReviewChannel;
+  fetched_at: string | null;
   created_at: string;
   location?: Location;
+  brand?: Brand;
 }
 
 export type ScoreCategory = 'promoters' | 'passives' | 'detractors';
