@@ -282,11 +282,11 @@ export default function Reviews() {
               changeLabel="vs last 7 days"
               icon={<Star className="h-6 w-6 fill-warning text-warning" />}
             >
-              <div className="space-y-2 mt-2">
+              <div className="space-y-1.5">
                 {starDistribution.map(({ stars, percentage }) => (
                   <div key={stars} className="flex items-center gap-2">
                     <span className="w-3 text-xs text-muted-foreground">{stars}</span>
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                       <div 
                         className={cn(
                           "h-full rounded-full",
@@ -295,7 +295,7 @@ export default function Reviews() {
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <span className="w-8 text-xs text-right text-muted-foreground">{percentage}%</span>
+                    <span className="w-7 text-xs text-right text-muted-foreground">{percentage}%</span>
                   </div>
                 ))}
               </div>
