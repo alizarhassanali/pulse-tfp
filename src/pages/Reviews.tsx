@@ -10,24 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { useToast } from '@/hooks/use-toast';
-import { useSortableTable } from '@/hooks/useSortableTable';
-import { Star, Search, ExternalLink, MessageSquare, MapPin, Building2, TrendingUp, TrendingDown, CalendarDays } from 'lucide-react';
+import { Star, Search, ExternalLink, MessageSquare, MapPin, TrendingUp, TrendingDown, CalendarDays } from 'lucide-react';
 import { format, parseISO, subDays, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DEMO_REVIEWS } from '@/data/demo-data';
@@ -36,8 +26,6 @@ import { DEMO_REVIEWS } from '@/data/demo-data';
 const REVIEW_CHANNELS = [
   { value: 'all', label: 'All Channels' },
   { value: 'google', label: 'Google' },
-  // Future channels can be added here
-  // { value: 'facebook', label: 'Facebook' },
 ];
 
 export default function Reviews() {
@@ -87,7 +75,6 @@ export default function Reviews() {
   // Use demo data if no db reviews - skip brand/location filters for demo since IDs won't match
   const reviews = useMemo(() => {
     if (dbReviews.length > 0) {
-      // Real data - apply all filters
       return dbReviews.filter(r => {
         if (selectedBrands.length > 0 && !selectedBrands.includes(r.brand_id)) return false;
         if (selectedLocations.length > 0 && !selectedLocations.includes(r.location_id)) return false;
@@ -132,8 +119,6 @@ export default function Reviews() {
       name: string;
       totalReviews: number;
       avgRating: number;
-      unresponded: number;
-      lastReviewDate: string | null;
     }>();
 
     reviews.forEach(review => {
@@ -146,31 +131,18 @@ export default function Reviews() {
           name: locName,
           totalReviews: 0,
           avgRating: 0,
-          unresponded: 0,
-          lastReviewDate: null,
         });
       }
       
       const loc = locationMap.get(locId)!;
       loc.totalReviews++;
       loc.avgRating = (loc.avgRating * (loc.totalReviews - 1) + (review.rating || 0)) / loc.totalReviews;
-      if (!review.responded_at) loc.unresponded++;
-      if (!loc.lastReviewDate || review.created_at > loc.lastReviewDate) {
-        loc.lastReviewDate = review.created_at;
-      }
     });
 
-    return Array.from(locationMap.values()).sort((a, b) => b.totalReviews - a.totalReviews);
+    return Array.from(locationMap.values()).sort((a, b) => b.avgRating - a.avgRating);
   }, [reviews, isMultiLocationView]);
 
-  // Sorting for location breakdown table
-  const { sortKey: locSortKey, sortDirection: locSortDirection, sortedData: sortedLocationBreakdown, handleSort: handleLocSort } = useSortableTable({
-    data: locationBreakdown,
-    defaultSortKey: 'totalReviews',
-    defaultSortDirection: 'desc',
-  });
-
-  // Calculate all reviews for trend and integration metrics (unfiltered by date for full history)
+  // Calculate all reviews for trend metrics (unfiltered by date for full history)
   const allReviewsForMetrics = useMemo(() => {
     if (dbReviews.length > 0) {
       return dbReviews.filter(r => {
@@ -180,7 +152,6 @@ export default function Reviews() {
         return true;
       });
     }
-    // Demo mode - skip brand/location filters
     return DEMO_REVIEWS.filter(r => {
       if (channelFilter !== 'all' && r.channel !== channelFilter) return false;
       return true;
@@ -190,7 +161,7 @@ export default function Reviews() {
   // Calculate current period and previous period for trends
   const trendMetrics = useMemo(() => {
     const now = new Date();
-    const periodLength = 7; // days
+    const periodLength = 7;
     const currentPeriodStart = subDays(now, periodLength);
     const previousPeriodStart = subDays(now, periodLength * 2);
     
@@ -203,17 +174,14 @@ export default function Reviews() {
       isBefore(parseISO(r.created_at), currentPeriodStart)
     );
 
-    // Current period metrics
     const currentAvgRating = currentPeriodReviews.length > 0
       ? currentPeriodReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / currentPeriodReviews.length
       : 0;
     
-    // Previous period metrics
     const previousAvgRating = previousPeriodReviews.length > 0
       ? previousPeriodReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / previousPeriodReviews.length
       : 0;
 
-    // Calculate changes
     const ratingChange = previousAvgRating > 0 
       ? parseFloat((currentAvgRating - previousAvgRating).toFixed(1))
       : 0;
@@ -231,37 +199,6 @@ export default function Reviews() {
     };
   }, [allReviewsForMetrics]);
 
-  // Calculate "since integration" metrics
-  const integrationMetrics = useMemo(() => {
-    if (allReviewsForMetrics.length === 0) {
-      return { totalReviews: 0, firstReviewDate: null, avgRatingImprovement: 0, startingRating: 0, currentRating: 0 };
-    }
-
-    // Sort by date to find oldest and calculate progression
-    const sorted = [...allReviewsForMetrics].sort((a, b) => 
-      parseISO(a.created_at).getTime() - parseISO(b.created_at).getTime()
-    );
-    
-    const firstReviewDate = sorted[0].created_at;
-    const totalReviews = sorted.length;
-    
-    // Calculate starting rating (first 3 reviews avg) vs current rating (last 3 reviews avg)
-    const firstThree = sorted.slice(0, Math.min(3, sorted.length));
-    const lastThree = sorted.slice(-Math.min(3, sorted.length));
-    
-    const startingRating = firstThree.reduce((sum, r) => sum + (r.rating || 0), 0) / firstThree.length;
-    const currentRating = lastThree.reduce((sum, r) => sum + (r.rating || 0), 0) / lastThree.length;
-    const avgRatingImprovement = parseFloat((currentRating - startingRating).toFixed(1));
-
-    return {
-      totalReviews,
-      firstReviewDate,
-      avgRatingImprovement,
-      startingRating: parseFloat(startingRating.toFixed(1)),
-      currentRating: parseFloat(currentRating.toFixed(1)),
-    };
-  }, [allReviewsForMetrics]);
-
   // Calculate metrics for current filtered view
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1) 
@@ -269,7 +206,7 @@ export default function Reviews() {
 
   // Calculate star distribution
   const starDistribution = useMemo(() => {
-    const counts = [0, 0, 0, 0, 0]; // Index 0 = 1 star, etc.
+    const counts = [0, 0, 0, 0, 0];
     reviews.forEach(r => {
       if (r.rating >= 1 && r.rating <= 5) {
         counts[r.rating - 1]++;
@@ -279,7 +216,7 @@ export default function Reviews() {
       stars: i + 1,
       count,
       percentage: reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0
-    })).reverse(); // Reverse to show 5 stars first
+    })).reverse();
   }, [reviews]);
 
   // Channel breakdown
@@ -327,22 +264,7 @@ export default function Reviews() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
 
-      {/* Demo Mode Indicator */}
-      {usingDemoData && (
-        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-          <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-            Demo Mode
-          </Badge>
-          <span className="text-sm text-amber-700 dark:text-amber-300">
-            Viewing sample reviews. Connect review channels in Settings to see real data.
-          </span>
-          <Button variant="outline" size="sm" asChild className="ml-auto">
-            <Link to="/settings/reviews">Connect Channels</Link>
-          </Button>
-        </div>
-      )}
-
-      {/* Row 1: Core Metrics with Trends */}
+      {/* Row 1: Core Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {isLoading ? (
           <>
@@ -352,6 +274,7 @@ export default function Reviews() {
           </>
         ) : (
           <>
+            {/* Average Rating with Star Distribution */}
             <MetricCard 
               title="Average Rating" 
               value={avgRating}
@@ -359,13 +282,22 @@ export default function Reviews() {
               changeLabel="vs last 7 days"
               icon={<Star className="h-6 w-6 fill-warning text-warning" />}
             >
-              <div className="flex flex-col gap-1">
-                {renderStars(Math.round(parseFloat(avgRating)))}
-                {isMultiLocationView && locationBreakdown.length > 1 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Across {locationBreakdown.length} locations
-                  </p>
-                )}
+              <div className="space-y-2 mt-2">
+                {starDistribution.map(({ stars, percentage }) => (
+                  <div key={stars} className="flex items-center gap-2">
+                    <span className="w-3 text-xs text-muted-foreground">{stars}</span>
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full",
+                          stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
+                        )}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-xs text-right text-muted-foreground">{percentage}%</span>
+                  </div>
+                ))}
               </div>
             </MetricCard>
             
@@ -410,147 +342,32 @@ export default function Reviews() {
         )}
       </div>
 
-      {/* Row 2: Star Distribution and Since Integration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {isLoading ? (
-          <>
-            <CardSkeleton />
-            <CardSkeleton />
-          </>
-        ) : (
-          <>
-            <Card className="shadow-soft border-border/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-normal text-muted-foreground">Star Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2.5">
-                  {starDistribution.map(({ stars, count, percentage }) => (
-                    <div key={stars} className="flex items-center gap-3">
-                      <span className="w-12 text-sm text-muted-foreground flex items-center gap-1">
-                        {stars} <Star className="h-3 w-3 fill-warning text-warning" />
-                      </span>
-                      <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            stars >= 4 ? "bg-success" : stars === 3 ? "bg-warning" : "bg-destructive"
-                          )}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="w-12 text-sm text-right text-muted-foreground">{count} ({percentage}%)</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-soft border-border/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-normal text-muted-foreground">Since Integration</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">First connected</p>
-                    <p className="text-lg font-semibold">
-                      {integrationMetrics.firstReviewDate 
-                        ? format(parseISO(integrationMetrics.firstReviewDate), 'MMM d, yyyy')
-                        : 'Not connected'}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total reviews collected</p>
-                      <p className="text-2xl font-semibold">+{integrationMetrics.totalReviews}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Rating change</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {integrationMetrics.startingRating} → {integrationMetrics.currentRating}
-                        </span>
-                        {integrationMetrics.avgRatingImprovement > 0 ? (
-                          <span className="flex items-center gap-1 text-sm text-success">
-                            <TrendingUp className="h-3 w-3" />
-                            +{integrationMetrics.avgRatingImprovement}
-                          </span>
-                        ) : integrationMetrics.avgRatingImprovement < 0 ? (
-                          <span className="flex items-center gap-1 text-sm text-destructive">
-                            <TrendingDown className="h-3 w-3" />
-                            {integrationMetrics.avgRatingImprovement}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
-
-      {/* Location Breakdown Table (Multi-location view only) */}
+      {/* Location Cards (Multi-location view only) */}
       {isMultiLocationView && locationBreakdown.length > 1 && (
-        <Card className="shadow-soft border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Building2 className="h-5 w-5" />
-              Ratings by Location
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead sortKey="name" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Location</SortableTableHead>
-                  <SortableTableHead sortKey="avgRating" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Avg Rating</SortableTableHead>
-                  <SortableTableHead sortKey="totalReviews" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Total Reviews</SortableTableHead>
-                  <SortableTableHead sortKey="unresponded" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Unresponded</SortableTableHead>
-                  <SortableTableHead sortKey="lastReviewDate" currentSortKey={locSortKey} currentDirection={locSortDirection} onSort={handleLocSort}>Last Review</SortableTableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedLocationBreakdown.map((loc) => (
-                  <TableRow 
-                    key={loc.id} 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleLocationClick(loc.id)}
-                  >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {loc.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {renderStars(Math.round(loc.avgRating))}
-                        <span className="text-sm font-medium">{loc.avgRating.toFixed(1)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{loc.totalReviews}</TableCell>
-                    <TableCell>
-                      {loc.unresponded > 0 ? (
-                        <Badge variant="destructive">{loc.unresponded}</Badge>
-                      ) : (
-                        <Badge variant="secondary">0</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {loc.lastReviewDate 
-                        ? format(parseISO(loc.lastReviewDate), 'MMM d, yyyy')
-                        : '—'
-                      }
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Ratings by Location</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {locationBreakdown.map((loc) => (
+              <Card 
+                key={loc.id}
+                className="cursor-pointer hover:bg-muted/50 transition-colors shadow-soft border-border/60"
+                onClick={() => handleLocationClick(loc.id)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-2 mb-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="font-medium text-sm line-clamp-1">{loc.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {renderStars(Math.round(loc.avgRating))}
+                    <span className="text-sm font-semibold">{loc.avgRating.toFixed(1)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{loc.totalReviews} reviews</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Filters */}
@@ -598,107 +415,98 @@ export default function Reviews() {
       </div>
 
       {/* Review List */}
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {isLoading ? (
-          <CardSkeleton />
-        ) : filteredReviews.length > 0 ? (
-          filteredReviews.map((review) => {
-            const isLongText = (review.review_text?.length || 0) > 200;
-            const isExpanded = expandedReviews.has(review.id);
-            const reviewChannel = (review as any).channel || 'google';
-
-            return (
-              <Card key={review.id} className="shadow-soft border-border/50">
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <ChannelBadge channel={reviewChannel} />
-                      {renderStars(review.rating)}
+          <div className="space-y-4">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        ) : filteredReviews.length === 0 ? (
+          <EmptyState
+            icon={<MessageSquare className="h-8 w-8" />}
+            title="No reviews found"
+            description="No reviews match the current filters."
+          />
+        ) : (
+          filteredReviews.map((review) => (
+            <Card key={review.id} className="shadow-soft border-border/60">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
                       <span className="font-medium">{review.reviewer_name || 'Anonymous'}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {format(parseISO(review.created_at), 'MMM d, yyyy')}
-                      </span>
+                      {renderStars(review.rating)}
+                      <ChannelBadge channel={(review as any).channel || 'google'} />
                     </div>
-                    <div className="flex items-center gap-2">
+                    
+                    <div className="text-sm text-muted-foreground mb-3">
                       {review.location?.name && (
-                        <Badge variant="outline" className="flex items-center gap-1">
+                        <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
                           {review.location.name}
-                        </Badge>
+                        </span>
                       )}
-                      {review.responded_at && <Badge className="bg-success">Replied</Badge>}
                     </div>
+
+                    {review.review_text && (
+                      <div className="mb-3">
+                        <p className={cn(
+                          "text-sm",
+                          !expandedReviews.has(review.id) && review.review_text.length > 200 && "line-clamp-3"
+                        )}>
+                          {review.review_text}
+                        </p>
+                        {review.review_text.length > 200 && (
+                          <button 
+                            className="text-xs text-primary hover:underline mt-1"
+                            onClick={() => toggleExpanded(review.id)}
+                          >
+                            {expandedReviews.has(review.id) ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {review.response_text && (
+                      <div className="bg-muted/50 rounded-lg p-3 mt-3">
+                        <p className="text-xs text-muted-foreground mb-1">Your response:</p>
+                        <p className="text-sm">{review.response_text}</p>
+                      </div>
+                    )}
                   </div>
 
-                  {review.review_text && (
-                    <div>
-                      <p className="text-foreground">
-                        {isLongText && !isExpanded
-                          ? `${review.review_text.slice(0, 200)}...`
-                          : review.review_text}
-                      </p>
-                      {isLongText && (
-                        <button
-                          onClick={() => toggleExpanded(review.id)}
-                          className="text-primary text-sm mt-1 hover:underline"
-                        >
-                          {isExpanded ? 'Show less' : 'Read more'}
-                        </button>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {format(parseISO(review.created_at), 'MMM d, yyyy')}
+                    </span>
+                    
+                    <div className="flex gap-2">
+                      {review.source_url && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={review.source_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
                       )}
-                    </div>
-                  )}
-
-                  {review.response_text && (
-                    <div className="bg-muted rounded-lg p-4">
-                      <p className="text-sm font-medium mb-1">
-                        Your Response ({format(parseISO(review.responded_at!), 'MMM d')}):
-                      </p>
-                      <p className="text-sm text-muted-foreground">{review.response_text}</p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    {!review.responded_at && (
-                      <Button
-                        className="btn-coral"
-                        onClick={() => {
-                          setSelectedReview(review);
-                          setResponseText('');
-                          setRespondModalOpen(true);
-                        }}
-                      >
-                        Reply
-                      </Button>
-                    )}
-                    {review.responded_at && (
-                      <Button
-                        variant="outline"
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => {
                           setSelectedReview(review);
                           setResponseText(review.response_text || '');
                           setRespondModalOpen(true);
                         }}
                       >
-                        Edit Response
+                        {review.responded_at ? 'Edit Response' : 'Respond'}
                       </Button>
-                    )}
-                    {review.source_url && (
-                      <Button variant="ghost" size="sm" onClick={() => window.open(review.source_url, '_blank')}>
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        View on {reviewChannel.charAt(0).toUpperCase() + reviewChannel.slice(1)}
-                      </Button>
-                    )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        ) : (
-          <EmptyState
-            icon={<Star className="h-8 w-8" />}
-            title="No reviews found"
-            description="Reviews from connected channels will appear here."
-          />
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
 
@@ -707,42 +515,41 @@ export default function Reviews() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{selectedReview?.responded_at ? 'Edit Response' : 'Respond to Review'}</DialogTitle>
-            <DialogDescription>Your response will be posted publicly.</DialogDescription>
+            <DialogDescription>
+              {selectedReview?.reviewer_name && `Responding to ${selectedReview.reviewer_name}'s review`}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedReview && (
-              <div className="bg-muted rounded-lg p-4">
+
+          {selectedReview && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <ChannelBadge channel={(selectedReview as any).channel || 'google'} />
                   {renderStars(selectedReview.rating)}
-                  <span className="font-medium">{selectedReview.reviewer_name}</span>
-                  {selectedReview.location?.name && (
-                    <Badge variant="outline" className="text-xs">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {selectedReview.location.name}
-                    </Badge>
-                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {format(parseISO(selectedReview.created_at), 'MMM d, yyyy')}
+                  </span>
                 </div>
-                <p className="text-sm">{selectedReview.review_text}</p>
+                <p className="text-sm">{selectedReview.review_text || 'No review text'}</p>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label>Your Response</Label>
-              <Textarea
-                value={responseText}
-                onChange={(e) => setResponseText(e.target.value)}
-                placeholder="Thank you for your feedback..."
-                className="min-h-[120px]"
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground">{responseText.length}/500</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="response">Your Response</Label>
+                <Textarea
+                  id="response"
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Write your response..."
+                  rows={4}
+                />
+              </div>
             </div>
-          </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setRespondModalOpen(false)}>
               Cancel
             </Button>
-            <Button className="btn-coral" onClick={handleSubmitResponse} disabled={!responseText.trim()}>
+            <Button onClick={handleSubmitResponse}>
               Post Response
             </Button>
           </DialogFooter>
