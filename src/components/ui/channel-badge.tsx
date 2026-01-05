@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 type DeliveryChannel = 'email' | 'sms' | 'qr' | 'web' | 'link';
 
 // Review source channel types (google, facebook, etc.)
-type ReviewChannel = 'google' | 'facebook' | 'yelp';
+type ReviewChannel = 'google' | 'facebook' | 'yelp' | 'tripadvisor';
 
 type Channel = DeliveryChannel | ReviewChannel;
 
@@ -24,6 +24,7 @@ const channelConfig: Record<Channel, { label: string; icon: React.ComponentType<
   google: { label: 'Google', icon: Globe, className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800' },
   facebook: { label: 'Facebook', icon: Globe, className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
   yelp: { label: 'Yelp', icon: Globe, className: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800' },
+  tripadvisor: { label: 'TripAdvisor', icon: Globe, className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' },
 };
 
 export function ChannelBadge({ channel }: ChannelBadgeProps) {
