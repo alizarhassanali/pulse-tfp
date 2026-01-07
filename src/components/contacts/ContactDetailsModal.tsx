@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,16 +8,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
+import { SendWizard } from '@/components/distribution/SendWizard';
 import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil, Globe, Calendar, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations } from '@/data/demo-data';
+import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations, DEMO_EVENTS } from '@/data/demo-data';
 import { getLanguageLabel } from '@/types/database';
+
+// Submission type for initial data
+interface InitialSubmission {
+  id: string;
+  nps_score: number | null;
+  completed_at: string | null;
+  answers?: any[];
+  event?: { name: string } | null;
+}
 
 interface ContactDetailsModalProps {
   contactId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit?: () => void;
+  initialSubmissions?: InitialSubmission[];
 }
 
 // UUID validation helper
@@ -48,7 +60,9 @@ const getDemoContact = (id: string) => {
   };
 };
 
-export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: ContactDetailsModalProps) {
+export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit, initialSubmissions = [] }: ContactDetailsModalProps) {
+  const [sendWizardOpen, setSendWizardOpen] = useState(false);
+  
   // Check if this is a demo contact
   const isDemo = isDemoContactId(contactId);
   const demoContact = isDemo && contactId ? getDemoContact(contactId) : null;
@@ -102,7 +116,7 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: C
     enabled: !!contactId && open && !isDemo,
   });
 
-  const { data: submissions = [] } = useQuery({
+  const { data: dbSubmissions = [] } = useQuery({
     queryKey: ['contact-submissions', contactId],
     queryFn: async () => {
       if (!contactId || isDemo) return [];
@@ -117,6 +131,18 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: C
     },
     enabled: !!contactId && open && !isDemo,
   });
+
+  // Merge initial submissions with fetched ones, avoiding duplicates
+  const submissions = useMemo(() => {
+    if (isDemo && initialSubmissions.length > 0) {
+      return initialSubmissions;
+    }
+    if (dbSubmissions.length > 0) {
+      return dbSubmissions;
+    }
+    // Use initial submissions as fallback if no db submissions
+    return initialSubmissions;
+  }, [isDemo, initialSubmissions, dbSubmissions]);
 
   const { data: communications = [] } = useQuery({
     queryKey: ['contact-communications', contactId],
@@ -302,10 +328,37 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit }: C
                 </div>
               )}
 
-              <Button className="btn-coral mt-4">
+              <Button className="btn-coral mt-4" onClick={() => setSendWizardOpen(true)}>
                 <Send className="h-4 w-4 mr-2" />
                 Send Ad-hoc Survey
               </Button>
+
+              {/* Send Wizard Dialog */}
+              <Dialog open={sendWizardOpen} onOpenChange={setSendWizardOpen}>
+                <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Send Survey to {contact.first_name} {contact.last_name}</DialogTitle>
+                  </DialogHeader>
+                  <SendWizard
+                    contacts={contact ? [{
+                      id: contact.id,
+                      first_name: contact.first_name,
+                      last_name: contact.last_name,
+                      email: contact.email,
+                      phone: contact.phone,
+                      preferred_channel: contact.preferred_channel,
+                      brand_id: contact.brand_id || null,
+                      location_id: contact.location_id || null,
+                      status: contact.status || 'active',
+                    }] : []}
+                    eventId={DEMO_EVENTS[0]?.id || 'default-event'}
+                    eventName="Ad-hoc Survey"
+                    eventStatus="active"
+                    eventBrandId={contact?.brand_id}
+                    onClose={() => setSendWizardOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="submissions" className="pt-4">
