@@ -505,6 +505,7 @@ export type Database = {
           status: string
           thank_you_config: Json | null
           throttle_days: number | null
+          translations: Json | null
           type: string
           updated_at: string | null
         }
@@ -521,6 +522,7 @@ export type Database = {
           status?: string
           thank_you_config?: Json | null
           throttle_days?: number | null
+          translations?: Json | null
           type?: string
           updated_at?: string | null
         }
@@ -537,6 +539,7 @@ export type Database = {
           status?: string
           thank_you_config?: Json | null
           throttle_days?: number | null
+          translations?: Json | null
           type?: string
           updated_at?: string | null
         }

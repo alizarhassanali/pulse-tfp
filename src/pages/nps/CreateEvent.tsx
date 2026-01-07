@@ -46,6 +46,17 @@ interface ThankYouButton {
   url: string;
 }
 
+// Per-language translation content
+interface LanguageContent {
+  introMessage: string;
+  metricQuestion: string;
+  thankYouConfig: {
+    promoters: { message: string };
+    passives: { message: string };
+    detractors: { message: string };
+  };
+}
+
 interface EventFormData {
   // Basic Setup (Step 1)
   brandId: string;
@@ -84,6 +95,9 @@ interface EventFormData {
     passives: { message: string; buttons: ThankYouButton[] };
     detractors: { message: string; buttons: ThankYouButton[] };
   };
+  
+  // Translations (per-language content)
+  translations: Record<string, LanguageContent>;
 }
 
 const steps = [
@@ -115,6 +129,16 @@ const buttonTypeOptions = [
   { value: 'facebook', label: 'Facebook Page', icon: LinkIcon, available: false },
   { value: 'yelp', label: 'Yelp', icon: LinkIcon, available: false },
 ];
+
+const createDefaultTranslation = (): LanguageContent => ({
+  introMessage: '',
+  metricQuestion: 'How likely are you to recommend [Brand] to a friend or colleague?',
+  thankYouConfig: {
+    promoters: { message: 'Thank you for your feedback! We appreciate your support.' },
+    passives: { message: 'Thank you for your feedback! We\'re always looking to improve.' },
+    detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.' },
+  },
+});
 
 const createDefaultFormData = (): EventFormData => ({
   brandId: '',
@@ -153,6 +177,9 @@ const createDefaultFormData = (): EventFormData => ({
       message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', 
       buttons: [] 
     },
+  },
+  translations: {
+    en: createDefaultTranslation(),
   },
 });
 
@@ -247,6 +274,32 @@ export default function CreateEvent() {
 
         const loadedThankYouConfig = thankYouConfig?.config || {};
         
+        // Load existing translations or create from legacy fields
+        const existingTranslations = (event as any).translations as Record<string, LanguageContent> | null;
+        const eventLanguages = event.languages || ['en'];
+        const defaultLang = eventConfig?.defaultLanguage || 'en';
+        
+        // Build translations object
+        const translations: Record<string, LanguageContent> = {};
+        eventLanguages.forEach((lang: string) => {
+          if (existingTranslations && existingTranslations[lang]) {
+            translations[lang] = existingTranslations[lang];
+          } else if (lang === defaultLang) {
+            // For default language, use the legacy single-language fields
+            translations[lang] = {
+              introMessage: event.intro_message || '',
+              metricQuestion: event.metric_question || createDefaultFormData().metricQuestion,
+              thankYouConfig: {
+                promoters: { message: loadedThankYouConfig?.promoters?.message || createDefaultFormData().thankYouConfig.promoters.message },
+                passives: { message: loadedThankYouConfig?.passives?.message || createDefaultFormData().thankYouConfig.passives.message },
+                detractors: { message: loadedThankYouConfig?.detractors?.message || createDefaultFormData().thankYouConfig.detractors.message },
+              },
+            };
+          } else {
+            translations[lang] = createDefaultTranslation();
+          }
+        });
+        
         setFormData({
           brandId: event.brand_id || '',
           locationIds: eventLocations?.map(el => el.location_id) || [],
@@ -254,8 +307,8 @@ export default function CreateEvent() {
           eventTitle: eventConfig?.eventTitle || '',
           introMessage: event.intro_message || '',
           metricQuestion: event.metric_question || createDefaultFormData().metricQuestion,
-          languages: event.languages || ['en'],
-          defaultLanguage: eventConfig?.defaultLanguage || 'en',
+          languages: eventLanguages,
+          defaultLanguage: defaultLang,
           throttleDays: event.throttle_days || 90,
           questionsTitle: eventConfig?.questionsTitle || '',
           questionsIntro: eventConfig?.questionsIntro || '',
@@ -287,6 +340,7 @@ export default function CreateEvent() {
               buttons: convertToButtons(loadedThankYouConfig?.detractors)
             },
           },
+          translations,
         });
       } catch (error: any) {
         toast({ title: 'Failed to load event', description: error.message, variant: 'destructive' });
@@ -305,18 +359,31 @@ export default function CreateEvent() {
     isBrandLocked,
     getLocationsForBrand,
     getBrandName,
+    isLoading: isContextLoading,
   } = useBrandLocationContext();
 
+  // Wait for context to load before computing locations to ensure pre-selection works in edit mode
   const locations = useMemo(() => {
-    if (!formData.brandId) return [];
+    if (!formData.brandId || isContextLoading) return [];
     return getLocationsForBrand(formData.brandId);
-  }, [formData.brandId, getLocationsForBrand]);
+  }, [formData.brandId, getLocationsForBrand, isContextLoading]);
 
+  // Auto-select brand from global filter only for new events
   useEffect(() => {
-    if (effectiveBrandId && !formData.brandId && !isEditMode) {
+    if (effectiveBrandId && !formData.brandId && !isEditMode && !isContextLoading) {
       setFormData(prev => ({ ...prev, brandId: effectiveBrandId }));
     }
-  }, [effectiveBrandId, formData.brandId, isEditMode]);
+  }, [effectiveBrandId, formData.brandId, isEditMode, isContextLoading]);
+  
+  // State for translation editing
+  const [editingLanguage, setEditingLanguage] = useState<string>(formData.defaultLanguage || 'en');
+  
+  // Update editing language when default language changes
+  useEffect(() => {
+    if (formData.languages.length > 0 && !formData.languages.includes(editingLanguage)) {
+      setEditingLanguage(formData.languages[0]);
+    }
+  }, [formData.languages, editingLanguage]);
 
   const createEventMutation = useMutation({
     mutationFn: async (status: 'draft' | 'active') => {
@@ -356,6 +423,7 @@ export default function CreateEvent() {
           questionsTitle: formData.questionsTitle,
           questionsIntro: formData.questionsIntro,
         })),
+        translations: JSON.parse(JSON.stringify(formData.translations)),
         status,
       };
 
@@ -557,6 +625,25 @@ export default function CreateEvent() {
     }));
   };
 
+  // Helper to update translation for current language
+  const updateTranslation = (field: keyof LanguageContent, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      translations: {
+        ...prev.translations,
+        [editingLanguage]: {
+          ...prev.translations[editingLanguage] || createDefaultTranslation(),
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  // Ensure translation exists for current editing language
+  const getCurrentTranslation = (): LanguageContent => {
+    return formData.translations[editingLanguage] || createDefaultTranslation();
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -573,6 +660,50 @@ export default function CreateEvent() {
       title: 'Preview Mode',
       description: 'In production, this would open the full survey preview in a new tab.',
     });
+  };
+  
+  // Initialize translations when languages change
+  useEffect(() => {
+    const updatedTranslations = { ...formData.translations };
+    let hasChanges = false;
+    
+    formData.languages.forEach((lang) => {
+      if (!updatedTranslations[lang]) {
+        updatedTranslations[lang] = createDefaultTranslation();
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      setFormData((prev) => ({ ...prev, translations: updatedTranslations }));
+    }
+  }, [formData.languages]);
+
+  // Language selector component for translation editing
+  const renderLanguageSelector = () => {
+    if (formData.languages.length <= 1) return null;
+    
+    return (
+      <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border">
+        <Label className="text-sm font-medium">Editing Language:</Label>
+        <div className="flex flex-wrap gap-1">
+          {formData.languages.map((lang) => (
+            <Badge
+              key={lang}
+              variant={editingLanguage === lang ? 'default' : 'outline'}
+              className={cn(
+                "cursor-pointer",
+                editingLanguage === lang && "ring-1 ring-primary"
+              )}
+              onClick={() => setEditingLanguage(lang)}
+            >
+              {languageOptions.find(l => l.value === lang)?.label || lang}
+              {formData.defaultLanguage === lang && " ★"}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // ===== STEP 1: Basic Setup =====
@@ -670,28 +801,89 @@ export default function CreateEvent() {
         <p className="text-xs text-muted-foreground">Display name shown to respondents</p>
       </div>
 
-      {/* Intro Message */}
-      <div className="space-y-2">
-        <Label>Intro Message</Label>
-        <Textarea
-          placeholder="Welcome message shown before the survey..."
-          value={formData.introMessage}
-          onChange={(e) => setFormData((prev) => ({ ...prev, introMessage: e.target.value }))}
-          maxLength={300}
-        />
-      </div>
+      {/* Translatable Content Section */}
+      {formData.languages.length > 1 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Translatable Content</CardTitle>
+            <CardDescription className="text-xs">
+              Edit intro message and metric question for each language
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {renderLanguageSelector()}
+            
+            {/* Intro Message - Per Language */}
+            <div className="space-y-2">
+              <Label>Intro Message ({languageOptions.find(l => l.value === editingLanguage)?.label})</Label>
+              <Textarea
+                placeholder="Welcome message shown before the survey..."
+                value={getCurrentTranslation().introMessage}
+                onChange={(e) => {
+                  updateTranslation('introMessage', e.target.value);
+                  // Also update default form field if editing default language
+                  if (editingLanguage === formData.defaultLanguage) {
+                    setFormData((prev) => ({ ...prev, introMessage: e.target.value }));
+                  }
+                }}
+                maxLength={300}
+              />
+            </div>
 
-      {/* Metric Question */}
-      <div className="space-y-2">
-        <Label>Metric Question * (max 200 characters)</Label>
-        <Textarea
-          placeholder="How likely are you to recommend [Brand]..."
-          value={formData.metricQuestion}
-          onChange={(e) => setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }))}
-          maxLength={200}
-        />
-        <p className="text-xs text-muted-foreground">{formData.metricQuestion.length}/200</p>
-      </div>
+            {/* Metric Question - Per Language */}
+            <div className="space-y-2">
+              <Label>Metric Question ({languageOptions.find(l => l.value === editingLanguage)?.label}) *</Label>
+              <Textarea
+                placeholder="How likely are you to recommend [Brand]..."
+                value={getCurrentTranslation().metricQuestion}
+                onChange={(e) => {
+                  updateTranslation('metricQuestion', e.target.value);
+                  // Also update default form field if editing default language
+                  if (editingLanguage === formData.defaultLanguage) {
+                    setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }));
+                  }
+                }}
+                maxLength={200}
+              />
+              <p className="text-xs text-muted-foreground">{getCurrentTranslation().metricQuestion.length}/200</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Single Language Intro/Metric - Only show if single language */}
+      {formData.languages.length === 1 && (
+        <>
+          {/* Intro Message */}
+          <div className="space-y-2">
+            <Label>Intro Message</Label>
+            <Textarea
+              placeholder="Welcome message shown before the survey..."
+              value={formData.introMessage}
+              onChange={(e) => {
+                setFormData((prev) => ({ ...prev, introMessage: e.target.value }));
+                updateTranslation('introMessage', e.target.value);
+              }}
+              maxLength={300}
+            />
+          </div>
+
+          {/* Metric Question */}
+          <div className="space-y-2">
+            <Label>Metric Question * (max 200 characters)</Label>
+            <Textarea
+              placeholder="How likely are you to recommend [Brand]..."
+              value={formData.metricQuestion}
+              onChange={(e) => {
+                setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }));
+                updateTranslation('metricQuestion', e.target.value);
+              }}
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">{formData.metricQuestion.length}/200</p>
+          </div>
+        </>
+      )}
 
       {/* Languages */}
       <div className="space-y-2">
@@ -1149,6 +1341,18 @@ export default function CreateEvent() {
         Configure different thank you messages and buttons based on the respondent's score.
       </p>
 
+      {/* Language selector for translations */}
+      {formData.languages.length > 1 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-4">
+            {renderLanguageSelector()}
+            <p className="text-xs text-muted-foreground mt-2">
+              Edit thank you messages for each language. Buttons are shared across all languages.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {(['promoters', 'passives', 'detractors'] as const).map((group) => (
         <Card key={group} className="border-border/50">
           <CardHeader>
@@ -1160,20 +1364,39 @@ export default function CreateEvent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Message */}
+            {/* Message - with translation support */}
             <div className="space-y-2">
-              <Label>Message</Label>
+              <Label>
+                Message
+                {formData.languages.length > 1 && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({languageOptions.find(l => l.value === editingLanguage)?.label})
+                  </span>
+                )}
+              </Label>
               <Textarea
-                value={formData.thankYouConfig[group].message}
-                onChange={(e) =>
+                value={formData.languages.length > 1 
+                  ? (getCurrentTranslation().thankYouConfig[group]?.message || formData.thankYouConfig[group].message)
+                  : formData.thankYouConfig[group].message
+                }
+                onChange={(e) => {
+                  // Update main form data
                   setFormData((prev) => ({
                     ...prev,
                     thankYouConfig: {
                       ...prev.thankYouConfig,
                       [group]: { ...prev.thankYouConfig[group], message: e.target.value },
                     },
-                  }))
-                }
+                  }));
+                  // Also update translation
+                  if (formData.languages.length > 1) {
+                    const currentTrans = getCurrentTranslation();
+                    updateTranslation('thankYouConfig', {
+                      ...currentTrans.thankYouConfig,
+                      [group]: { message: e.target.value },
+                    });
+                  }
+                }}
               />
             </div>
 
