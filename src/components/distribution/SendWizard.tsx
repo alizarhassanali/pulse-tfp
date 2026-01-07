@@ -133,6 +133,22 @@ export function SendWizard({
     },
   });
 
+  // Fetch brand name for variable replacement
+  const { data: eventBrand } = useQuery({
+    queryKey: ['event-brand', eventBrandId],
+    queryFn: async () => {
+      if (!eventBrandId) return null;
+      const { data, error } = await supabase
+        .from('brands')
+        .select('name')
+        .eq('id', eventBrandId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventBrandId,
+  });
+
   // Fetch contact tag assignments
   const { data: tagAssignments = [] } = useQuery({
     queryKey: ['contact-tag-assignments'],
@@ -382,12 +398,13 @@ export function SendWizard({
     const firstName = contact?.first_name || 'John';
     const lastName = contact?.last_name || 'Doe';
     const locationName = locations.find((l: any) => l.id === contact?.location_id)?.name || 'Downtown Clinic';
-    const brandName = 'Your Brand'; // Placeholder - would come from event's brand
+    const brandName = eventBrand?.name || 'Your Brand';
     return template
       .replace(/{first_name}/g, firstName)
       .replace(/{last_name}/g, lastName)
       .replace(/{location_name}/g, locationName)
       .replace(/{brand_name}/g, brandName)
+      .replace(/{event_name}/g, eventName)
       .replace(/{survey_link}/g, `https://survey.userpulse.io/s/${eventId.slice(0, 8)}`);
   };
 
