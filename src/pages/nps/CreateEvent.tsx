@@ -48,6 +48,7 @@ interface ThankYouButton {
 
 // Per-language translation content
 interface LanguageContent {
+  eventHeading: string;
   introMessage: string;
   metricQuestion: string;
   thankYouConfig: {
@@ -131,6 +132,7 @@ const buttonTypeOptions = [
 ];
 
 const createDefaultTranslation = (): LanguageContent => ({
+  eventHeading: '',
   introMessage: '',
   metricQuestion: 'How likely are you to recommend [Brand] to a friend or colleague?',
   thankYouConfig: {
@@ -283,10 +285,15 @@ export default function CreateEvent() {
         const translations: Record<string, LanguageContent> = {};
         eventLanguages.forEach((lang: string) => {
           if (existingTranslations && existingTranslations[lang]) {
-            translations[lang] = existingTranslations[lang];
+            // Ensure eventHeading exists for older translations
+            translations[lang] = {
+              eventHeading: existingTranslations[lang].eventHeading || '',
+              ...existingTranslations[lang],
+            };
           } else if (lang === defaultLang) {
             // For default language, use the legacy single-language fields
             translations[lang] = {
+              eventHeading: '',
               introMessage: event.intro_message || '',
               metricQuestion: event.metric_question || createDefaultFormData().metricQuestion,
               thankYouConfig: {
@@ -801,91 +808,7 @@ export default function CreateEvent() {
         <p className="text-xs text-muted-foreground">Display name shown to respondents</p>
       </div>
 
-      {/* Translatable Content Section */}
-      {formData.languages.length > 1 && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Translatable Content</CardTitle>
-            <CardDescription className="text-xs">
-              Edit intro message and metric question for each language
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {renderLanguageSelector()}
-            
-            {/* Intro Message - Per Language */}
-            <div className="space-y-2">
-              <Label>Intro Message ({languageOptions.find(l => l.value === editingLanguage)?.label})</Label>
-              <Textarea
-                placeholder="Welcome message shown before the survey..."
-                value={getCurrentTranslation().introMessage}
-                onChange={(e) => {
-                  updateTranslation('introMessage', e.target.value);
-                  // Also update default form field if editing default language
-                  if (editingLanguage === formData.defaultLanguage) {
-                    setFormData((prev) => ({ ...prev, introMessage: e.target.value }));
-                  }
-                }}
-                maxLength={300}
-              />
-            </div>
-
-            {/* Metric Question - Per Language */}
-            <div className="space-y-2">
-              <Label>Metric Question ({languageOptions.find(l => l.value === editingLanguage)?.label}) *</Label>
-              <Textarea
-                placeholder="How likely are you to recommend [Brand]..."
-                value={getCurrentTranslation().metricQuestion}
-                onChange={(e) => {
-                  updateTranslation('metricQuestion', e.target.value);
-                  // Also update default form field if editing default language
-                  if (editingLanguage === formData.defaultLanguage) {
-                    setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }));
-                  }
-                }}
-                maxLength={200}
-              />
-              <p className="text-xs text-muted-foreground">{getCurrentTranslation().metricQuestion.length}/200</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Single Language Intro/Metric - Only show if single language */}
-      {formData.languages.length === 1 && (
-        <>
-          {/* Intro Message */}
-          <div className="space-y-2">
-            <Label>Intro Message</Label>
-            <Textarea
-              placeholder="Welcome message shown before the survey..."
-              value={formData.introMessage}
-              onChange={(e) => {
-                setFormData((prev) => ({ ...prev, introMessage: e.target.value }));
-                updateTranslation('introMessage', e.target.value);
-              }}
-              maxLength={300}
-            />
-          </div>
-
-          {/* Metric Question */}
-          <div className="space-y-2">
-            <Label>Metric Question * (max 200 characters)</Label>
-            <Textarea
-              placeholder="How likely are you to recommend [Brand]..."
-              value={formData.metricQuestion}
-              onChange={(e) => {
-                setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }));
-                updateTranslation('metricQuestion', e.target.value);
-              }}
-              maxLength={200}
-            />
-            <p className="text-xs text-muted-foreground">{formData.metricQuestion.length}/200</p>
-          </div>
-        </>
-      )}
-
-      {/* Languages */}
+      {/* Languages Selection - Moved before translatable content */}
       <div className="space-y-2">
         <Label>Languages</Label>
         <div className="flex flex-wrap gap-2">
@@ -932,6 +855,84 @@ export default function CreateEvent() {
           </div>
         )}
       </div>
+
+      {/* Translatable Content - Unified Card for both single and multiple languages */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Translatable Content</CardTitle>
+          <CardDescription className="text-xs">
+            Edit content for each supported language
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Language selector - always shown */}
+          {formData.languages.length > 1 ? (
+            <Select value={editingLanguage} onValueChange={setEditingLanguage}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {formData.languages.map((lang) => (
+                  <SelectItem key={lang} value={lang}>
+                    Editing: {languageOptions.find(l => l.value === lang)?.label}
+                    {formData.defaultLanguage === lang && " ★"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Editing: {languageOptions.find(l => l.value === formData.languages[0])?.label || 'English'}
+            </div>
+          )}
+
+          {/* Event Heading */}
+          <div className="space-y-2">
+            <Label>Event Heading</Label>
+            <Input
+              placeholder="e.g., Share Your Experience"
+              value={getCurrentTranslation().eventHeading}
+              onChange={(e) => updateTranslation('eventHeading', e.target.value)}
+              maxLength={100}
+            />
+            <p className="text-xs text-muted-foreground">{getCurrentTranslation().eventHeading.length}/100</p>
+          </div>
+
+          {/* Event Intro Message */}
+          <div className="space-y-2">
+            <Label>Event Intro Message</Label>
+            <Textarea
+              placeholder="Welcome message shown before the survey..."
+              value={getCurrentTranslation().introMessage}
+              onChange={(e) => {
+                updateTranslation('introMessage', e.target.value);
+                if (editingLanguage === formData.defaultLanguage) {
+                  setFormData((prev) => ({ ...prev, introMessage: e.target.value }));
+                }
+              }}
+              maxLength={300}
+            />
+            <p className="text-xs text-muted-foreground">{getCurrentTranslation().introMessage.length}/300</p>
+          </div>
+
+          {/* Metric Question */}
+          <div className="space-y-2">
+            <Label>Metric Question *</Label>
+            <Textarea
+              placeholder="How likely are you to recommend [Brand]..."
+              value={getCurrentTranslation().metricQuestion}
+              onChange={(e) => {
+                updateTranslation('metricQuestion', e.target.value);
+                if (editingLanguage === formData.defaultLanguage) {
+                  setFormData((prev) => ({ ...prev, metricQuestion: e.target.value }));
+                }
+              }}
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">{getCurrentTranslation().metricQuestion.length}/200</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Throttle Period */}
       <div className="space-y-2">
