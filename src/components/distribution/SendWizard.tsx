@@ -760,56 +760,58 @@ export function SendWizard({
               </div>
               
               <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
-                {/* Default channel for contacts without preference */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Default Channel (for contacts without preference)</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={defaultChannels.includes('email')} 
-                        onCheckedChange={(c) => {
-                          if (c) {
-                            setDefaultChannels([...defaultChannels, 'email']);
-                          } else {
-                            setDefaultChannels(defaultChannels.filter(ch => ch !== 'email'));
-                          }
-                        }} 
-                      />
-                      <Label className="flex items-center gap-1 text-sm">
-                        <Mail className="h-4 w-4" /> Email
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={defaultChannels.includes('sms')} 
-                        onCheckedChange={(c) => {
-                          if (c) {
-                            setDefaultChannels([...defaultChannels, 'sms']);
-                          } else {
-                            setDefaultChannels(defaultChannels.filter(ch => ch !== 'sms'));
-                          }
-                        }} 
-                      />
-                      <Label className="flex items-center gap-1 text-sm">
-                        <MessageSquare className="h-4 w-4" /> SMS
-                      </Label>
-                    </div>
+                {/* Respect Preferred Channel - FIRST */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-base font-medium">Respect Preferred Channel</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send via each contact's preferred channel
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Used when a contact has no preferred channel set</p>
+                  <Switch checked={respectPreferredChannel} onCheckedChange={setRespectPreferredChannel} />
                 </div>
 
-                <div className="pt-3 border-t">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label className="text-base font-medium">Respect Preferred Channel</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Send via each contact's preferred channel
-                      </p>
+                {/* Default channel - only shown when respecting preferences */}
+                {respectPreferredChannel && (
+                  <div className="pt-3 border-t space-y-2">
+                    <Label className="text-sm font-medium">Default Channel (for contacts without preference)</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Checkbox 
+                          checked={defaultChannels.includes('email')} 
+                          onCheckedChange={(c) => {
+                            if (c) {
+                              setDefaultChannels([...defaultChannels, 'email']);
+                            } else {
+                              setDefaultChannels(defaultChannels.filter(ch => ch !== 'email'));
+                            }
+                          }} 
+                        />
+                        <Label className="flex items-center gap-1 text-sm">
+                          <Mail className="h-4 w-4" /> Email
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox 
+                          checked={defaultChannels.includes('sms')} 
+                          onCheckedChange={(c) => {
+                            if (c) {
+                              setDefaultChannels([...defaultChannels, 'sms']);
+                            } else {
+                              setDefaultChannels(defaultChannels.filter(ch => ch !== 'sms'));
+                            }
+                          }} 
+                        />
+                        <Label className="flex items-center gap-1 text-sm">
+                          <MessageSquare className="h-4 w-4" /> SMS
+                        </Label>
+                      </div>
                     </div>
-                    <Switch checked={respectPreferredChannel} onCheckedChange={setRespectPreferredChannel} />
+                    <p className="text-xs text-muted-foreground">Used when a contact has no preferred channel set</p>
                   </div>
-                </div>
+                )}
 
+                {/* Manual channel selection - only when NOT respecting preferences */}
                 {!respectPreferredChannel && (
                   <div className="flex items-center gap-6 pt-3 border-t">
                     <div className="flex items-center gap-2">
