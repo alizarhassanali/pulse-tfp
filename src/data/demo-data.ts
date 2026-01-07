@@ -30,9 +30,9 @@ export const DEMO_LOCATIONS: Record<string, { id: string; name: string; gmb_link
 };
 
 export const DEMO_EVENTS = [
-  { id: 'e1a2c3d4-e5f6-4789-abcd-111111111111', name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222' },
-  { id: 'e1a2c3d4-e5f6-4789-abcd-222222222222', name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333' },
-  { id: 'e1a2c3d4-e5f6-4789-abcd-333333333333', name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-111111111111', name: 'Post First Consult', brand_id: 'b1a2c3d4-e5f6-4789-abcd-222222222222', status: 'active' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-222222222222', name: 'Post Treatment Follow-up', brand_id: 'b1a2c3d4-e5f6-4789-abcd-333333333333', status: 'active' },
+  { id: 'e1a2c3d4-e5f6-4789-abcd-333333333333', name: 'Annual Check-In', brand_id: 'b1a2c3d4-e5f6-4789-abcd-111111111111', status: 'active' },
 ];
 
 // Demo contacts with all required fields including preferred_language

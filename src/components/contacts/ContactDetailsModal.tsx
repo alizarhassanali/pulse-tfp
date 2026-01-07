@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { SendWizard } from '@/components/distribution/SendWizard';
-import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil, Globe, Calendar, Clock } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Mail, Phone, Send, Building, MapPin, Tag, AlertCircle, Pencil, Globe, Calendar, Clock, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { DEMO_CONTACTS, DEMO_BRANDS, getAllLocations, DEMO_EVENTS } from '@/data/demo-data';
 import { getLanguageLabel } from '@/types/database';
@@ -61,7 +69,32 @@ const getDemoContact = (id: string) => {
 };
 
 export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit, initialSubmissions = [] }: ContactDetailsModalProps) {
-  const [sendWizardOpen, setSendWizardOpen] = useState(false);
+  const [sendWizardStep, setSendWizardStep] = useState<'closed' | 'select-event' | 'wizard'>('closed');
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  
+  // Fetch active events for event selection
+  const { data: activeEvents = [] } = useQuery({
+    queryKey: ['active-events-for-adhoc'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, name, status, brand_id')
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Combine with demo events if no active events
+  const availableEvents = useMemo(() => {
+    if (activeEvents.length > 0) return activeEvents;
+    return DEMO_EVENTS.filter(e => e.status === 'active').map(e => ({ id: e.id, name: e.name, brand_id: e.brand_id, status: e.status }));
+  }, [activeEvents]);
+
+  const selectedEvent = useMemo(() => {
+    return availableEvents.find(e => e.id === selectedEventId);
+  }, [availableEvents, selectedEventId]);
   
   // Check if this is a demo contact
   const isDemo = isDemoContactId(contactId);
@@ -328,13 +361,56 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit, ini
                 </div>
               )}
 
-              <Button className="btn-coral mt-4" onClick={() => setSendWizardOpen(true)}>
+              <Button className="btn-coral mt-4" onClick={() => setSendWizardStep('select-event')}>
                 <Send className="h-4 w-4 mr-2" />
                 Send Ad-hoc Survey
               </Button>
 
-              {/* Send Wizard Dialog */}
-              <Dialog open={sendWizardOpen} onOpenChange={setSendWizardOpen}>
+              {/* Event Selection Dialog */}
+              <Dialog open={sendWizardStep === 'select-event'} onOpenChange={(open) => !open && setSendWizardStep('closed')}>
+                <DialogContent className="sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" />
+                      Select Survey Event
+                    </DialogTitle>
+                    <DialogDescription>
+                      Choose which survey to send to {contact.first_name}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Event</Label>
+                      <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an event..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableEvents.map((event) => (
+                            <SelectItem key={event.id} value={event.id}>
+                              {event.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setSendWizardStep('closed')}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={() => setSendWizardStep('wizard')}
+                      disabled={!selectedEventId}
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Send Wizard Dialog - Skip to compose step */}
+              <Dialog open={sendWizardStep === 'wizard'} onOpenChange={(open) => !open && setSendWizardStep('closed')}>
                 <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Send Survey to {contact.first_name} {contact.last_name}</DialogTitle>
@@ -351,11 +427,15 @@ export function ContactDetailsModal({ contactId, open, onOpenChange, onEdit, ini
                       location_id: contact.location_id || null,
                       status: contact.status || 'active',
                     }] : []}
-                    eventId={DEMO_EVENTS[0]?.id || 'default-event'}
-                    eventName="Ad-hoc Survey"
+                    eventId={selectedEvent?.id || ''}
+                    eventName={selectedEvent?.name || 'Survey'}
                     eventStatus="active"
-                    eventBrandId={contact?.brand_id}
-                    onClose={() => setSendWizardOpen(false)}
+                    eventBrandId={selectedEvent?.brand_id || contact?.brand_id}
+                    skipRecipientStep={true}
+                    onClose={() => {
+                      setSendWizardStep('closed');
+                      setSelectedEventId('');
+                    }}
                   />
                 </DialogContent>
               </Dialog>
