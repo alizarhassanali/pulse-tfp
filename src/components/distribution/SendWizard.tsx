@@ -83,6 +83,7 @@ interface SendWizardProps {
   eventStatus: string;
   eventBrandId?: string | null;
   throttleDays?: number;
+  skipRecipientStep?: boolean;
   onClose?: () => void;
 }
 
@@ -99,14 +100,19 @@ export function SendWizard({
   eventStatus,
   eventBrandId,
   throttleDays = 90,
+  skipRecipientStep = false,
   onClose,
 }: SendWizardProps) {
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState(0);
+  
+  // Auto-select all contacts and start at compose step if skipping recipient selection
+  const [currentStep, setCurrentStep] = useState(skipRecipientStep ? 1 : 0);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
-  // Recipient selection
-  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  // Recipient selection - auto-select if skipping
+  const [selectedContacts, setSelectedContacts] = useState<string[]>(
+    skipRecipientStep ? contacts.map(c => c.id) : []
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterChannel, setFilterChannel] = useState<string>('all');
   
@@ -371,7 +377,9 @@ export function SendWizard({
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
+    // Don't go back to recipients if we're skipping that step
+    const minStep = skipRecipientStep ? 1 : 0;
+    if (currentStep > minStep) {
       setCurrentStep(currentStep - 1);
     }
   };

@@ -334,25 +334,14 @@ export default function Reviews() {
               </div>
             </MetricCard>
             
+            {/* Response Rate Card */}
             <MetricCard 
-              title="New This Period" 
-              value={trendMetrics.currentPeriodCount}
-              icon={<CalendarDays className="h-6 w-6" />}
+              title="Response Rate" 
+              value={`${reviews.length > 0 ? Math.round((reviews.filter(r => r.responded_at).length / reviews.length) * 100) : 0}%`}
+              icon={<MessageSquare className="h-6 w-6" />}
             >
-              <div className="flex items-center gap-2 mt-1">
-                {trendMetrics.currentPeriodCount > trendMetrics.previousPeriodCount ? (
-                  <span className="flex items-center gap-1 text-xs text-success">
-                    <TrendingUp className="h-3 w-3" />
-                    +{trendMetrics.currentPeriodCount - trendMetrics.previousPeriodCount} vs last week
-                  </span>
-                ) : trendMetrics.currentPeriodCount < trendMetrics.previousPeriodCount ? (
-                  <span className="flex items-center gap-1 text-xs text-destructive">
-                    <TrendingDown className="h-3 w-3" />
-                    {trendMetrics.currentPeriodCount - trendMetrics.previousPeriodCount} vs last week
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Same as last week</span>
-                )}
+              <div className="text-xs text-muted-foreground mt-1">
+                {reviews.filter(r => r.responded_at).length} of {reviews.length} reviews responded
               </div>
             </MetricCard>
           </>

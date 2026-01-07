@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useFilterStore, DatePreset } from '@/stores/filterStore';
 import { DEMO_EVENTS, getAvailableLocations } from '@/data/demo-data';
 import { useBrandLocationContext } from '@/hooks/useBrandLocationContext';
@@ -120,6 +121,9 @@ function FilterMultiSelect({ options, selected, onChange, placeholder, allLabel,
 }
 
 export function GlobalFilters() {
+  const location = useLocation();
+  const hideEventFilter = location.pathname === '/reviews';
+  
   const {
     selectedBrands,
     selectedLocations,
@@ -314,23 +318,25 @@ export function GlobalFilters() {
         />
       )}
 
-      {/* Event Filter (Single Select) */}
-      <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-        <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-foreground hover:bg-muted focus:ring-0 focus:ring-offset-0">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 opacity-60" />
-            <SelectValue placeholder="All Events" />
-          </div>
-        </SelectTrigger>
-        <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
-          <SelectItem value="all">All Events</SelectItem>
-          {events.map((event) => (
-            <SelectItem key={event.value} value={event.value}>
-              {event.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Event Filter (Single Select) - Hidden on Reviews page */}
+      {!hideEventFilter && (
+        <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+          <SelectTrigger className="h-9 min-w-[140px] bg-transparent border-0 text-foreground hover:bg-muted focus:ring-0 focus:ring-offset-0">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 opacity-60" />
+              <SelectValue placeholder="All Events" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-popover border border-border shadow-lg z-[100]">
+            <SelectItem value="all">All Events</SelectItem>
+            {events.map((event) => (
+              <SelectItem key={event.value} value={event.value}>
+                {event.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
     </div>
   );
