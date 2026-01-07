@@ -67,12 +67,14 @@ import { getScoreCategory, type ScoreCategory } from '@/types/database';
 import { DEMO_CONTACTS } from '@/data/demo-data';
 
 // Demo data for when no real data exists - using full contact data from DEMO_CONTACTS
+// Now includes event_id for proper category/tag functionality
 const demoResponses = [
   {
     id: 'r1a2c3d4-e5f6-4789-abcd-111111111111',
     nps_score: 6,
     completed_at: '2025-12-22T10:30:00Z',
     consent_given: true,
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-111111111111',
     contact: {
       id: DEMO_CONTACTS[1].id,
       first_name: DEMO_CONTACTS[1].first_name,
@@ -100,6 +102,7 @@ const demoResponses = [
     nps_score: 9,
     completed_at: '2025-12-20T14:15:00Z',
     consent_given: true,
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-222222222222',
     contact: {
       id: DEMO_CONTACTS[2].id,
       first_name: DEMO_CONTACTS[2].first_name,
@@ -123,6 +126,7 @@ const demoResponses = [
     nps_score: 10,
     completed_at: '2025-12-19T09:00:00Z',
     consent_given: true,
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-333333333333',
     contact: {
       id: DEMO_CONTACTS[4].id,
       first_name: DEMO_CONTACTS[4].first_name,
@@ -146,6 +150,7 @@ const demoResponses = [
     nps_score: 3,
     completed_at: '2025-12-18T16:45:00Z',
     consent_given: false,
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-111111111111',
     contact: {
       id: DEMO_CONTACTS[3].id,
       first_name: DEMO_CONTACTS[3].first_name,
@@ -169,6 +174,7 @@ const demoResponses = [
     nps_score: 8,
     completed_at: '2025-12-17T11:30:00Z',
     consent_given: true,
+    event_id: 'e1a2c3d4-e5f6-4789-abcd-222222222222',
     contact: {
       id: DEMO_CONTACTS[0].id,
       first_name: DEMO_CONTACTS[0].first_name,
@@ -211,6 +217,7 @@ export default function NPSQuestions() {
   const [selectedDetailResponse, setSelectedDetailResponse] = useState<any>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedContactSubmission, setSelectedContactSubmission] = useState<any>(null);
 
   // Fetch event feedback tags (event-specific)
   const { data: eventFeedbackTags = [] } = useQuery({
@@ -687,7 +694,7 @@ export default function NPSQuestions() {
                   </span>
                   <FeedbackCategorySelect
                     responseId={response.id}
-                    eventId={(response as any).event_id || ''}
+                    eventId={response.event_id || (response as any).event_id || ''}
                     selectedTags={getResponseCategories(response.id)}
                     size="sm"
                   />
@@ -710,6 +717,14 @@ export default function NPSQuestions() {
                         size="sm"
                         onClick={() => {
                           setSelectedContactId(response.contact?.id);
+                          // Pass the current response as initial submission data
+                          setSelectedContactSubmission({
+                            id: response.id,
+                            nps_score: response.nps_score,
+                            completed_at: response.completed_at,
+                            answers: response.answers,
+                            event: response.event,
+                          });
                           setContactModalOpen(true);
                         }}
                       >
@@ -860,7 +875,11 @@ export default function NPSQuestions() {
       <ContactDetailsModal
         contactId={selectedContactId}
         open={contactModalOpen}
-        onOpenChange={setContactModalOpen}
+        onOpenChange={(open) => {
+          setContactModalOpen(open);
+          if (!open) setSelectedContactSubmission(null);
+        }}
+        initialSubmissions={selectedContactSubmission ? [selectedContactSubmission] : []}
       />
     </div>
   );
