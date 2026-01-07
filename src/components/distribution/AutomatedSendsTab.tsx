@@ -711,26 +711,6 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Automation Rules Link */}
-      <Card className="shadow-soft border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Automation Rules
-          </CardTitle>
-          <CardDescription>
-            Set up automatic follow-up actions based on survey responses
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Create rules to automatically send follow-up messages, create tasks, or trigger other actions based on NPS scores or feedback.
-          </p>
-          <Button variant="outline" asChild>
-            <a href="/settings/automation-rules">Configure Automation Rules</a>
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* SFTP Sync History Modal */}
       <SftpSyncHistoryModal
