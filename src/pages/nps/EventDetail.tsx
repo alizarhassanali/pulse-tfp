@@ -14,7 +14,6 @@ import {
   Settings,
   HelpCircle,
   Share2,
-  BarChart3,
   FileText,
   Save,
   Power,
@@ -299,7 +298,7 @@ export default function EventDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="distribution" className="flex items-center gap-2">
             <Send className="h-4 w-4" />
             Send Now
@@ -311,10 +310,6 @@ export default function EventDetail() {
           <TabsTrigger value="share" className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
             Share & QR
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -366,86 +361,6 @@ export default function EventDetail() {
           <ShareLinkTab eventId={eventId || ''} />
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics">
-          <Card className="shadow-soft border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Event Analytics
-              </CardTitle>
-              <CardDescription>
-                Performance metrics and trends for this event
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Delivery Stats</h4>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Sent</span>
-                      <span className="font-medium">{sendsCount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Delivered</span>
-                      <span className="font-medium">{Math.round(sendsCount * 0.95).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Opened</span>
-                      <span className="font-medium">{Math.round(sendsCount * 0.42).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Response Stats</h4>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Started</span>
-                      <span className="font-medium">{Math.round(completedCount * 1.2).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Completed</span>
-                      <span className="font-medium">{completedCount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Avg. Time</span>
-                      <span className="font-medium">1m 42s</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">NPS Breakdown</h4>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-success">Promoters (9-10)</span>
-                      <span className="font-medium">48%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-warning">Passives (7-8)</span>
-                      <span className="font-medium">32%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-destructive">Detractors (0-6)</span>
-                      <span className="font-medium">20%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t">
-                <p className="text-sm text-muted-foreground text-center">
-                  For detailed analytics, visit the{' '}
-                  <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/nps/dashboard')}>
-                    Dashboard
-                  </Button>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
