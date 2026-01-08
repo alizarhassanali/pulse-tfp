@@ -162,7 +162,6 @@ export type Database = {
         Row: {
           colors: Json | null
           created_at: string | null
-          google_review_config: Json | null
           id: string
           logo_url: string | null
           name: string
@@ -172,7 +171,6 @@ export type Database = {
         Insert: {
           colors?: Json | null
           created_at?: string | null
-          google_review_config?: Json | null
           id?: string
           logo_url?: string | null
           name: string
@@ -182,7 +180,6 @@ export type Database = {
         Update: {
           colors?: Json | null
           created_at?: string | null
-          google_review_config?: Json | null
           id?: string
           logo_url?: string | null
           name?: string
@@ -294,7 +291,7 @@ export type Database = {
       }
       contacts: {
         Row: {
-          brand_id: string | null
+          brand_id: string
           created_at: string | null
           email: string | null
           first_name: string | null
@@ -305,12 +302,11 @@ export type Database = {
           preferred_channel: string | null
           preferred_language: string | null
           status: string | null
-          tags: Json | null
           unsubscribed_at: string | null
           updated_at: string | null
         }
         Insert: {
-          brand_id?: string | null
+          brand_id: string
           created_at?: string | null
           email?: string | null
           first_name?: string | null
@@ -321,12 +317,11 @@ export type Database = {
           preferred_channel?: string | null
           preferred_language?: string | null
           status?: string | null
-          tags?: Json | null
           unsubscribed_at?: string | null
           updated_at?: string | null
         }
         Update: {
-          brand_id?: string | null
+          brand_id?: string
           created_at?: string | null
           email?: string | null
           first_name?: string | null
@@ -337,7 +332,6 @@ export type Database = {
           preferred_channel?: string | null
           preferred_language?: string | null
           status?: string | null
-          tags?: Json | null
           unsubscribed_at?: string | null
           updated_at?: string | null
         }
@@ -454,7 +448,7 @@ export type Database = {
         Row: {
           config: Json
           created_at: string | null
-          event_id: string | null
+          event_id: string
           id: string
           order_num: number
           required: boolean | null
@@ -464,7 +458,7 @@ export type Database = {
         Insert: {
           config?: Json
           created_at?: string | null
-          event_id?: string | null
+          event_id: string
           id?: string
           order_num?: number
           required?: boolean | null
@@ -474,7 +468,7 @@ export type Database = {
         Update: {
           config?: Json
           created_at?: string | null
-          event_id?: string | null
+          event_id?: string
           id?: string
           order_num?: number
           required?: boolean | null
@@ -493,7 +487,7 @@ export type Database = {
       }
       events: {
         Row: {
-          brand_id: string | null
+          brand_id: string
           config: Json
           consent_config: Json | null
           created_at: string | null
@@ -510,7 +504,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          brand_id?: string | null
+          brand_id: string
           config?: Json
           consent_config?: Json | null
           created_at?: string | null
@@ -527,7 +521,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          brand_id?: string | null
+          brand_id?: string
           config?: Json
           consent_config?: Json | null
           created_at?: string | null
@@ -581,7 +575,7 @@ export type Database = {
         Row: {
           config: Json | null
           created_at: string | null
-          event_id: string | null
+          event_id: string
           id: string
           last_used_at: string | null
           sends_count: number | null
@@ -592,7 +586,7 @@ export type Database = {
         Insert: {
           config?: Json | null
           created_at?: string | null
-          event_id?: string | null
+          event_id: string
           id?: string
           last_used_at?: string | null
           sends_count?: number | null
@@ -603,7 +597,7 @@ export type Database = {
         Update: {
           config?: Json | null
           created_at?: string | null
-          event_id?: string | null
+          event_id?: string
           id?: string
           last_used_at?: string | null
           sends_count?: number | null
@@ -624,11 +618,10 @@ export type Database = {
       locations: {
         Row: {
           address: string | null
-          brand_id: string | null
+          brand_id: string
           created_at: string | null
           gmb_link: string | null
           google_place_id: string | null
-          google_review_config: Json | null
           id: string
           name: string
           review_channels_config: Json | null
@@ -637,11 +630,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          brand_id?: string | null
+          brand_id: string
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
-          google_review_config?: Json | null
           id?: string
           name: string
           review_channels_config?: Json | null
@@ -650,11 +642,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          brand_id?: string | null
+          brand_id?: string
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
-          google_review_config?: Json | null
           id?: string
           name?: string
           review_channels_config?: Json | null
@@ -1010,7 +1001,7 @@ export type Database = {
           contact_id: string | null
           created_at: string | null
           device_info: Json | null
-          event_id: string | null
+          event_id: string
           id: string
           invitation_id: string | null
           nps_score: number | null
@@ -1022,7 +1013,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string | null
           device_info?: Json | null
-          event_id?: string | null
+          event_id: string
           id?: string
           invitation_id?: string | null
           nps_score?: number | null
@@ -1034,7 +1025,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string | null
           device_info?: Json | null
-          event_id?: string | null
+          event_id?: string
           id?: string
           invitation_id?: string | null
           nps_score?: number | null
