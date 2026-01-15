@@ -617,38 +617,53 @@ export type Database = {
       }
       locations: {
         Row: {
-          address: string | null
+          address_line1: string | null
+          address_line2: string | null
           brand_id: string
+          city: string | null
+          country: string | null
           created_at: string | null
           gmb_link: string | null
           google_place_id: string | null
           id: string
           name: string
+          postal_code: string | null
           review_channels_config: Json | null
+          state_province: string | null
           timezone: string | null
           updated_at: string | null
         }
         Insert: {
-          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           brand_id: string
+          city?: string | null
+          country?: string | null
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
           id?: string
           name: string
+          postal_code?: string | null
           review_channels_config?: Json | null
+          state_province?: string | null
           timezone?: string | null
           updated_at?: string | null
         }
         Update: {
-          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           brand_id?: string
+          city?: string | null
+          country?: string | null
           created_at?: string | null
           gmb_link?: string | null
           google_place_id?: string | null
           id?: string
           name?: string
+          postal_code?: string | null
           review_channels_config?: Json | null
+          state_province?: string | null
           timezone?: string | null
           updated_at?: string | null
         }

@@ -32,8 +32,12 @@ interface BrandColors {
 interface Location {
   id: string;
   name: string;
-  address: string;
-  gmb_link: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state_province: string;
+  postal_code: string;
+  country: string;
   brand_id?: string;
 }
 
@@ -87,8 +91,12 @@ export default function Brands() {
           .map(loc => ({
             id: loc.id,
             name: loc.name,
-            address: loc.address || '',
-            gmb_link: loc.gmb_link || '',
+            address_line1: loc.address_line1 || '',
+            address_line2: loc.address_line2 || '',
+            city: loc.city || '',
+            state_province: loc.state_province || '',
+            postal_code: loc.postal_code || '',
+            country: loc.country || 'Canada',
             brand_id: loc.brand_id || undefined,
           })),
       })) as Brand[];
@@ -136,8 +144,12 @@ export default function Brands() {
         for (const loc of brand.locations) {
           const locationPayload = {
             name: loc.name,
-            address: loc.address || null,
-            gmb_link: loc.gmb_link || null,
+            address_line1: loc.address_line1 || null,
+            address_line2: loc.address_line2 || null,
+            city: loc.city || null,
+            state_province: loc.state_province || null,
+            postal_code: loc.postal_code || null,
+            country: loc.country || 'Canada',
           };
 
           if (loc.id.startsWith('temp-')) {
@@ -161,8 +173,12 @@ export default function Brands() {
         if (brand.locations.length > 0) {
           const locationsPayload = brand.locations.map(loc => ({
             name: loc.name,
-            address: loc.address || null,
-            gmb_link: loc.gmb_link || null,
+            address_line1: loc.address_line1 || null,
+            address_line2: loc.address_line2 || null,
+            city: loc.city || null,
+            state_province: loc.state_province || null,
+            postal_code: loc.postal_code || null,
+            country: loc.country || 'Canada',
             brand_id: brandId,
           }));
           const { error: locError } = await supabase.from('locations').insert(locationsPayload);
@@ -233,8 +249,12 @@ export default function Brands() {
       locations: [...form.locations, { 
         id: newId, 
         name: '', 
-        address: '', 
-        gmb_link: '',
+        address_line1: '',
+        address_line2: '',
+        city: '',
+        state_province: '',
+        postal_code: '',
+        country: 'Canada',
       }],
     });
     setExpandedLocations(prev => new Set([...prev, newId]));
@@ -460,24 +480,75 @@ export default function Brands() {
                         
                         <CollapsibleContent>
                           <div className="px-3 pb-3 pt-0 space-y-3 border-t">
-                            <div className="grid grid-cols-2 gap-3 pt-3">
+                            <div className="space-y-3 pt-3">
                               <div className="space-y-1">
-                                <Label className="text-xs">Address</Label>
+                                <Label className="text-xs">Address Line 1</Label>
                                 <Input
                                   placeholder="123 Main St"
-                                  value={loc.address}
-                                  onChange={e => updateLocation(idx, 'address', e.target.value)}
+                                  value={loc.address_line1}
+                                  onChange={e => updateLocation(idx, 'address_line1', e.target.value)}
                                   className="h-8"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">GMB Link</Label>
+                                <Label className="text-xs">Address Line 2 (Optional)</Label>
                                 <Input
-                                  placeholder="https://g.page/..."
-                                  value={loc.gmb_link}
-                                  onChange={e => updateLocation(idx, 'gmb_link', e.target.value)}
+                                  placeholder="Suite 100"
+                                  value={loc.address_line2}
+                                  onChange={e => updateLocation(idx, 'address_line2', e.target.value)}
                                   className="h-8"
                                 />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">City</Label>
+                                  <Input
+                                    placeholder="Toronto"
+                                    value={loc.city}
+                                    onChange={e => updateLocation(idx, 'city', e.target.value)}
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">State/Province</Label>
+                                  <Input
+                                    placeholder="Ontario"
+                                    value={loc.state_province}
+                                    onChange={e => updateLocation(idx, 'state_province', e.target.value)}
+                                    className="h-8"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Postal Code</Label>
+                                  <Input
+                                    placeholder="M5V 1A1"
+                                    value={loc.postal_code}
+                                    onChange={e => updateLocation(idx, 'postal_code', e.target.value)}
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Country</Label>
+                                  <Select
+                                    value={loc.country}
+                                    onValueChange={value => updateLocation(idx, 'country', value)}
+                                  >
+                                    <SelectTrigger className="h-8">
+                                      <SelectValue placeholder="Select country" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Canada">Canada</SelectItem>
+                                      <SelectItem value="United States">United States</SelectItem>
+                                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                                      <SelectItem value="Australia">Australia</SelectItem>
+                                      <SelectItem value="Germany">Germany</SelectItem>
+                                      <SelectItem value="France">France</SelectItem>
+                                      <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             </div>
                           </div>
