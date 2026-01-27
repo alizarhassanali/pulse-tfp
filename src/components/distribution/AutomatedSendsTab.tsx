@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -30,9 +30,12 @@ import {
   RefreshCw,
   Info,
   History,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { SftpSyncHistoryModal, SftpSyncLog } from './SftpSyncHistoryModal';
 import { DEMO_SFTP_SYNC_LOGS } from '@/data/demo-data';
+import { cn } from '@/lib/utils';
 
 interface Event {
   id: string;
@@ -157,10 +160,37 @@ const SAMPLE_CONTACTS = [
   },
 ];
 
+// Sample webhook payload for documentation
+const WEBHOOK_PAYLOAD_EXAMPLE = `{
+  "event_id": "your-event-uuid",
+  "contact": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john@example.com",
+    "phone": "+1-555-123-4567",
+    "preferred_channel": "email",
+    "preferred_language": "en",
+    "tags": ["IVF Patient", "New Patient"],
+    "location_id": "optional-location-uuid"
+  },
+  "channel": "preferred",
+  "scheduling": {
+    "type": "immediate",
+    "delay_value": 0,
+    "delay_unit": "hours"
+  }
+}`;
+
 export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Collapsible state
+  const [webhookOpen, setWebhookOpen] = useState(false);
+  const [sftpOpen, setSftpOpen] = useState(false);
+  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
+  const [copiedEventId, setCopiedEventId] = useState(false);
 
   // Sync history modal state
   const [showSyncHistory, setShowSyncHistory] = useState(false);
@@ -297,6 +327,20 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
     }, 1500);
   };
 
+  const handleCopyEventId = () => {
+    navigator.clipboard.writeText(eventId);
+    setCopiedEventId(true);
+    toast({ title: 'Event ID copied to clipboard' });
+    setTimeout(() => setCopiedEventId(false), 2000);
+  };
+
+  const handleCopyEndpoint = () => {
+    navigator.clipboard.writeText('POST https://api.userpulse.com/v1/webhooks/trigger');
+    setCopiedEndpoint(true);
+    toast({ title: 'Endpoint URL copied to clipboard' });
+    setTimeout(() => setCopiedEndpoint(false), 2000);
+  };
+
   const handleDownloadSampleTemplate = () => {
     const format = sftpFileFormat;
     
@@ -414,303 +458,448 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* SFTP Integration - Primary Section */}
-      <Card className="shadow-soft border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            SFTP Import
-          </CardTitle>
-          <CardDescription>
-            Automatically import contacts from your SFTP server and trigger surveys on a schedule
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {loadingSftp ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              {/* Connection Status */}
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {sftpStatus === 'connected' ? (
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                  ) : sftpStatus === 'error' ? (
-                    <AlertCircle className="h-5 w-5 text-destructive" />
-                  ) : (
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="font-medium">
-                      {sftpStatus === 'connected' ? 'Connected' : sftpStatus === 'error' ? 'Connection Error' : 'Not Connected'}
-                    </p>
-                    {sftpLastSync && (
-                      <p className="text-sm text-muted-foreground">Last sync: {new Date(sftpLastSync).toLocaleString()}</p>
-                    )}
-                    {sftpStatus === 'connected' && sftpScheduleDays.length > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        Next: {sftpScheduleDays.map(d => d.slice(0, 3)).join(', ')} at {sftpScheduleTime}
-                      </p>
-                    )}
-                    {/* Recent sync indicators */}
-                    {sftpStatus === 'connected' && syncLogs.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">Recent syncs:</span>
-                        <div className="flex items-center gap-1">
-                          {syncLogs.slice(0, 5).map((log) => (
-                            <span
-                              key={log.id}
-                              className={`w-2 h-2 rounded-full ${
-                                log.status === 'success' ? 'bg-green-500' :
-                                log.status === 'partial' ? 'bg-yellow-500' :
-                                log.status === 'failed' ? 'bg-red-500' :
-                                'bg-blue-500'
-                              }`}
-                              title={`${log.status} - ${new Date(log.started_at).toLocaleDateString()}`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          ({syncLogs.filter(l => l.status === 'success').length}/{syncLogs.length} successful)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+      {/* Webhook / API Trigger - First Section */}
+      <Collapsible open={webhookOpen} onOpenChange={setWebhookOpen}>
+        <Card className="shadow-soft border-border/50">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {sftpStatus === 'connected' && (
-                    <Button variant="outline" size="sm" onClick={() => setShowSyncHistory(true)}>
-                      <History className="h-4 w-4 mr-2" />
-                      View History
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" onClick={handleSftpTest}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Test Connection
+                  <Code className="h-5 w-5" />
+                  <CardTitle>Webhook / API Trigger</CardTitle>
+                </div>
+                <ChevronDown className={cn("h-5 w-5 transition-transform duration-200", webhookOpen && "rotate-180")} />
+              </div>
+              <CardDescription>
+                Trigger surveys via API calls from your CRM or other systems
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
+              {/* How It Works */}
+              <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                <h4 className="font-medium text-sm">HOW IT WORKS</h4>
+                <ol className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="font-medium text-foreground">1.</span>
+                    <div>
+                      <span className="font-medium text-foreground">Copy Your Event ID</span>
+                      <p className="text-xs">Use the event ID below to identify which survey to trigger</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-medium text-foreground">2.</span>
+                    <div>
+                      <span className="font-medium text-foreground">Generate API Key</span>
+                      <p className="text-xs">Create an API key to authenticate your webhook requests</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-medium text-foreground">3.</span>
+                    <div>
+                      <span className="font-medium text-foreground">Send Contact Data</span>
+                      <p className="text-xs">POST contact info to our endpoint - we'll create/update the contact and trigger the survey</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-medium text-foreground">4.</span>
+                    <div>
+                      <span className="font-medium text-foreground">Track Responses</span>
+                      <p className="text-xs">View delivery status and responses in Sent Logs</p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Event ID */}
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+                <Label className="text-sm font-medium">Event ID for this Survey</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono break-all">
+                    {eventId}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={handleCopyEventId}>
+                    {copiedEventId ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Use this ID in your webhook payload to trigger this event</p>
+              </div>
+
+              {/* Endpoint URL */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Endpoint URL</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono">
+                    POST https://api.userpulse.com/v1/webhooks/trigger
+                  </code>
+                  <Button variant="outline" size="sm" onClick={handleCopyEndpoint}>
+                    {copiedEndpoint ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
 
-              {/* SFTP Credentials */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>SFTP Host</Label>
-                  <Input value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} placeholder="sftp.yourserver.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Port</Label>
-                  <Input value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} placeholder="22" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} placeholder="sftp_user" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Password / Key</Label>
-                  <Input
-                    type="password"
-                    value={sftpPassword}
-                    onChange={(e) => setSftpPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Remote Path</Label>
-                  <Input value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} placeholder="/uploads/contacts" />
+              {/* Request Payload */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Request Payload</Label>
+                <pre className="p-4 bg-muted rounded-lg text-xs font-mono overflow-x-auto whitespace-pre">
+                  {WEBHOOK_PAYLOAD_EXAMPLE}
+                </pre>
+              </div>
+
+              {/* Field Reference */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm">Field Reference</h4>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Required Fields */}
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                    <h5 className="font-medium text-sm text-foreground">REQUIRED FIELDS</h5>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li><code className="text-xs bg-muted px-1 rounded">event_id</code> — UUID of the survey event (shown above)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.first_name</code> — Contact's first name</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.last_name</code> — Contact's last name</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.email</code> OR <code className="text-xs bg-muted px-1 rounded">contact.phone</code> — At least one required</li>
+                    </ul>
+                  </div>
+
+                  {/* Optional Fields */}
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                    <h5 className="font-medium text-sm text-foreground">OPTIONAL FIELDS</h5>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.preferred_channel</code> — email, sms, or both</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.preferred_language</code> — Language code (default: en)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.tags</code> — Array of tag names (created if new)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.location_id</code> — UUID of location (for multi-location)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">channel</code> — Override: preferred, email, or sms</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">scheduling.type</code> — immediate (default) or delayed</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">scheduling.delay_value</code> — Number for delay (e.g., 2)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">scheduling.delay_unit</code> — minutes, hours, or days</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
 
-              {/* Schedule */}
-              <div className="border-t pt-6 space-y-4">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Sync Schedule
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Days</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                        <Badge
-                          key={day}
-                          variant={sftpScheduleDays.includes(day) ? 'default' : 'outline'}
-                          className="cursor-pointer capitalize"
-                          onClick={() => {
-                            setSftpScheduleDays((prev) =>
-                              prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-                            );
-                          }}
-                        >
-                          {day.slice(0, 3)}
-                        </Badge>
-                      ))}
+              {/* Behavior */}
+              <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                <h4 className="font-medium text-sm">Behavior</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• If contact exists (matched by email/phone), record is updated</li>
+                  <li>• If contact is new, record is created with provided data</li>
+                  <li>• Tags are created if they don't exist, then assigned to contact</li>
+                  <li>• Throttle rules are respected (won't send if recently surveyed)</li>
+                </ul>
+              </div>
+
+              {/* Use Cases */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Use Cases</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">CRM integration (Salesforce, HubSpot, Zoho)</Badge>
+                  <Badge variant="secondary">Post-appointment triggers from EMR systems</Badge>
+                  <Badge variant="secondary">Checkout/purchase follow-ups</Badge>
+                  <Badge variant="secondary">Custom workflow automation (Zapier, Make, n8n)</Badge>
+                </div>
+              </div>
+
+              {/* Generate API Key Button */}
+              <div className="flex items-center gap-3 pt-4 border-t">
+                <Button disabled>
+                  Generate API Key
+                </Button>
+                <Badge variant="secondary">Coming Soon</Badge>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* SFTP Integration - Second Section */}
+      <Collapsible open={sftpOpen} onOpenChange={setSftpOpen}>
+        <Card className="shadow-soft border-border/50">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  <CardTitle>SFTP Import</CardTitle>
+                </div>
+                <ChevronDown className={cn("h-5 w-5 transition-transform duration-200", sftpOpen && "rotate-180")} />
+              </div>
+              <CardDescription>
+                Automatically import contacts from your SFTP server and trigger surveys on a schedule
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
+              {loadingSftp ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {/* Connection Status */}
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {sftpStatus === 'connected' ? (
+                        <CheckCircle2 className="h-5 w-5 text-success" />
+                      ) : sftpStatus === 'error' ? (
+                        <AlertCircle className="h-5 w-5 text-destructive" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="font-medium">
+                          {sftpStatus === 'connected' ? 'Connected' : sftpStatus === 'error' ? 'Connection Error' : 'Not Connected'}
+                        </p>
+                        {sftpLastSync && (
+                          <p className="text-sm text-muted-foreground">Last sync: {new Date(sftpLastSync).toLocaleString()}</p>
+                        )}
+                        {sftpStatus === 'connected' && sftpScheduleDays.length > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Next: {sftpScheduleDays.map(d => d.slice(0, 3)).join(', ')} at {sftpScheduleTime}
+                          </p>
+                        )}
+                        {/* Recent sync indicators */}
+                        {sftpStatus === 'connected' && syncLogs.length > 0 && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-muted-foreground">Recent syncs:</span>
+                            <div className="flex items-center gap-1">
+                              {syncLogs.slice(0, 5).map((log) => (
+                                <span
+                                  key={log.id}
+                                  className={`w-2 h-2 rounded-full ${
+                                    log.status === 'success' ? 'bg-green-500' :
+                                    log.status === 'partial' ? 'bg-yellow-500' :
+                                    log.status === 'failed' ? 'bg-red-500' :
+                                    'bg-blue-500'
+                                  }`}
+                                  title={`${log.status} - ${new Date(log.started_at).toLocaleDateString()}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              ({syncLogs.filter(l => l.status === 'success').length}/{syncLogs.length} successful)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {sftpStatus === 'connected' && (
+                        <Button variant="outline" size="sm" onClick={() => setShowSyncHistory(true)}>
+                          <History className="h-4 w-4 mr-2" />
+                          View History
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={handleSftpTest}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Test Connection
+                      </Button>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Time</Label>
-                    <Input type="time" value={sftpScheduleTime} onChange={(e) => setSftpScheduleTime(e.target.value)} />
+
+                  {/* SFTP Credentials */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>SFTP Host</Label>
+                      <Input value={sftpHost} onChange={(e) => setSftpHost(e.target.value)} placeholder="sftp.yourserver.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Port</Label>
+                      <Input value={sftpPort} onChange={(e) => setSftpPort(e.target.value)} placeholder="22" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Username</Label>
+                      <Input value={sftpUsername} onChange={(e) => setSftpUsername(e.target.value)} placeholder="sftp_user" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Password / Key</Label>
+                      <Input
+                        type="password"
+                        value={sftpPassword}
+                        onChange={(e) => setSftpPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label>Remote Path</Label>
+                      <Input value={sftpPath} onChange={(e) => setSftpPath(e.target.value)} placeholder="/uploads/contacts" />
+                    </div>
                   </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label>Timezone</Label>
-                    <Select value={sftpTimezone} onValueChange={setSftpTimezone}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select timezone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIMEZONE_OPTIONS.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {tz.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  {/* Schedule */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Sync Schedule
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Days</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                            <Badge
+                              key={day}
+                              variant={sftpScheduleDays.includes(day) ? 'default' : 'outline'}
+                              className="cursor-pointer capitalize"
+                              onClick={() => {
+                                setSftpScheduleDays((prev) =>
+                                  prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                                );
+                              }}
+                            >
+                              {day.slice(0, 3)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Time</Label>
+                        <Input type="time" value={sftpScheduleTime} onChange={(e) => setSftpScheduleTime(e.target.value)} />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label>Timezone</Label>
+                        <Select value={sftpTimezone} onValueChange={setSftpTimezone}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TIMEZONE_OPTIONS.map((tz) => (
+                              <SelectItem key={tz.value} value={tz.value}>
+                                {tz.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          IANA: {sftpTimezone}
+                          {profile?.timezone === sftpTimezone && ' (from your profile)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File Format */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      File Format & Template
+                    </h4>
+                    
+                    {/* Info Box */}
+                    <div className="p-4 bg-muted/30 rounded-lg flex gap-3">
+                      <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p><strong>Required fields:</strong> first_name, last_name, and either email OR phone</p>
+                        <p><strong>Optional fields:</strong> preferred_channel (email/sms/both), location_name, external_id, contact_tags, appointment_date</p>
+                        <p className="text-xs">Note: Event and brand are configured below in the integration settings, not in the upload file.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <Select value={sftpFileFormat} onValueChange={setSftpFileFormat}>
+                        <SelectTrigger className="w-[150px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="csv">CSV</SelectItem>
+                          <SelectItem value="json">JSON</SelectItem>
+                          <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" onClick={handleDownloadSampleTemplate}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Sample Template
+                      </Button>
+                    </div>
+                    
                     <p className="text-xs text-muted-foreground">
-                      IANA: {sftpTimezone}
-                      {profile?.timezone === sftpTimezone && ' (from your profile)'}
+                      Template includes 8 sample contacts with various data combinations to demonstrate all field formats
                     </p>
                   </div>
-                </div>
-              </div>
 
-              {/* File Format */}
-              <div className="border-t pt-6 space-y-4">
-                <h4 className="font-medium flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  File Format & Template
-                </h4>
-                
-                {/* Info Box */}
-                <div className="p-4 bg-muted/30 rounded-lg flex gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>Required fields:</strong> first_name, last_name, and either email OR phone</p>
-                    <p><strong>Optional fields:</strong> preferred_channel (email/sms/both), location_name, external_id, contact_tags, appointment_date</p>
-                    <p className="text-xs">Note: Event and brand are configured below in the integration settings, not in the upload file.</p>
+                  {/* Event & Channel Mapping */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium">Event & Channel Mapping</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Trigger Event</Label>
+                        <Select value={sftpEventMapping} onValueChange={setSftpEventMapping}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select event to trigger" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {events.map((event) => (
+                              <SelectItem key={event.id} value={event.id}>
+                                {event.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Channel Rule</Label>
+                        <Select value={sftpChannelRule} onValueChange={setSftpChannelRule}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="preferred">Use Preferred Channel</SelectItem>
+                            <SelectItem value="email">Email Only</SelectItem>
+                            <SelectItem value="sms">SMS Only</SelectItem>
+                            <SelectItem value="both">Both Email & SMS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <Select value={sftpFileFormat} onValueChange={setSftpFileFormat}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="csv">CSV</SelectItem>
-                      <SelectItem value="json">JSON</SelectItem>
-                      <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" onClick={handleDownloadSampleTemplate}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Sample Template
-                  </Button>
-                </div>
-                
-                <p className="text-xs text-muted-foreground">
-                  Template includes 8 sample contacts with various data combinations to demonstrate all field formats
-                </p>
-              </div>
 
-              {/* Event & Channel Mapping */}
-              <div className="border-t pt-6 space-y-4">
-                <h4 className="font-medium">Event & Channel Mapping</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Trigger Event</Label>
-                    <Select value={sftpEventMapping} onValueChange={setSftpEventMapping}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select event to trigger" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {events.map((event) => (
-                          <SelectItem key={event.id} value={event.id}>
-                            {event.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Message Templates */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium">Message Templates</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Available variables: <code className="bg-muted px-1 rounded">{'{first_name}'}</code> <code className="bg-muted px-1 rounded">{'{last_name}'}</code> <code className="bg-muted px-1 rounded">{'{location_name}'}</code> <code className="bg-muted px-1 rounded">{'{brand_name}'}</code> <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>
+                    </p>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Email Subject</Label>
+                        <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+                        <Label className="mt-3">Email Body</Label>
+                        <Textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          className="min-h-[100px] font-mono text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>SMS Message</Label>
+                        <Textarea
+                          value={smsBody}
+                          onChange={(e) => setSmsBody(e.target.value)}
+                          className="min-h-[80px] font-mono text-sm"
+                          maxLength={160}
+                        />
+                        <p className="text-xs text-muted-foreground">{smsBody.length}/160 characters</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Channel Rule</Label>
-                    <Select value={sftpChannelRule} onValueChange={setSftpChannelRule}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="preferred">Use Preferred Channel</SelectItem>
-                        <SelectItem value="email">Email Only</SelectItem>
-                        <SelectItem value="sms">SMS Only</SelectItem>
-                        <SelectItem value="both">Both Email & SMS</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button variant="outline" onClick={handleSftpTest}>
+                      Test Connection
+                    </Button>
+                    <Button className="btn-coral" onClick={() => saveSftpMutation.mutate()} disabled={saveSftpMutation.isPending}>
+                      {saveSftpMutation.isPending ? 'Saving...' : 'Save SFTP Configuration'}
+                    </Button>
                   </div>
-                </div>
-              </div>
-
-              {/* Message Templates */}
-              <div className="border-t pt-6 space-y-4">
-                <h4 className="font-medium">Message Templates</h4>
-                <p className="text-xs text-muted-foreground">
-                  Available variables: <code className="bg-muted px-1 rounded">{'{first_name}'}</code> <code className="bg-muted px-1 rounded">{'{last_name}'}</code> <code className="bg-muted px-1 rounded">{'{location_name}'}</code> <code className="bg-muted px-1 rounded">{'{brand_name}'}</code> <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>
-                </p>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Email Subject</Label>
-                    <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
-                    <Label className="mt-3">Email Body</Label>
-                    <Textarea
-                      value={emailBody}
-                      onChange={(e) => setEmailBody(e.target.value)}
-                      className="min-h-[100px] font-mono text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>SMS Message</Label>
-                    <Textarea
-                      value={smsBody}
-                      onChange={(e) => setSmsBody(e.target.value)}
-                      className="min-h-[80px] font-mono text-sm"
-                      maxLength={160}
-                    />
-                    <p className="text-xs text-muted-foreground">{smsBody.length}/160 characters</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={handleSftpTest}>
-                  Test Connection
-                </Button>
-                <Button className="btn-coral" onClick={() => saveSftpMutation.mutate()} disabled={saveSftpMutation.isPending}>
-                  {saveSftpMutation.isPending ? 'Saving...' : 'Save SFTP Configuration'}
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Webhook Trigger - Future Section */}
-      <Card className="shadow-soft border-border/50 opacity-60">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Code className="h-5 w-5" />
-            Webhook / API Trigger
-            <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
-          </CardTitle>
-          <CardDescription>
-            Trigger surveys via API calls from your CRM or other systems
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Configure webhooks to automatically trigger surveys when events occur in your external systems.
-          </p>
-        </CardContent>
-      </Card>
-
+                </>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* SFTP Sync History Modal */}
       <SftpSyncHistoryModal
