@@ -239,7 +239,7 @@ export default function EventDetail() {
       </div>
 
       {/* Quick Stats & Integration Status */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="shadow-soft border-border/50">
           <CardContent className="pt-4 text-center">
             <p className="text-2xl font-bold">{sendsCount.toLocaleString()}</p>
@@ -262,36 +262,6 @@ export default function EventDetail() {
           <CardContent className="pt-4 text-center">
             <p className="text-2xl font-bold">{eventData.event_locations?.length || 0}</p>
             <p className="text-xs text-muted-foreground">Locations</p>
-          </CardContent>
-        </Card>
-        
-        {/* Integration Status - Clickable */}
-        <Card 
-          className={cn(
-            "shadow-soft border-border/50 cursor-pointer transition-all hover:border-primary/50 hover:shadow-md",
-            eventData.sftpIntegration?.status === 'active' && "border-success/50 bg-success/5"
-          )}
-          onClick={() => setActiveTab('automated')}
-        >
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2">
-              <Server className={cn(
-                "h-5 w-5",
-                eventData.sftpIntegration?.status === 'active' ? "text-success" : "text-muted-foreground"
-              )} />
-              <div>
-                <p className="text-sm font-medium">
-                  {eventData.sftpIntegration ? 'SFTP Active' : 'No SFTP'}
-                </p>
-                {eventData.sftpIntegration?.last_used_at ? (
-                  <p className="text-xs text-muted-foreground">
-                    Last: {format(parseISO(eventData.sftpIntegration.last_used_at), 'MMM d, h:mm a')}
-                  </p>
-                ) : (
-                  <p className="text-xs text-primary/70">Click to configure</p>
-                )}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
