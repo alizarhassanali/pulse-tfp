@@ -1,57 +1,158 @@
 
 
-## Plan: Complete Webhook Integration - Location ID Required + API Key Workflow
+## Plan: Add Email/SMS Template Configuration to Webhook (UI Only)
 
 ### Overview
-Update the webhook section to make `location_id` required, add a locations reference table showing UUIDs for easy copying, remove Use Cases, and implement an API key generation workflow.
+Add email and SMS message template configuration to the Webhook/API Trigger section. Templates are configured and saved in the application UI, not passed in the webhook payload. When a webhook triggers a survey, the system uses the saved templates.
 
 ---
 
 ### Changes to `src/components/distribution/AutomatedSendsTab.tsx`
 
-#### 1. Update Props Interface (line 45-48)
-
-Add `brandId` to props so we can fetch event-associated locations:
+#### 1. Add Webhook Template State Variables (after line 222)
 
 ```typescript
-interface AutomatedSendsTabProps {
-  eventId: string;
-  events: Event[];
-  brandId?: string; // Add to fetch locations
-}
+// Webhook Email/SMS templates
+const [webhookEmailSubject, setWebhookEmailSubject] = useState('How was your recent visit?');
+const [webhookEmailBody, setWebhookEmailBody] = useState(
+  'Hi {first_name},\n\nWe hope you had a great experience at {location_name}. Please take a moment to share your feedback:\n\n{survey_link}\n\nThank you!\n{brand_name}\n\n---\nYou can unsubscribe from future feedback requests at any time using the link below.\n{unsubscribe_link}'
+);
+const [webhookSmsBody, setWebhookSmsBody] = useState(
+  'Hi {first_name}, how was your visit to {location_name}? Share your feedback: {survey_link}\n\nReply STOP to unsubscribe.'
+);
 ```
 
-#### 2. Add Event Locations Query (after line 234)
-
-Fetch locations associated with this event:
+#### 2. Add Query to Fetch Saved Webhook Configuration
 
 ```typescript
-// Fetch event locations for webhook reference
-const { data: eventLocations = [] } = useQuery({
-  queryKey: ['event-locations', eventId],
+const { data: webhookIntegration } = useQuery({
+  queryKey: ['webhook-integration', eventId],
   queryFn: async () => {
-    const { data: eventLocationIds } = await supabase
-      .from('event_locations')
-      .select('location_id')
-      .eq('event_id', eventId);
-    
-    if (!eventLocationIds?.length) return [];
-    
-    const { data: locations } = await supabase
-      .from('locations')
-      .select('id, name')
-      .in('id', eventLocationIds.map(el => el.location_id))
-      .order('name');
-    
-    return locations || [];
+    const { data, error } = await supabase
+      .from('integrations')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('type', 'webhook')
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   },
   enabled: !!eventId,
 });
 ```
 
-#### 3. Update Webhook Payload Example (lines 164-182)
+#### 3. Add useEffect to Initialize Templates from Saved Config
 
-Move `location_id` from optional to required:
+```typescript
+useEffect(() => {
+  if (webhookIntegration?.config) {
+    const config = webhookIntegration.config as Record<string, any>;
+    if (config.emailSubject) setWebhookEmailSubject(config.emailSubject);
+    if (config.emailBody) setWebhookEmailBody(config.emailBody);
+    if (config.smsBody) setWebhookSmsBody(config.smsBody);
+  }
+}, [webhookIntegration]);
+```
+
+#### 4. Add Mutation to Save Webhook Templates
+
+```typescript
+const saveWebhookTemplatesMutation = useMutation({
+  mutationFn: async () => {
+    const config = {
+      emailSubject: webhookEmailSubject,
+      emailBody: webhookEmailBody,
+      smsBody: webhookSmsBody,
+    };
+    
+    const { data: existing } = await supabase
+      .from('integrations')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('type', 'webhook')
+      .maybeSingle();
+    
+    if (existing?.id) {
+      const { error } = await supabase
+        .from('integrations')
+        .update({ config, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('integrations').insert({
+        event_id: eventId,
+        type: 'webhook',
+        config,
+        status: 'active',
+      });
+      if (error) throw error;
+    }
+  },
+  onSuccess: () => {
+    toast({ title: 'Message templates saved' });
+    queryClient.invalidateQueries({ queryKey: ['webhook-integration', eventId] });
+  },
+  onError: (error) => {
+    toast({ title: 'Error saving templates', description: String(error), variant: 'destructive' });
+  },
+});
+```
+
+#### 5. Add Message Templates UI Section (after API Authentication, before Field Reference)
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│  MESSAGE TEMPLATES                                              │
+│                                                                 │
+│  Configure the email and SMS content sent when surveys are      │
+│  triggered via API. These templates apply to all webhook sends. │
+│                                                                 │
+│  Available variables:                                           │
+│  {first_name} {last_name} {brand_name} {location_name}          │
+│  {survey_link} {unsubscribe_link}                               │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ EMAIL                                                    │    │
+│  │ Subject: [How was your recent visit?              ]      │    │
+│  │ Body:                                                    │    │
+│  │ ┌─────────────────────────────────────────────────────┐  │    │
+│  │ │ Hi {first_name},                                    │  │    │
+│  │ │                                                     │  │    │
+│  │ │ We hope you had a great experience at              │  │    │
+│  │ │ {location_name}. Please take a moment to share     │  │    │
+│  │ │ your feedback:                                     │  │    │
+│  │ │                                                     │  │    │
+│  │ │ {survey_link}                                      │  │    │
+│  │ │                                                     │  │    │
+│  │ │ Thank you!                                         │  │    │
+│  │ │ {brand_name}                                       │  │    │
+│  │ │                                                     │  │    │
+│  │ │ ---                                                │  │    │
+│  │ │ You can unsubscribe from future feedback requests  │  │    │
+│  │ │ at any time using the link below.                  │  │    │
+│  │ │ {unsubscribe_link}                                 │  │    │
+│  │ └─────────────────────────────────────────────────────┘  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ SMS                                                      │    │
+│  │ Message:                                                 │    │
+│  │ ┌─────────────────────────────────────────────────────┐  │    │
+│  │ │ Hi {first_name}, how was your visit to             │  │    │
+│  │ │ {location_name}? Share your feedback: {survey_link}│  │    │
+│  │ │                                                     │  │    │
+│  │ │ Reply STOP to unsubscribe.                         │  │    │
+│  │ └─────────────────────────────────────────────────────┘  │    │
+│  │ Character count: 142/160                                 │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                 │
+│  [Save Message Templates]                                       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+#### 6. Keep Webhook Payload Simple (NO message object)
+
+The payload example remains focused on contact data and scheduling only:
 
 ```javascript
 const WEBHOOK_PAYLOAD_EXAMPLE = `{
@@ -77,151 +178,48 @@ const WEBHOOK_PAYLOAD_EXAMPLE = `{
 }`;
 ```
 
-#### 4. Add Locations Reference Section (after Event ID section, ~line 527)
-
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  LOCATION IDs FOR THIS EVENT                                   │
-│                                                                │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Location Name      │  UUID                    │ [Copy]  │  │
-│  ├──────────────────────────────────────────────────────────┤  │
-│  │  Midtown Clinic     │  8dc010b2-7fef-...       │  [📋]   │  │
-│  │  NewMarket Center   │  c43fa3cd-b33f-...       │  [📋]   │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-│  (Shows empty state if no locations configured)                │
-└────────────────────────────────────────────────────────────────┘
-```
-
-Implementation:
-- Table with Location Name, UUID, Copy button
-- Clickable copy for each location ID
-- Empty state: "No locations configured for this event. Add locations in Event Setup."
-
-#### 5. Update Field Reference (lines 550-580)
-
-**Move to REQUIRED FIELDS:**
-```
-• location_id — UUID of the location (see table above)
-```
-
-**Add to OPTIONAL FIELDS:**
-```
-• contact.external_id — Your system's patient/customer ID
-• contact.status — Contact status (default: active)
-```
-
-**Updated structure:**
-
-```
-REQUIRED FIELDS
-- event_id: UUID of the survey event (shown above)
-- location_id: UUID of the location (see locations table above)
-- contact.first_name: Contact's first name
-- contact.last_name: Contact's last name
-- contact.email OR contact.phone: At least one required
-
-OPTIONAL FIELDS
-- contact.preferred_channel: email, sms, or both (default: email)
-- contact.preferred_language: Language code (default: en)
-- contact.tags: Array of tag names (created if new)
-- contact.external_id: Your system's patient/customer ID
-- contact.status: Contact status (default: active)
-- channel: Override send channel (preferred, email, or sms)
-- scheduling.type: immediate (default) or delayed
-- scheduling.delay_value: Delay amount (e.g., 2)
-- scheduling.delay_unit: minutes, hours, or days
-
-AUTOMATIC FIELDS
-- brand_id: Automatically inherited from the event
-```
-
-#### 6. Remove Use Cases Section (lines 594-603)
-
-Delete the entire Use Cases badges section.
-
-#### 7. Replace "Coming Soon" with API Key Workflow (lines 605-611)
-
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  API AUTHENTICATION                                            │
-│                                                                │
-│  Include this header with every request:                       │
-│  [Authorization: Bearer YOUR_API_KEY]                          │
-│                                                                │
-│  [+ Generate New API Key]                                      │
-│                                                                │
-│  Security note: Store API keys securely. Never expose          │
-│  them in client-side code or public repositories.              │
-└────────────────────────────────────────────────────────────────┘
-```
-
-Clicking "Generate New API Key" shows toast: "API key generation is being configured. Contact your administrator for API access."
-
-#### 8. Add State for Location Copy (after line 193)
-
-```typescript
-const [copiedLocationId, setCopiedLocationId] = useState<string | null>(null);
-
-const handleCopyLocationId = (locationId: string) => {
-  navigator.clipboard.writeText(locationId);
-  setCopiedLocationId(locationId);
-  toast({ title: 'Location ID copied to clipboard' });
-  setTimeout(() => setCopiedLocationId(null), 2000);
-};
-```
+No `message` object in the payload - templates come from the UI configuration.
 
 ---
 
-### Update to `src/pages/nps/EventDetail.tsx`
+### Default Unsubscribe Lines (Built into Defaults)
 
-Pass `brandId` prop to AutomatedSendsTab (line 355):
-
-```typescript
-<AutomatedSendsTab 
-  eventId={eventId!} 
-  events={events.map((e) => ({ id: e.id, name: e.name }))} 
-  brandId={eventData?.brand_id}
-/>
+**Email Default Footer:**
+```text
+---
+You can unsubscribe from future feedback requests at any time using the link below.
+{unsubscribe_link}
 ```
+
+**SMS Default Footer:**
+```text
+Reply STOP to unsubscribe.
+```
+
+These are included in the default template values when the component initializes.
 
 ---
 
 ### Summary of Changes
 
-| Change | Type | File |
-|--------|------|------|
-| Add `brandId` to props | Props | AutomatedSendsTab.tsx |
-| Add event locations query | Query | AutomatedSendsTab.tsx |
-| Move `location_id` to required in payload | Update | AutomatedSendsTab.tsx |
-| Add `external_id` and `status` to payload | Update | AutomatedSendsTab.tsx |
-| Add Locations Reference table with copy buttons | New UI | AutomatedSendsTab.tsx |
-| Update Field Reference (location required) | Update | AutomatedSendsTab.tsx |
-| Add `external_id`, `status` to optional fields | Update | AutomatedSendsTab.tsx |
-| Remove Use Cases section | Delete | AutomatedSendsTab.tsx |
-| Replace Coming Soon with API workflow | Update | AutomatedSendsTab.tsx |
-| Add location copy handler + state | Add | AutomatedSendsTab.tsx |
-| Pass brandId prop to AutomatedSendsTab | Update | EventDetail.tsx |
+| Change | Type | Description |
+|--------|------|-------------|
+| Add webhook template state | State | `webhookEmailSubject`, `webhookEmailBody`, `webhookSmsBody` |
+| Add webhook integration query | Query | Fetch saved config from `integrations` table |
+| Add useEffect for initialization | Effect | Load saved templates into state |
+| Add save templates mutation | Mutation | Save templates to `integrations` table |
+| Add Message Templates UI section | UI | Email subject/body, SMS body with character count |
+| Add Save button | UI | Trigger save mutation |
 
 ---
 
-### Visual Result
+### How It Works
 
-After Event ID section, users will see:
+1. **Setup**: User configures email subject, email body, and SMS message in the UI
+2. **Save**: Templates are saved to `integrations` table with `type: 'webhook'`
+3. **API Call**: External system sends webhook with contact data only (no message content)
+4. **Send**: System uses saved templates, replaces variables, appends unsubscribe if needed
+5. **Delivery**: Email/SMS sent using the configured templates
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Location IDs for this Event                                 │
-│                                                             │
-│ Location Name          UUID                          Copy   │
-│ ─────────────────────────────────────────────────────────── │
-│ Midtown Clinic         8dc010b2-7fef-4118-b704...    [📋]   │
-│ NewMarket Center       c43fa3cd-b33f-425e-a144...    [📋]   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-This makes it easy for users to:
-1. See which locations are valid for this event
-2. Copy the exact UUID needed for their webhook integration
+This keeps the webhook payload simple and gives users full control over message content through the UI.
 
