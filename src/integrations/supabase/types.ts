@@ -674,6 +674,7 @@ export type Database = {
           google_place_id: string | null
           id: string
           name: string
+          phone: string | null
           postal_code: string | null
           review_channels_config: Json | null
           state_province: string | null
@@ -691,6 +692,7 @@ export type Database = {
           google_place_id?: string | null
           id?: string
           name: string
+          phone?: string | null
           postal_code?: string | null
           review_channels_config?: Json | null
           state_province?: string | null
@@ -708,6 +710,7 @@ export type Database = {
           google_place_id?: string | null
           id?: string
           name?: string
+          phone?: string | null
           postal_code?: string | null
           review_channels_config?: Json | null
           state_province?: string | null

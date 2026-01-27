@@ -38,6 +38,7 @@ interface Location {
   state_province: string;
   postal_code: string;
   country: string;
+  phone: string;
   brand_id?: string;
 }
 
@@ -52,7 +53,6 @@ interface Brand {
 
 interface FormState {
   name: string;
-  subdomain: string;
   colors: BrandColors;
   locations: Location[];
 }
@@ -64,7 +64,7 @@ export default function Brands() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [form, setForm] = useState<FormState>({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+  const [form, setForm] = useState<FormState>({ name: '', colors: defaultColors, locations: [] });
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
 
   const { data: brands = [], isLoading } = useQuery({
@@ -97,6 +97,7 @@ export default function Brands() {
             state_province: loc.state_province || '',
             postal_code: loc.postal_code || '',
             country: loc.country || 'Canada',
+            phone: loc.phone || '',
             brand_id: loc.brand_id || undefined,
           })),
       })) as Brand[];
@@ -114,7 +115,6 @@ export default function Brands() {
       const { brand, editingId } = data;
       const brandPayload = {
         name: brand.name,
-        subdomain: brand.subdomain || null,
         colors: brand.colors as unknown as Json,
       };
 
@@ -150,6 +150,7 @@ export default function Brands() {
             state_province: loc.state_province || null,
             postal_code: loc.postal_code || null,
             country: loc.country || 'Canada',
+            phone: loc.phone || null,
           };
 
           if (loc.id.startsWith('temp-')) {
@@ -179,6 +180,7 @@ export default function Brands() {
             state_province: loc.state_province || null,
             postal_code: loc.postal_code || null,
             country: loc.country || 'Canada',
+            phone: loc.phone || null,
             brand_id: brandId,
           }));
           const { error: locError } = await supabase.from('locations').insert(locationsPayload);
@@ -230,7 +232,6 @@ export default function Brands() {
     setEditingBrand(brand);
     setForm({
       name: brand.name,
-      subdomain: brand.subdomain || '',
       colors: brand.colors || defaultColors,
       locations: brand.locations || [],
     });
@@ -255,6 +256,7 @@ export default function Brands() {
         state_province: '',
         postal_code: '',
         country: 'Canada',
+        phone: '',
       }],
     });
     setExpandedLocations(prev => new Set([...prev, newId]));
@@ -285,7 +287,7 @@ export default function Brands() {
 
   const openCreateModal = () => {
     setEditingBrand(null);
-    setForm({ name: '', subdomain: '', colors: defaultColors, locations: [] });
+    setForm({ name: '', colors: defaultColors, locations: [] });
     setExpandedLocations(new Set());
     setModalOpen(true);
   };
@@ -309,7 +311,7 @@ export default function Brands() {
             <TableHeader>
               <TableRow>
                 <SortableTableHead sortKey="name" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Brand</SortableTableHead>
-                <SortableTableHead sortKey="subdomain" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Subdomain</SortableTableHead>
+                
                 <SortableTableHead sortKey="locations.length" currentSortKey={sortKey} currentDirection={sortDirection} onSort={handleSort}>Locations</SortableTableHead>
                 <TableHead>Colors</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -320,7 +322,7 @@ export default function Brands() {
                 Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
@@ -328,7 +330,7 @@ export default function Brands() {
                 ))
               ) : sortedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     No brands found. Create your first brand to get started.
                   </TableCell>
                 </TableRow>
@@ -340,9 +342,6 @@ export default function Brands() {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         {b.name}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-sm">
-                      {b.subdomain ? `${b.subdomain}.userpulse.com` : '—'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">
@@ -413,24 +412,9 @@ export default function Brands() {
                     setForm({
                       ...form,
                       name: e.target.value,
-                      subdomain: form.subdomain || e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''),
                     })
                   }
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Subdomain</Label>
-                <div className="flex">
-                  <Input
-                    value={form.subdomain}
-                    onChange={e =>
-                      setForm({ ...form, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })
-                    }
-                  />
-                  <span className="flex items-center px-3 bg-muted border border-l-0 rounded-r-md text-sm text-muted-foreground">
-                    .userpulse.com
-                  </span>
-                </div>
               </div>
               <div className="space-y-2">
                 <Label>Logo</Label>
@@ -549,6 +533,15 @@ export default function Brands() {
                                     </SelectContent>
                                   </Select>
                                 </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Contact Phone</Label>
+                                <Input
+                                  placeholder="+1-555-123-4567"
+                                  value={loc.phone}
+                                  onChange={e => updateLocation(idx, 'phone', e.target.value)}
+                                  className="h-8"
+                                />
                               </div>
                             </div>
                           </div>
