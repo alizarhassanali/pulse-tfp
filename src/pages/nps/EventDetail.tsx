@@ -353,6 +353,7 @@ export default function EventDetail() {
           <AutomatedSendsTab
             eventId={eventId || ''}
             events={events}
+            brandId={eventData?.brand_id}
           />
         </TabsContent>
 
