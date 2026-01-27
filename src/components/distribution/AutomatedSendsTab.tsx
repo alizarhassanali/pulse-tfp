@@ -45,6 +45,7 @@ interface Event {
 interface AutomatedSendsTabProps {
   eventId: string;
   events: Event[];
+  brandId?: string;
 }
 
 const TIMEZONE_OPTIONS = [
@@ -163,6 +164,7 @@ const SAMPLE_CONTACTS = [
 // Sample webhook payload for documentation
 const WEBHOOK_PAYLOAD_EXAMPLE = `{
   "event_id": "your-event-uuid",
+  "location_id": "location-uuid",
   "contact": {
     "first_name": "John",
     "last_name": "Doe",
@@ -171,7 +173,8 @@ const WEBHOOK_PAYLOAD_EXAMPLE = `{
     "preferred_channel": "email",
     "preferred_language": "en",
     "tags": ["IVF Patient", "New Patient"],
-    "location_id": "optional-location-uuid"
+    "external_id": "PAT-001234",
+    "status": "active"
   },
   "channel": "preferred",
   "scheduling": {
@@ -181,7 +184,7 @@ const WEBHOOK_PAYLOAD_EXAMPLE = `{
   }
 }`;
 
-export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
+export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTabProps) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -191,6 +194,7 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
   const [sftpOpen, setSftpOpen] = useState(false);
   const [copiedEndpoint, setCopiedEndpoint] = useState(false);
   const [copiedEventId, setCopiedEventId] = useState(false);
+  const [copiedLocationId, setCopiedLocationId] = useState<string | null>(null);
 
   // Sync history modal state
   const [showSyncHistory, setShowSyncHistory] = useState(false);
@@ -230,6 +234,28 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: !!eventId,
+  });
+
+  // Fetch event locations for webhook reference
+  const { data: eventLocations = [] } = useQuery({
+    queryKey: ['event-locations', eventId],
+    queryFn: async () => {
+      const { data: eventLocationIds } = await supabase
+        .from('event_locations')
+        .select('location_id')
+        .eq('event_id', eventId);
+      
+      if (!eventLocationIds?.length) return [];
+      
+      const { data: locations } = await supabase
+        .from('locations')
+        .select('id, name')
+        .in('id', eventLocationIds.map(el => el.location_id))
+        .order('name');
+      
+      return locations || [];
     },
     enabled: !!eventId,
   });
@@ -339,6 +365,20 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
     setCopiedEndpoint(true);
     toast({ title: 'Endpoint URL copied to clipboard' });
     setTimeout(() => setCopiedEndpoint(false), 2000);
+  };
+
+  const handleCopyLocationId = (locationId: string) => {
+    navigator.clipboard.writeText(locationId);
+    setCopiedLocationId(locationId);
+    toast({ title: 'Location ID copied to clipboard' });
+    setTimeout(() => setCopiedLocationId(null), 2000);
+  };
+
+  const handleGenerateApiKey = () => {
+    toast({
+      title: 'API Key Generation',
+      description: 'API key generation is being configured. Contact your administrator for API access.',
+    });
   };
 
   const handleDownloadSampleTemplate = () => {
@@ -526,6 +566,53 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
                 <p className="text-xs text-muted-foreground">Use this ID in your webhook payload to trigger this event</p>
               </div>
 
+              {/* Location IDs for this Event */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Location IDs for this Event</Label>
+                {eventLocations.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left px-4 py-2 font-medium">Location Name</th>
+                          <th className="text-left px-4 py-2 font-medium">UUID</th>
+                          <th className="w-16 px-4 py-2"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {eventLocations.map((location: { id: string; name: string }) => (
+                          <tr key={location.id} className="border-t">
+                            <td className="px-4 py-2">{location.name}</td>
+                            <td className="px-4 py-2">
+                              <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                                {location.id.slice(0, 8)}...{location.id.slice(-4)}
+                              </code>
+                            </td>
+                            <td className="px-4 py-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyLocationId(location.id)}
+                              >
+                                {copiedLocationId === location.id ? (
+                                  <Check className="h-4 w-4 text-success" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground">
+                    No locations configured for this event. Add locations in Event Setup.
+                  </div>
+                )}
+              </div>
+
               {/* Endpoint URL */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Endpoint URL</Label>
@@ -557,6 +644,7 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
                     <h5 className="font-medium text-sm text-foreground">REQUIRED FIELDS</h5>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li><code className="text-xs bg-muted px-1 rounded">event_id</code> — UUID of the survey event (shown above)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">location_id</code> — UUID of the location (see table above)</li>
                       <li><code className="text-xs bg-muted px-1 rounded">contact.first_name</code> — Contact's first name</li>
                       <li><code className="text-xs bg-muted px-1 rounded">contact.last_name</code> — Contact's last name</li>
                       <li><code className="text-xs bg-muted px-1 rounded">contact.email</code> OR <code className="text-xs bg-muted px-1 rounded">contact.phone</code> — At least one required</li>
@@ -567,16 +655,25 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
                   <div className="p-4 bg-muted/30 rounded-lg space-y-2">
                     <h5 className="font-medium text-sm text-foreground">OPTIONAL FIELDS</h5>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li><code className="text-xs bg-muted px-1 rounded">contact.preferred_channel</code> — email, sms, or both</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.preferred_channel</code> — email, sms, or both (default: email)</li>
                       <li><code className="text-xs bg-muted px-1 rounded">contact.preferred_language</code> — Language code (default: en)</li>
                       <li><code className="text-xs bg-muted px-1 rounded">contact.tags</code> — Array of tag names (created if new)</li>
-                      <li><code className="text-xs bg-muted px-1 rounded">contact.location_id</code> — UUID of location (for multi-location)</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.external_id</code> — Your system's patient/customer ID</li>
+                      <li><code className="text-xs bg-muted px-1 rounded">contact.status</code> — Contact status (default: active)</li>
                       <li><code className="text-xs bg-muted px-1 rounded">channel</code> — Override: preferred, email, or sms</li>
                       <li><code className="text-xs bg-muted px-1 rounded">scheduling.type</code> — immediate (default) or delayed</li>
                       <li><code className="text-xs bg-muted px-1 rounded">scheduling.delay_value</code> — Number for delay (e.g., 2)</li>
                       <li><code className="text-xs bg-muted px-1 rounded">scheduling.delay_unit</code> — minutes, hours, or days</li>
                     </ul>
                   </div>
+                </div>
+
+                {/* Automatic Fields */}
+                <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                  <h5 className="font-medium text-sm text-foreground">AUTOMATIC FIELDS</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li><code className="text-xs bg-muted px-1 rounded">brand_id</code> — Automatically inherited from the event</li>
+                  </ul>
                 </div>
               </div>
 
@@ -591,23 +688,21 @@ export function AutomatedSendsTab({ eventId, events }: AutomatedSendsTabProps) {
                 </ul>
               </div>
 
-              {/* Use Cases */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Use Cases</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">CRM integration (Salesforce, HubSpot, Zoho)</Badge>
-                  <Badge variant="secondary">Post-appointment triggers from EMR systems</Badge>
-                  <Badge variant="secondary">Checkout/purchase follow-ups</Badge>
-                  <Badge variant="secondary">Custom workflow automation (Zapier, Make, n8n)</Badge>
-                </div>
-              </div>
-
-              {/* Generate API Key Button */}
-              <div className="flex items-center gap-3 pt-4 border-t">
-                <Button disabled>
-                  Generate API Key
+              {/* API Authentication */}
+              <div className="p-4 bg-muted/30 rounded-lg space-y-4 border-t pt-6">
+                <h4 className="font-medium text-sm">API Authentication</h4>
+                <p className="text-sm text-muted-foreground">
+                  Include this header with every request:
+                </p>
+                <code className="block px-3 py-2 bg-muted rounded text-sm font-mono">
+                  Authorization: Bearer YOUR_API_KEY
+                </code>
+                <Button onClick={handleGenerateApiKey}>
+                  Generate New API Key
                 </Button>
-                <Badge variant="secondary">Coming Soon</Badge>
+                <p className="text-xs text-muted-foreground">
+                  Security note: Store API keys securely. Never expose them in client-side code or public repositories.
+                </p>
               </div>
             </CardContent>
           </CollapsibleContent>
