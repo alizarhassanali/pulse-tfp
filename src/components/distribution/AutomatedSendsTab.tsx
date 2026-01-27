@@ -32,7 +32,22 @@ import {
   History,
   ChevronDown,
   Check,
+  Key,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { SftpSyncHistoryModal, SftpSyncLog } from './SftpSyncHistoryModal';
 import { DEMO_SFTP_SYNC_LOGS } from '@/data/demo-data';
 import { cn } from '@/lib/utils';
@@ -199,6 +214,12 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   // Sync history modal state
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const [syncLogs, setSyncLogs] = useState<SftpSyncLog[]>(DEMO_SFTP_SYNC_LOGS);
+  
+  // API Key state
+  const [newKeyName, setNewKeyName] = useState('');
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [showGeneratedKey, setShowGeneratedKey] = useState(true);
+  const [keyToRevoke, setKeyToRevoke] = useState<string | null>(null);
 
   // SFTP state
   const [sftpHost, setSftpHost] = useState('');
@@ -258,6 +279,90 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
       return locations || [];
     },
     enabled: !!eventId,
+  });
+
+  // Fetch API keys for this brand
+  const { data: apiKeys = [], refetch: refetchApiKeys } = useQuery({
+    queryKey: ['api-keys', brandId],
+    queryFn: async () => {
+      if (!brandId) return [];
+      const { data, error } = await supabase
+        .from('api_keys')
+        .select('id, name, key_prefix, created_at, last_used_at, revoked_at')
+        .eq('brand_id', brandId)
+        .is('revoked_at', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!brandId,
+  });
+
+  // Generate API key mutation
+  const generateApiKeyMutation = useMutation({
+    mutationFn: async (keyName: string) => {
+      if (!brandId || !profile?.user_id) throw new Error('Missing brand or user');
+      
+      // Generate a secure random key (32 bytes = 64 hex chars)
+      const keyBytes = new Uint8Array(32);
+      crypto.getRandomValues(keyBytes);
+      const rawKey = Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const fullKey = `upk_${rawKey}`; // prefix for identification
+      
+      // Hash the key for storage (using SubtleCrypto)
+      const encoder = new TextEncoder();
+      const data = encoder.encode(fullKey);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // Store in database
+      const { error } = await supabase.from('api_keys').insert({
+        brand_id: brandId,
+        name: keyName,
+        key_hash: keyHash,
+        key_prefix: fullKey.slice(0, 12), // Store first 12 chars for display
+        created_by: profile.user_id,
+      });
+      
+      if (error) throw error;
+      return fullKey; // Return full key to display once
+    },
+    onSuccess: (fullKey) => {
+      setGeneratedKey(fullKey);
+      setNewKeyName('');
+      refetchApiKeys();
+      toast({
+        title: 'API Key Generated',
+        description: 'Copy your key now. It will not be shown again.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error generating API key',
+        description: String(error),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Revoke API key mutation
+  const revokeApiKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      const { error } = await supabase
+        .from('api_keys')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('id', keyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setKeyToRevoke(null);
+      refetchApiKeys();
+      toast({ title: 'API Key Revoked', description: 'The key has been revoked and can no longer be used.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error revoking key', description: String(error), variant: 'destructive' });
+    },
   });
 
   // Initialize form with existing data
@@ -375,10 +480,16 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   };
 
   const handleGenerateApiKey = () => {
-    toast({
-      title: 'API Key Generation',
-      description: 'API key generation is being configured. Contact your administrator for API access.',
-    });
+    if (!newKeyName.trim()) {
+      toast({ title: 'Please enter a name for your API key', variant: 'destructive' });
+      return;
+    }
+    generateApiKeyMutation.mutate(newKeyName.trim());
+  };
+
+  const handleCopyApiKey = (key: string) => {
+    navigator.clipboard.writeText(key);
+    toast({ title: 'API key copied to clipboard' });
   };
 
   const handleDownloadSampleTemplate = () => {
@@ -689,20 +800,105 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
               </div>
 
               {/* API Authentication */}
-              <div className="p-4 bg-muted/30 rounded-lg space-y-4 border-t pt-6">
-                <h4 className="font-medium text-sm">API Authentication</h4>
+              <div className="border-t pt-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  <h4 className="font-medium">API Authentication</h4>
+                </div>
+                
                 <p className="text-sm text-muted-foreground">
                   Include this header with every request:
                 </p>
                 <code className="block px-3 py-2 bg-muted rounded text-sm font-mono">
                   Authorization: Bearer YOUR_API_KEY
                 </code>
-                <Button onClick={handleGenerateApiKey}>
-                  Generate New API Key
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Security note: Store API keys securely. Never expose them in client-side code or public repositories.
-                </p>
+
+                {/* Generated Key Display (shown once after generation) */}
+                {generatedKey && (
+                  <div className="p-4 bg-success/10 border border-success/30 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2 text-success">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="font-medium">API Key Generated</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Copy this key now. It will not be shown again.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 px-3 py-2 bg-muted rounded text-sm font-mono break-all">
+                        {showGeneratedKey ? generatedKey : '••••••••••••••••••••••••••••••••'}
+                      </code>
+                      <Button variant="ghost" size="sm" onClick={() => setShowGeneratedKey(!showGeneratedKey)}>
+                        {showGeneratedKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleCopyApiKey(generatedKey)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setGeneratedKey(null)}>
+                      Done
+                    </Button>
+                  </div>
+                )}
+
+                {/* Existing Keys List */}
+                {apiKeys.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Your API Keys</Label>
+                    <div className="border rounded-lg divide-y">
+                      {apiKeys.map((key: { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null }) => (
+                        <div key={key.id} className="flex items-center justify-between p-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{key.name}</span>
+                              <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                                {key.key_prefix}...
+                              </code>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Created {new Date(key.created_at).toLocaleDateString()}
+                              {key.last_used_at && ` • Last used ${new Date(key.last_used_at).toLocaleDateString()}`}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setKeyToRevoke(key.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Generate New Key Form */}
+                <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                  <Label className="text-sm font-medium">Generate New API Key</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Key name (e.g., Production CRM)"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={handleGenerateApiKey} 
+                      disabled={generateApiKeyMutation.isPending || !newKeyName.trim()}
+                    >
+                      {generateApiKeyMutation.isPending ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Generate
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    API keys are scoped to this brand. Store them securely and never expose in client-side code.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </CollapsibleContent>
@@ -1002,6 +1198,27 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
         onOpenChange={setShowSyncHistory}
         syncLogs={syncLogs}
       />
+
+      {/* Revoke API Key Confirmation */}
+      <AlertDialog open={!!keyToRevoke} onOpenChange={(open) => !open && setKeyToRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Any integrations using this key will stop working immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => keyToRevoke && revokeApiKeyMutation.mutate(keyToRevoke)}
+            >
+              {revokeApiKeyMutation.isPending ? 'Revoking...' : 'Revoke Key'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
