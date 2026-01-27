@@ -995,6 +995,7 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
                     <code className="bg-muted px-1 rounded">{'{last_name}'}</code>{' '}
                     <code className="bg-muted px-1 rounded">{'{brand_name}'}</code>{' '}
                     <code className="bg-muted px-1 rounded">{'{location_name}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{location_phone}'}</code>{' '}
                     <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>{' '}
                     <code className="bg-muted px-1 rounded">{'{unsubscribe_link}'}</code>
                   </p>

@@ -28,6 +28,7 @@ export interface Location {
   gmb_link: string | null;
   google_place_id?: string | null;
   google_review_config?: LocationGoogleReviewConfig | null;
+  phone?: string | null;
   created_at: string;
   updated_at: string;
   brand?: Brand;
