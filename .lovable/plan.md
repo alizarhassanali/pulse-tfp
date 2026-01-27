@@ -1,161 +1,227 @@
 
 
-## Updated Plan: Collapsible Webhook & SFTP Sections with Complete Workflow
+## Plan: Complete Webhook Integration - Location ID Required + API Key Workflow
 
 ### Overview
-Update the Automated Sends tab to make both SFTP and Webhook sections collapsible (collapsed by default), reorder to show Webhook first, and define a complete webhook workflow with all necessary fields.
+Update the webhook section to make `location_id` required, add a locations reference table showing UUIDs for easy copying, remove Use Cases, and implement an API key generation workflow.
 
 ---
 
 ### Changes to `src/components/distribution/AutomatedSendsTab.tsx`
 
-#### 1. Add Imports (line 6)
+#### 1. Update Props Interface (line 45-48)
+
+Add `brandId` to props so we can fetch event-associated locations:
 
 ```typescript
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Copy, Check } from 'lucide-react';
+interface AutomatedSendsTabProps {
+  eventId: string;
+  events: Event[];
+  brandId?: string; // Add to fetch locations
+}
 ```
 
-#### 2. Add State Variables (after line 182)
+#### 2. Add Event Locations Query (after line 234)
+
+Fetch locations associated with this event:
 
 ```typescript
-const [webhookOpen, setWebhookOpen] = useState(false);
-const [sftpOpen, setSftpOpen] = useState(false);
-const [copiedEndpoint, setCopiedEndpoint] = useState(false);
-const [copiedEventId, setCopiedEventId] = useState(false);
+// Fetch event locations for webhook reference
+const { data: eventLocations = [] } = useQuery({
+  queryKey: ['event-locations', eventId],
+  queryFn: async () => {
+    const { data: eventLocationIds } = await supabase
+      .from('event_locations')
+      .select('location_id')
+      .eq('event_id', eventId);
+    
+    if (!eventLocationIds?.length) return [];
+    
+    const { data: locations } = await supabase
+      .from('locations')
+      .select('id, name')
+      .in('id', eventLocationIds.map(el => el.location_id))
+      .order('name');
+    
+    return locations || [];
+  },
+  enabled: !!eventId,
+});
 ```
 
-#### 3. Reorder Sections: Webhook First, Then SFTP
+#### 3. Update Webhook Payload Example (lines 164-182)
 
-Move Webhook section before SFTP section in the render.
+Move `location_id` from optional to required:
 
-#### 4. Complete Webhook Workflow Content
+```javascript
+const WEBHOOK_PAYLOAD_EXAMPLE = `{
+  "event_id": "your-event-uuid",
+  "location_id": "location-uuid",
+  "contact": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john@example.com",
+    "phone": "+1-555-123-4567",
+    "preferred_channel": "email",
+    "preferred_language": "en",
+    "tags": ["IVF Patient", "New Patient"],
+    "external_id": "PAT-001234",
+    "status": "active"
+  },
+  "channel": "preferred",
+  "scheduling": {
+    "type": "immediate",
+    "delay_value": 0,
+    "delay_unit": "hours"
+  }
+}`;
+```
 
-Replace "Coming Soon" with full workflow documentation:
+#### 4. Add Locations Reference Section (after Event ID section, ~line 527)
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│  [▼] Webhook / API Trigger                                           │
-├──────────────────────────────────────────────────────────────────────┤
-│  Trigger surveys via API calls from your CRM or other systems        │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │  HOW IT WORKS                                                  │  │
-│  │                                                                │  │
-│  │  1. Copy Your Event ID                                         │  │
-│  │     Use the event ID below to identify which survey to trigger │  │
-│  │                                                                │  │
-│  │  2. Generate API Key                                           │  │
-│  │     Create an API key to authenticate your webhook requests    │  │
-│  │                                                                │  │
-│  │  3. Send Contact Data                                          │  │
-│  │     POST contact info to our endpoint - we'll create/update    │  │
-│  │     the contact and trigger the survey                         │  │
-│  │                                                                │  │
-│  │  4. Track Responses                                            │  │
-│  │     View delivery status and responses in Sent Logs            │  │
-│  └────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │  Event ID for this Survey:                                     │  │
-│  │  [abc123-def456-...] [Copy]                                    │  │
-│  │  Use this ID in your webhook payload to trigger this event     │  │
-│  └────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  Endpoint URL:                                                       │
-│  [POST https://api.userpulse.com/v1/webhooks/trigger] [Copy]         │
-│                                                                      │
-│  Request Payload:                                                    │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │ {                                                              │  │
-│  │   "event_id": "your-event-uuid",                               │  │
-│  │   "contact": {                                                 │  │
-│  │     "first_name": "John",                                      │  │
-│  │     "last_name": "Doe",                                        │  │
-│  │     "email": "john@example.com",                               │  │
-│  │     "phone": "+1-555-123-4567",                                │  │
-│  │     "preferred_channel": "email",  // email | sms | both       │  │
-│  │     "preferred_language": "en",    // en | es | fr | etc.      │  │
-│  │     "tags": ["IVF Patient", "New Patient"],                    │  │
-│  │     "location_id": "optional-location-uuid"                    │  │
-│  │   },                                                           │  │
-│  │   "channel": "preferred",  // preferred | email | sms          │  │
-│  │   "scheduling": {                                              │  │
-│  │     "type": "immediate",   // immediate | delayed              │  │
-│  │     "delay_value": 0,      // number (if delayed)              │  │
-│  │     "delay_unit": "hours"  // minutes | hours | days           │  │
-│  │   }                                                            │  │
-│  │ }                                                              │  │
-│  └────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  Field Reference:                                                    │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │  REQUIRED FIELDS                                               │  │
-│  │  • event_id: UUID of the survey event (shown above)            │  │
-│  │  • contact.first_name: Contact's first name                    │  │
-│  │  • contact.last_name: Contact's last name                      │  │
-│  │  • contact.email OR contact.phone: At least one required       │  │
-│  │                                                                │  │
-│  │  OPTIONAL FIELDS                                               │  │
-│  │  • contact.preferred_channel: email, sms, or both              │  │
-│  │  • contact.preferred_language: Language code (default: en)     │  │
-│  │  • contact.tags: Array of tag names (created if new)           │  │
-│  │  • contact.location_id: UUID of location (for multi-location)  │  │
-│  │  • channel: Override to force email/sms, or use "preferred"    │  │
-│  │  • scheduling.type: "immediate" (default) or "delayed"         │  │
-│  │  • scheduling.delay_value: Number for delay (e.g., 2)          │  │
-│  │  • scheduling.delay_unit: "minutes", "hours", or "days"        │  │
-│  └────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  Behavior:                                                           │
-│  • If contact exists (matched by email/phone), record is updated     │
-│  • If contact is new, record is created with provided data           │
-│  • Tags are created if they don't exist, then assigned to contact    │
-│  • Throttle rules are respected (won't send if recently surveyed)    │
-│                                                                      │
-│  Use Cases:                                                          │
-│  • CRM integration (Salesforce, HubSpot, Zoho)                       │
-│  • Post-appointment triggers from EMR systems                        │
-│  • Checkout/purchase follow-ups                                      │
-│  • Custom workflow automation (Zapier, Make, n8n)                    │
-│                                                                      │
-│  [Generate API Key]  (Coming Soon badge)                             │
-└──────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  LOCATION IDs FOR THIS EVENT                                   │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Location Name      │  UUID                    │ [Copy]  │  │
+│  ├──────────────────────────────────────────────────────────┤  │
+│  │  Midtown Clinic     │  8dc010b2-7fef-...       │  [📋]   │  │
+│  │  NewMarket Center   │  c43fa3cd-b33f-...       │  [📋]   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  (Shows empty state if no locations configured)                │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-#### 5. Make Both Sections Collapsible
+Implementation:
+- Table with Location Name, UUID, Copy button
+- Clickable copy for each location ID
+- Empty state: "No locations configured for this event. Add locations in Event Setup."
 
-Wrap both Webhook and SFTP in Collapsible components with:
-- Collapsed by default (`useState(false)`)
-- Chevron icon that rotates on open
-- Smooth transition animation
+#### 5. Update Field Reference (lines 550-580)
+
+**Move to REQUIRED FIELDS:**
+```
+• location_id — UUID of the location (see table above)
+```
+
+**Add to OPTIONAL FIELDS:**
+```
+• contact.external_id — Your system's patient/customer ID
+• contact.status — Contact status (default: active)
+```
+
+**Updated structure:**
+
+```
+REQUIRED FIELDS
+- event_id: UUID of the survey event (shown above)
+- location_id: UUID of the location (see locations table above)
+- contact.first_name: Contact's first name
+- contact.last_name: Contact's last name
+- contact.email OR contact.phone: At least one required
+
+OPTIONAL FIELDS
+- contact.preferred_channel: email, sms, or both (default: email)
+- contact.preferred_language: Language code (default: en)
+- contact.tags: Array of tag names (created if new)
+- contact.external_id: Your system's patient/customer ID
+- contact.status: Contact status (default: active)
+- channel: Override send channel (preferred, email, or sms)
+- scheduling.type: immediate (default) or delayed
+- scheduling.delay_value: Delay amount (e.g., 2)
+- scheduling.delay_unit: minutes, hours, or days
+
+AUTOMATIC FIELDS
+- brand_id: Automatically inherited from the event
+```
+
+#### 6. Remove Use Cases Section (lines 594-603)
+
+Delete the entire Use Cases badges section.
+
+#### 7. Replace "Coming Soon" with API Key Workflow (lines 605-611)
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│  API AUTHENTICATION                                            │
+│                                                                │
+│  Include this header with every request:                       │
+│  [Authorization: Bearer YOUR_API_KEY]                          │
+│                                                                │
+│  [+ Generate New API Key]                                      │
+│                                                                │
+│  Security note: Store API keys securely. Never expose          │
+│  them in client-side code or public repositories.              │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Clicking "Generate New API Key" shows toast: "API key generation is being configured. Contact your administrator for API access."
+
+#### 8. Add State for Location Copy (after line 193)
+
+```typescript
+const [copiedLocationId, setCopiedLocationId] = useState<string | null>(null);
+
+const handleCopyLocationId = (locationId: string) => {
+  navigator.clipboard.writeText(locationId);
+  setCopiedLocationId(locationId);
+  toast({ title: 'Location ID copied to clipboard' });
+  setTimeout(() => setCopiedLocationId(null), 2000);
+};
+```
 
 ---
 
-### Key Additions Based on Your Feedback
+### Update to `src/pages/nps/EventDetail.tsx`
 
-| Addition | Rationale |
-|----------|-----------|
-| **Event ID display with copy button** | Users can easily copy the event UUID right from the page |
-| **preferred_channel field** | Respects contact's preferred communication method |
-| **preferred_language field** | Supports multi-language surveys |
-| **tags array** | Tags are created/assigned when contact is upserted |
-| **scheduling object** | Supports immediate or delayed sends (minutes/hours/days) |
-| **channel override** | Can use contact preference or force a specific channel |
-| **Field Reference table** | Clear documentation of required vs optional fields |
-| **Behavior section** | Explains upsert logic, tag creation, and throttle rules |
+Pass `brandId` prop to AutomatedSendsTab (line 355):
+
+```typescript
+<AutomatedSendsTab 
+  eventId={eventId!} 
+  events={events.map((e) => ({ id: e.id, name: e.name }))} 
+  brandId={eventData?.brand_id}
+/>
+```
 
 ---
 
 ### Summary of Changes
 
-| Change | Type |
-|--------|------|
-| Import Collapsible + icons | Import |
-| Add state for open/closed + copy states | State |
-| Move Webhook before SFTP | Reorder |
-| Add Event ID display with copy | New UI |
-| Complete payload with all fields | New content |
-| Field reference documentation | New content |
-| Wrap both in Collapsible (closed default) | UI update |
+| Change | Type | File |
+|--------|------|------|
+| Add `brandId` to props | Props | AutomatedSendsTab.tsx |
+| Add event locations query | Query | AutomatedSendsTab.tsx |
+| Move `location_id` to required in payload | Update | AutomatedSendsTab.tsx |
+| Add `external_id` and `status` to payload | Update | AutomatedSendsTab.tsx |
+| Add Locations Reference table with copy buttons | New UI | AutomatedSendsTab.tsx |
+| Update Field Reference (location required) | Update | AutomatedSendsTab.tsx |
+| Add `external_id`, `status` to optional fields | Update | AutomatedSendsTab.tsx |
+| Remove Use Cases section | Delete | AutomatedSendsTab.tsx |
+| Replace Coming Soon with API workflow | Update | AutomatedSendsTab.tsx |
+| Add location copy handler + state | Add | AutomatedSendsTab.tsx |
+| Pass brandId prop to AutomatedSendsTab | Update | EventDetail.tsx |
+
+---
+
+### Visual Result
+
+After Event ID section, users will see:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Location IDs for this Event                                 │
+│                                                             │
+│ Location Name          UUID                          Copy   │
+│ ─────────────────────────────────────────────────────────── │
+│ Midtown Clinic         8dc010b2-7fef-4118-b704...    [📋]   │
+│ NewMarket Center       c43fa3cd-b33f-425e-a144...    [📋]   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This makes it easy for users to:
+1. See which locations are valid for this event
+2. Copy the exact UUID needed for their webhook integration
 
