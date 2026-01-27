@@ -221,6 +221,15 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   const [showGeneratedKey, setShowGeneratedKey] = useState(true);
   const [keyToRevoke, setKeyToRevoke] = useState<string | null>(null);
 
+  // Webhook Email/SMS templates
+  const [webhookEmailSubject, setWebhookEmailSubject] = useState('How was your recent visit?');
+  const [webhookEmailBody, setWebhookEmailBody] = useState(
+    'Hi {first_name},\n\nWe hope you had a great experience at {location_name}. Please take a moment to share your feedback:\n\n{survey_link}\n\nThank you!\n{brand_name}\n\n---\nYou can unsubscribe from future feedback requests at any time using the link below.\n{unsubscribe_link}'
+  );
+  const [webhookSmsBody, setWebhookSmsBody] = useState(
+    'Hi {first_name}, how was your visit to {location_name}? Share your feedback: {survey_link}\n\nReply STOP to unsubscribe.'
+  );
+
   // SFTP state
   const [sftpHost, setSftpHost] = useState('');
   const [sftpPort, setSftpPort] = useState('22');
@@ -236,7 +245,7 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   const [sftpStatus, setSftpStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
   const [sftpLastSync, setSftpLastSync] = useState<string | null>(null);
 
-  // Email/SMS templates
+  // SFTP Email/SMS templates
   const [emailSubject, setEmailSubject] = useState('How was your recent visit?');
   const [emailBody, setEmailBody] = useState(
     'Hi {first_name},\n\nWe hope you had a great experience. Please share your feedback:\n\n{survey_link}\n\nThank you!'
@@ -252,6 +261,22 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
         .select('*')
         .eq('event_id', eventId)
         .eq('type', 'sftp')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventId,
+  });
+
+  // Fetch existing Webhook integration
+  const { data: webhookIntegration } = useQuery({
+    queryKey: ['webhook-integration', eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('type', 'webhook')
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -365,7 +390,7 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     },
   });
 
-  // Initialize form with existing data
+  // Initialize SFTP form with existing data
   useEffect(() => {
     if (sftpIntegration?.config) {
       const config = sftpIntegration.config as Record<string, any>;
@@ -400,6 +425,16 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
       }
     }
   }, [sftpIntegration, profile?.timezone, eventId]);
+
+  // Initialize Webhook templates from saved config
+  useEffect(() => {
+    if (webhookIntegration?.config) {
+      const config = webhookIntegration.config as Record<string, any>;
+      if (config.emailSubject) setWebhookEmailSubject(config.emailSubject);
+      if (config.emailBody) setWebhookEmailBody(config.emailBody);
+      if (config.smsBody) setWebhookSmsBody(config.smsBody);
+    }
+  }, [webhookIntegration]);
 
   // Save SFTP configuration
   const saveSftpMutation = useMutation({
@@ -446,6 +481,47 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     },
     onError: (error) => {
       toast({ title: 'Error saving configuration', description: String(error), variant: 'destructive' });
+    },
+  });
+
+  // Save Webhook templates mutation
+  const saveWebhookTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      const config = {
+        emailSubject: webhookEmailSubject,
+        emailBody: webhookEmailBody,
+        smsBody: webhookSmsBody,
+      };
+
+      const { data: existing } = await supabase
+        .from('integrations')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('type', 'webhook')
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('integrations')
+          .update({ config, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('integrations').insert({
+          event_id: eventId,
+          type: 'webhook',
+          config,
+          status: 'active',
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'Message templates saved' });
+      queryClient.invalidateQueries({ queryKey: ['webhook-integration', eventId] });
+    },
+    onError: (error) => {
+      toast({ title: 'Error saving templates', description: String(error), variant: 'destructive' });
     },
   });
 
@@ -899,6 +975,82 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
                     API keys are scoped to this brand. Store them securely and never expose in client-side code.
                   </p>
                 </div>
+              </div>
+
+              {/* Message Templates Section */}
+              <div className="border-t pt-6 space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Message Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure the email and SMS content sent when surveys are triggered via API. These templates apply to all webhook sends for this event.
+                </p>
+
+                {/* Available Variables */}
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Available variables:</span>{' '}
+                    <code className="bg-muted px-1 rounded">{'{first_name}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{last_name}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{brand_name}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{location_name}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{survey_link}'}</code>{' '}
+                    <code className="bg-muted px-1 rounded">{'{unsubscribe_link}'}</code>
+                  </p>
+                </div>
+
+                {/* Email Template */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h5 className="font-medium text-sm">Email</h5>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Subject</Label>
+                    <Input
+                      value={webhookEmailSubject}
+                      onChange={(e) => setWebhookEmailSubject(e.target.value)}
+                      placeholder="How was your recent visit?"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Body</Label>
+                    <Textarea
+                      value={webhookEmailBody}
+                      onChange={(e) => setWebhookEmailBody(e.target.value)}
+                      className="min-h-[180px] font-mono text-sm"
+                      placeholder="Hi {first_name},&#10;&#10;We hope you had a great experience..."
+                    />
+                  </div>
+                </div>
+
+                {/* SMS Template */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h5 className="font-medium text-sm">SMS</h5>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Message</Label>
+                    <Textarea
+                      value={webhookSmsBody}
+                      onChange={(e) => setWebhookSmsBody(e.target.value)}
+                      className="min-h-[100px] font-mono text-sm"
+                      placeholder="Hi {first_name}, how was your visit?"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {webhookSmsBody.length}/160 characters
+                      {webhookSmsBody.length > 160 && (
+                        <span className="text-destructive ml-2">
+                          (Will be split into {Math.ceil(webhookSmsBody.length / 160)} messages)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => saveWebhookTemplatesMutation.mutate()}
+                  disabled={saveWebhookTemplatesMutation.isPending}
+                  className="btn-coral"
+                >
+                  {saveWebhookTemplatesMutation.isPending ? 'Saving...' : 'Save Message Templates'}
+                </Button>
               </div>
             </CardContent>
           </CollapsibleContent>
