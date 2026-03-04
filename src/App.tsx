@@ -27,6 +27,7 @@ import Brands from './pages/settings/Brands';
 import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
 import Playbook from './pages/Playbook';
+import Resources from './pages/Resources';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
