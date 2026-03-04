@@ -26,6 +26,7 @@ import AutomationRules from './pages/settings/AutomationRules';
 import Brands from './pages/settings/Brands';
 import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
+import Playbook from './pages/Playbook';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="nps/events/:id/edit" element={<CreateEvent />} />
               <Route path="nps/events/:id" element={<EventDetail />} />
               <Route path="reviews" element={<Reviews />} />
+              <Route path="playbook" element={<Playbook />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
               <Route path="settings" element={<Navigate to="/settings/profile" replace />} />

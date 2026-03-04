@@ -1,24 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HelpCircle, MessageCircle, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { PlaybookContent } from './PlaybookContent';
 
 interface HelpSupportMenuProps {
   collapsed: boolean;
 }
 
 export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
-  const [playbookOpen, setPlaybookOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const navigate = useNavigate();
 
   const menuItems = [
     {
@@ -26,7 +19,6 @@ export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
       label: 'Chat Support',
       onClick: () => {
         setPopoverOpen(false);
-        // Placeholder for chat support integration
       },
     },
     {
@@ -34,7 +26,7 @@ export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
       label: 'Response Playbook',
       onClick: () => {
         setPopoverOpen(false);
-        setPlaybookOpen(true);
+        navigate('/playbook');
       },
     },
   ];
@@ -90,17 +82,6 @@ export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
         </PopoverContent>
       </Popover>
 
-      <Dialog open={playbookOpen} onOpenChange={setPlaybookOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Feedback Response Playbook</DialogTitle>
-            <DialogDescription>
-              Templates and guidelines for responding to NPS feedback
-            </DialogDescription>
-          </DialogHeader>
-          <PlaybookContent />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
