@@ -27,6 +27,7 @@ import Brands from './pages/settings/Brands';
 import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
 import Playbook from './pages/Playbook';
+import Resources from './pages/Resources';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -100,7 +101,9 @@ const App = () => (
               <Route path="nps/events/:id/edit" element={<CreateEvent />} />
               <Route path="nps/events/:id" element={<EventDetail />} />
               <Route path="reviews" element={<Reviews />} />
-              <Route path="playbook" element={<Playbook />} />
+              <Route path="resources" element={<Resources />} />
+              <Route path="resources/playbook" element={<Playbook />} />
+              <Route path="playbook" element={<Navigate to="/resources/playbook" replace />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
               <Route path="settings" element={<Navigate to="/settings/profile" replace />} />

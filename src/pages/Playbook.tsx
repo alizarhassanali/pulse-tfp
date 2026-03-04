@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Download, Users, Target, MessageSquare, ArrowRightLeft, GitBranch, 
   BookOpen, ShieldCheck, AlertTriangle, Flag, Scale, Workflow, Database,
-  Copy, Check, CheckCircle2, XCircle, Clock, ChevronUp
+  Copy, Check, CheckCircle2, XCircle, Clock, ChevronUp, ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,7 @@ const navGroups = [
 const allSections = navGroups.flatMap((g) => g.sections);
 
 export default function Playbook() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('roles');
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -90,56 +92,59 @@ export default function Playbook() {
 
   return (
     <div className="-m-8 flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-secondary to-secondary/80 px-10 py-8">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, hsl(var(--tertiary)) 0%, transparent 50%), radial-gradient(circle at 80% 50%, hsl(var(--primary)) 0%, transparent 50%)' }} />
-        <div className="relative flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-secondary-foreground">Feedback Response Playbook</h1>
-            <p className="mt-1 text-sm text-secondary-foreground/70">Decision Tree · Messaging Playbook · Governance</p>
+      {/* Compact Header */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border/60 bg-card">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2" onClick={() => navigate('/resources')}>
+            <ChevronLeft className="h-4 w-4" />
+            Resources
+          </Button>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <h1 className="text-sm font-semibold text-foreground">Feedback Response Playbook</h1>
           </div>
-          <a href="/docs/OttoPulse_Feedback_Response_Playbook.docx" download>
-            <Button size="sm" variant="outline" className="gap-2 border-secondary-foreground/30 text-secondary-foreground hover:bg-secondary-foreground/10 hover:text-secondary-foreground">
-              <Download className="h-4 w-4" />
-              Download Playbook
-            </Button>
-          </a>
         </div>
-        {/* Progress bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary-foreground/10">
-          <div className="h-full bg-primary transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
-        </div>
+        <a href="/docs/OttoPulse_Feedback_Response_Playbook.docx" download>
+          <Button size="sm" variant="outline" className="gap-2 text-xs">
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </Button>
+        </a>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-0.5 bg-border/30">
+        <div className="h-full bg-primary/60 transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Navigation */}
-        <nav className="w-[280px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto scrollbar-thin">
-          <div className="p-5 space-y-6">
+        <nav className="w-[260px] shrink-0 border-r border-border/60 bg-card overflow-y-auto scrollbar-thin">
+          <div className="p-4 space-y-5">
             {navGroups.map((group) => (
               <div key={group.label}>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-2 px-2">{group.label}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-1.5 px-2">{group.label}</p>
                 <ul className="space-y-0.5">
                   {group.sections.map((section) => {
                     const isActive = activeSection === section.id;
-                    const Icon = section.icon;
                     return (
                       <li key={section.id}>
                         <button
                           onClick={() => scrollToSection(section.id)}
                           className={cn(
-                            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
+                            'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-all duration-150',
                             isActive
-                              ? 'bg-primary/10 text-primary font-medium shadow-sm'
+                              ? 'bg-accent text-foreground font-medium'
                               : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                           )}
                         >
                           <span className={cn(
-                            'flex items-center justify-center h-6 w-6 rounded-full text-[10px] font-bold shrink-0 transition-colors',
-                            isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            'flex items-center justify-center h-5 w-5 rounded text-[9px] font-semibold shrink-0',
+                            isActive ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground'
                           )}>
                             {section.num}
                           </span>
-                          <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
                           <span className="truncate">{section.label}</span>
                         </button>
                       </li>
@@ -152,63 +157,63 @@ export default function Playbook() {
         </nav>
 
         {/* Right Content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto scrollbar-thin relative">
-          <div className="max-w-4xl mx-auto p-8 space-y-8">
+        <div ref={contentRef} className="flex-1 overflow-y-auto scrollbar-thin relative bg-background">
+          <div className="max-w-3xl mx-auto px-8 py-6 space-y-6">
 
             {/* 1. Roles & Responsibilities */}
-            <SectionCard id="roles" icon={Users} title="Roles & Responsibilities" num={1} refs={sectionRefs}>
-              <p className="text-sm text-muted-foreground mb-5">
-                Operational order: <span className="font-semibold text-foreground">Clinic → Operations → Marketing → Legal</span>
+            <SectionBlock id="roles" title="Roles & Responsibilities" num={1} refs={sectionRefs}>
+              <p className="text-sm text-muted-foreground mb-4">
+                Operational order: <span className="font-medium text-foreground">Clinic → Operations → Marketing → Legal</span>
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <RoleBlock title="Clinic Teams" accent="bg-promoter/10 border-promoter/30">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <RoleBlock title="Clinic Teams">
                   <li>First-line review and response owner</li>
                   <li>Respond using the approved framework (NPS & Google)</li>
                   <li>Identify and escalate any risk indicators</li>
                   <li>Provide context to Operations when themes recur</li>
                   <li>Conduct 1:1 follow-ups for NPS detractors (0–6)</li>
                 </RoleBlock>
-                <RoleBlock title="Operations" accent="bg-info/10 border-info/30">
+                <RoleBlock title="Operations">
                   <li>Review and validate recurring operational issues</li>
                   <li>Identify systemic patterns and service breakdowns</li>
                   <li>Support clinics with context for accurate responses</li>
                   <li>Determine when feedback requires escalation to Marketing</li>
                 </RoleBlock>
-                <RoleBlock title="Marketing" accent="bg-warning/10 border-warning/30">
+                <RoleBlock title="Marketing">
                   <li>Owns brand voice and public response governance</li>
                   <li>Reviews clinic responses when escalated by Operations</li>
                   <li>Manages Google reporting, screenshots, and documentation</li>
                   <li>Escalates risk scenarios to Legal</li>
                   <li>Ensures adherence to messaging standards and safety</li>
                 </RoleBlock>
-                <RoleBlock title="Legal / Compliance" accent="bg-destructive/10 border-destructive/30">
+                <RoleBlock title="Legal / Compliance">
                   <li>Evaluates privacy, regulatory, and legal risk</li>
                   <li>Advises when public responses should be prohibited or modified</li>
                   <li>Oversees responses involving malpractice claims, PHI, or staff harassment</li>
                 </RoleBlock>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 2. Purpose */}
-            <SectionCard id="purpose" icon={Target} title="Purpose" num={2} refs={sectionRefs}>
+            <SectionBlock id="purpose" title="Purpose" num={2} refs={sectionRefs}>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 This playbook defines how feedback is reviewed, responded to, escalated, and governed across NPS and Google Reviews, ensuring safe, consistent, compliant communication.
               </p>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 3. Core Language & Messaging Rules */}
-            <SectionCard id="language-rules" icon={MessageSquare} title="Core Language & Messaging Rules" num={3} refs={sectionRefs}>
-              <div className="rounded-lg overflow-hidden border border-border/60">
+            <SectionBlock id="language-rules" title="Core Language & Messaging Rules" num={3} refs={sectionRefs}>
+              <div className="rounded-lg overflow-hidden border border-border/50">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40 w-1/4">Rule</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Requirement</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2.5 font-medium text-foreground border-b border-border/40 w-1/4 text-xs">Rule</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-foreground border-b border-border/40 text-xs">Requirement</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
                     {[
-                      ['Apology language', '"We\'re sorry to hear that your experience didn\'t meet your expectations." / "We\'re sorry to hear this was your experience."'],
+                      ['Apology language', '"We\'re sorry to hear that your experience didn\'t meet your expectations."'],
                       ['Clinical details', 'Do not reference treatments, outcomes, or timelines.'],
                       ['Tone', 'Neutral, empathetic, professional.'],
                       ['Length', 'Max 3 sentences.'],
@@ -216,42 +221,42 @@ export default function Playbook() {
                       ['Risk language', 'No admissions of fault.'],
                       ['Staff protection', 'Never name staff publicly.'],
                     ].map(([rule, req], i) => (
-                      <tr key={rule} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-medium text-foreground">{rule}</td>
-                        <td className="px-4 py-3">{req}</td>
+                      <tr key={rule} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2.5 font-medium text-foreground text-xs">{rule}</td>
+                        <td className="px-4 py-2.5 text-xs">{req}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 4. Channel Order */}
-            <SectionCard id="channel-order" icon={ArrowRightLeft} title="Channel Order of Operations" num={4} refs={sectionRefs}>
-              <div className="flex flex-col gap-2">
+            <SectionBlock id="channel-order" title="Channel Order of Operations" num={4} refs={sectionRefs}>
+              <div className="flex flex-col gap-1.5">
                 {[
-                  { step: 1, text: 'Clinic reviews, responds or escalates', color: 'bg-promoter' },
-                  { step: 2, text: 'Operations validates issues and identifies systemic themes', color: 'bg-info' },
-                  { step: 3, text: 'Marketing ensures brand governance & handles Google processes', color: 'bg-warning' },
-                  { step: 4, text: 'Legal approves or blocks response when risk triggers apply', color: 'bg-destructive' },
-                ].map(({ step, text, color }) => (
-                  <div key={step} className="flex items-center gap-3 rounded-lg bg-muted/30 px-4 py-3 border border-border/40">
-                    <span className={cn('flex items-center justify-center h-7 w-7 rounded-full text-xs font-bold text-white shrink-0', color)}>{step}</span>
-                    <span className="text-sm text-foreground">{text}</span>
+                  { step: 1, text: 'Clinic reviews, responds or escalates' },
+                  { step: 2, text: 'Operations validates issues and identifies systemic themes' },
+                  { step: 3, text: 'Marketing ensures brand governance & handles Google processes' },
+                  { step: 4, text: 'Legal approves or blocks response when risk triggers apply' },
+                ].map(({ step, text }) => (
+                  <div key={step} className="flex items-center gap-3 rounded-md bg-muted/20 px-3 py-2.5 border border-border/30">
+                    <span className="flex items-center justify-center h-5 w-5 rounded text-[10px] font-semibold bg-foreground/10 text-foreground shrink-0">{step}</span>
+                    <span className="text-xs text-foreground">{text}</span>
                   </div>
                 ))}
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 5. Decision Tree */}
-            <SectionCard id="decision-tree" icon={GitBranch} title="Decision Tree" num={5} refs={sectionRefs}>
-              <div className="rounded-lg overflow-hidden border border-border/60 mb-4">
+            <SectionBlock id="decision-tree" title="Decision Tree" num={5} refs={sectionRefs}>
+              <div className="rounded-lg overflow-hidden border border-border/50 mb-3">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Channel</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Score/Rating</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Response Path</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2.5 font-medium text-foreground border-b border-border/40 text-xs">Channel</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-foreground border-b border-border/40 text-xs">Score/Rating</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-foreground border-b border-border/40 text-xs">Response Path</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
@@ -263,37 +268,37 @@ export default function Playbook() {
                       { ch: 'Google', score: '4★', badge: 'passive', path: 'Path E' },
                       { ch: 'Google', score: '1–3★', badge: 'detractor', path: 'Path F' },
                     ].map(({ ch, score, badge, path }, i) => (
-                      <tr key={i} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-medium text-foreground">{ch}</td>
-                        <td className="px-4 py-3">
-                          <Badge className={cn(
-                            'hover:opacity-100',
-                            badge === 'promoter' && 'bg-promoter-bg text-promoter border-promoter/30',
-                            badge === 'passive' && 'bg-passive-bg text-passive border-passive/30',
-                            badge === 'detractor' && 'bg-detractor-bg text-detractor border-detractor/30',
+                      <tr key={i} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2.5 font-medium text-foreground text-xs">{ch}</td>
+                        <td className="px-4 py-2.5">
+                          <Badge variant="outline" className={cn(
+                            'text-[10px]',
+                            badge === 'promoter' && 'border-promoter/40 text-promoter',
+                            badge === 'passive' && 'border-passive/40 text-passive',
+                            badge === 'detractor' && 'border-detractor/40 text-detractor',
                           )}>{score}</Badge>
                         </td>
-                        <td className="px-4 py-3">{path}</td>
+                        <td className="px-4 py-2.5 text-xs">{path}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div className="bg-destructive/5 border border-destructive/15 rounded-md p-2.5 text-xs text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 <span><strong>Override rule:</strong> If legal or safety criteria apply → stop and escalate.</span>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 6. Response Library */}
-            <SectionCard id="response-library" icon={BookOpen} title="Pre-Defined Response Library" num={6} refs={sectionRefs}>
+            <SectionBlock id="response-library" title="Pre-Defined Response Library" num={6} refs={sectionRefs}>
               <Tabs defaultValue="nps" className="w-full">
                 <TabsList className="mb-4">
-                  <TabsTrigger value="nps">NPS Responses</TabsTrigger>
-                  <TabsTrigger value="google">Google Reviews</TabsTrigger>
+                  <TabsTrigger value="nps" className="text-xs">NPS Responses</TabsTrigger>
+                  <TabsTrigger value="google" className="text-xs">Google Reviews</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="nps" className="space-y-6">
+                <TabsContent value="nps" className="space-y-5">
                   <ResponsePath badge="promoter" label="Path A" subtitle="NPS 9–10" items={[
                     { id: 'A1', text: 'Thank you for taking the time to share your feedback. We appreciate the trust you placed in our team.' },
                     { id: 'A2', text: "We're grateful you took the time to respond. Supporting our patients is important to us." },
@@ -311,7 +316,7 @@ export default function Playbook() {
                   ]} />
                 </TabsContent>
 
-                <TabsContent value="google" className="space-y-6">
+                <TabsContent value="google" className="space-y-5">
                   <ResponsePath badge="promoter" label="Path D" subtitle="Google 5★" items={[
                     { id: 'D1', text: 'Thank you for taking the time to leave a review. We appreciate the trust you placed in our team.' },
                     { id: 'D2', text: "We're grateful you shared your feedback and appreciate you taking the time to do so." },
@@ -329,55 +334,55 @@ export default function Playbook() {
                   ]} />
                 </TabsContent>
               </Tabs>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 7. Operational Guardrails */}
-            <SectionCard id="guardrails" icon={ShieldCheck} title="Operational Guardrails" num={7} refs={sectionRefs}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-promoter/30 bg-promoter/5 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="h-5 w-5 text-promoter" />
-                    <h4 className="font-semibold text-foreground text-sm">DO</h4>
+            <SectionBlock id="guardrails" title="Operational Guardrails" num={7} refs={sectionRefs}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-promoter" />
+                    <h4 className="font-medium text-foreground text-xs">DO</h4>
                   </div>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="space-y-1.5 text-xs text-muted-foreground">
                     {['Use approved responses', 'Rotate response IDs', 'Stay neutral', 'Move negative feedback offline', 'Log themes for reporting'].map((item) => (
-                      <li key={item} className="flex items-start gap-2"><Check className="h-3.5 w-3.5 mt-0.5 text-promoter shrink-0" />{item}</li>
+                      <li key={item} className="flex items-start gap-2"><Check className="h-3 w-3 mt-0.5 text-promoter shrink-0" />{item}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <XCircle className="h-5 w-5 text-destructive" />
-                    <h4 className="font-semibold text-foreground text-sm">DON'T</h4>
+                <div className="rounded-lg border border-border/50 bg-muted/10 p-4">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                    <h4 className="font-medium text-foreground text-xs">DON'T</h4>
                   </div>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="space-y-1.5 text-xs text-muted-foreground">
                     {['Reuse the same ID repeatedly', 'Defend or explain', 'Ask public follow-up questions', 'React to one-off comments', 'Respond during legal review'].map((item) => (
-                      <li key={item} className="flex items-start gap-2"><XCircle className="h-3.5 w-3.5 mt-0.5 text-destructive/60 shrink-0" />{item}</li>
+                      <li key={item} className="flex items-start gap-2"><XCircle className="h-3 w-3 mt-0.5 text-destructive/50 shrink-0" />{item}</li>
                     ))}
                   </ul>
                 </div>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 8. Reporting & Escalation */}
-            <SectionCard id="reporting" icon={AlertTriangle} title="Reporting & Escalation Criteria" num={8} refs={sectionRefs}>
-              <div className="space-y-6">
+            <SectionBlock id="reporting" title="Reporting & Escalation Criteria" num={8} refs={sectionRefs}>
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2 text-sm">Escalate to Operations</h4>
-                  <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                  <h4 className="font-medium text-foreground mb-1.5 text-xs">Escalate to Operations</h4>
+                  <ul className="list-disc pl-5 space-y-0.5 text-xs text-muted-foreground">
                     <li>Multiple similar comments at the clinic level</li>
                     <li>Indicators of systemic service or process issues</li>
                     <li>Complaints involving scheduling, wait times, or operational breakdowns</li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2 text-sm">Escalate to Marketing (after Ops review)</h4>
-                  <div className="rounded-lg overflow-hidden border border-border/60">
-                    <table className="w-full text-sm">
+                  <h4 className="font-medium text-foreground mb-1.5 text-xs">Escalate to Marketing (after Ops review)</h4>
+                  <div className="rounded-lg overflow-hidden border border-border/50">
+                    <table className="w-full text-xs">
                       <thead>
-                        <tr className="bg-secondary/5">
-                          <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Trigger</th>
-                          <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Threshold</th>
+                        <tr className="bg-muted/30">
+                          <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Trigger</th>
+                          <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Threshold</th>
                         </tr>
                       </thead>
                       <tbody className="text-muted-foreground">
@@ -387,9 +392,9 @@ export default function Playbook() {
                           ['Comment patterns', '3+ similar comments'],
                           ['Visibility', 'Review gaining traction or shares'],
                         ].map(([trigger, threshold], i) => (
-                          <tr key={trigger} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                            <td className="px-4 py-3 font-medium text-foreground">{trigger}</td>
-                            <td className="px-4 py-3">{threshold}</td>
+                          <tr key={trigger} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                            <td className="px-4 py-2 font-medium text-foreground">{trigger}</td>
+                            <td className="px-4 py-2">{threshold}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -397,27 +402,27 @@ export default function Playbook() {
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2 text-sm">Immediate Escalation to Legal (via Marketing)</h4>
-                  <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <h4 className="font-medium text-foreground mb-1.5 text-xs">Immediate Escalation to Legal (via Marketing)</h4>
+                  <div className="bg-destructive/5 border border-destructive/15 rounded-md p-3">
+                    <ul className="space-y-1 text-xs text-muted-foreground">
                       {['Threats (explicit or implied)', 'Hate speech', 'Harassment of named or identifiable staff', 'HIPAA/PHI exposure', 'Allegations of malpractice, fraud, negligence'].map((item) => (
-                        <li key={item} className="flex items-start gap-2"><AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-destructive shrink-0" />{item}</li>
+                        <li key={item} className="flex items-start gap-2"><AlertTriangle className="h-3 w-3 mt-0.5 text-destructive/60 shrink-0" />{item}</li>
                       ))}
                     </ul>
                   </div>
                 </div>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 9. Google Review Reporting */}
-            <SectionCard id="google-reporting" icon={Flag} title="Google Review Reporting Criteria" num={9} refs={sectionRefs}>
-              <h4 className="font-semibold text-foreground mb-2 text-sm">Eligible for Reporting</h4>
-              <div className="rounded-lg overflow-hidden border border-border/60">
-                <table className="w-full text-sm">
+            <SectionBlock id="google-reporting" title="Google Review Reporting Criteria" num={9} refs={sectionRefs}>
+              <h4 className="font-medium text-foreground mb-1.5 text-xs">Eligible for Reporting</h4>
+              <div className="rounded-lg overflow-hidden border border-border/50">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Category</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Examples</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Category</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Examples</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
@@ -431,28 +436,28 @@ export default function Playbook() {
                       ['Off topic', 'Not a patient experience'],
                       ['Legal allegations', 'Malpractice, fraud claims'],
                     ].map(([cat, ex], i) => (
-                      <tr key={cat} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-medium text-foreground">{cat}</td>
-                        <td className="px-4 py-3">{ex}</td>
+                      <tr key={cat} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2 font-medium text-foreground">{cat}</td>
+                        <td className="px-4 py-2">{ex}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 10. Legal Issue Handling */}
-            <SectionCard id="legal" icon={Scale} title="Legal Issue Handling" num={10} refs={sectionRefs}>
-              <p className="text-sm text-muted-foreground mb-4">
-                Updated chain: <span className="font-semibold text-foreground">Clinic → Ops → Marketing → Legal</span>
+            <SectionBlock id="legal" title="Legal Issue Handling" num={10} refs={sectionRefs}>
+              <p className="text-xs text-muted-foreground mb-3">
+                Updated chain: <span className="font-medium text-foreground">Clinic → Ops → Marketing → Legal</span>
               </p>
-              <div className="rounded-lg overflow-hidden border border-border/60 mb-4">
-                <table className="w-full text-sm">
+              <div className="rounded-lg overflow-hidden border border-border/50 mb-3">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40 w-16">Step</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40 w-40">Owner</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Action</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40 w-12">Step</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40 w-36">Owner</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Action</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
@@ -464,30 +469,30 @@ export default function Playbook() {
                       ['5', 'Legal', 'Provide guidance or block response'],
                       ['6', 'Marketing', 'Monitor and track'],
                     ].map(([step, owner, action], i) => (
-                      <tr key={step} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-bold text-foreground">{step}</td>
-                        <td className="px-4 py-3 font-medium text-foreground">{owner}</td>
-                        <td className="px-4 py-3">{action}</td>
+                      <tr key={step} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2 font-bold text-foreground">{step}</td>
+                        <td className="px-4 py-2 font-medium text-foreground">{owner}</td>
+                        <td className="px-4 py-2">{action}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive flex items-center gap-2">
-                <Scale className="h-4 w-4 shrink-0" />
-                <span className="font-semibold">Rule: No public reply without Legal approval.</span>
+              <div className="bg-destructive/5 border border-destructive/15 rounded-md p-2.5 text-xs text-destructive flex items-center gap-2">
+                <Scale className="h-3.5 w-3.5 shrink-0" />
+                <span className="font-medium">Rule: No public reply without Legal approval.</span>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 11. Decision Flow Scenarios & SLAs */}
-            <SectionCard id="scenarios" icon={Workflow} title="Decision Flow Scenarios" num={11} refs={sectionRefs}>
-              <div className="rounded-lg overflow-hidden border border-border/60 mb-6">
-                <table className="w-full text-sm">
+            <SectionBlock id="scenarios" title="Decision Flow Scenarios" num={11} refs={sectionRefs}>
+              <div className="rounded-lg overflow-hidden border border-border/50 mb-4">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Scenario</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Owner</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Action</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Scenario</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Owner</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Action</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
@@ -498,40 +503,39 @@ export default function Playbook() {
                       ['Google 4–5★', 'Clinic', 'Use Path D/E'],
                       ['Google 1–3★', 'Clinic → Ops', 'Evaluate for escalation'],
                     ].map(([scenario, owner, action], i) => (
-                      <tr key={i} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-medium text-foreground">{scenario}</td>
-                        <td className="px-4 py-3">{owner}</td>
-                        <td className="px-4 py-3">{action}</td>
+                      <tr key={i} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2 font-medium text-foreground">{scenario}</td>
+                        <td className="px-4 py-2">{owner}</td>
+                        <td className="px-4 py-2">{action}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <h4 className="font-semibold text-foreground mb-3 text-sm">Service Level Agreements</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <h4 className="font-medium text-foreground mb-2 text-xs">Service Level Agreements</h4>
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: 'Public Responses', time: '≤48 hours', icon: MessageSquare },
-                  { label: 'Detractor Outreach', time: '≤48 hours', icon: Users },
-                  { label: 'Legal Escalation', time: 'Same business day', icon: Scale },
-                ].map(({ label, time, icon: SlaIcon }) => (
-                  <div key={label} className="rounded-xl border border-border/60 bg-muted/20 p-4 text-center">
-                    <SlaIcon className="h-5 w-5 mx-auto mb-2 text-secondary" />
-                    <p className="text-lg font-bold text-foreground">{time}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                  { label: 'Public Responses', time: '≤48 hrs' },
+                  { label: 'Detractor Outreach', time: '≤48 hrs' },
+                  { label: 'Legal Escalation', time: 'Same day' },
+                ].map(({ label, time }) => (
+                  <div key={label} className="rounded-lg border border-border/50 bg-muted/10 p-3 text-center">
+                    <p className="text-sm font-semibold text-foreground">{time}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
                   </div>
                 ))}
               </div>
-            </SectionCard>
+            </SectionBlock>
 
             {/* 12. Data Guardrails */}
-            <SectionCard id="data-guardrails" icon={Database} title="Data Guardrails" num={12} refs={sectionRefs}>
-              <div className="rounded-lg overflow-hidden border border-border/60">
-                <table className="w-full text-sm">
+            <SectionBlock id="data-guardrails" title="Data Guardrails" num={12} refs={sectionRefs}>
+              <div className="rounded-lg overflow-hidden border border-border/50">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-secondary/5">
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Data Type</th>
-                      <th className="text-left px-4 py-3 font-semibold text-foreground border-b border-border/40">Owner</th>
+                    <tr className="bg-muted/30">
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Data Type</th>
+                      <th className="text-left px-4 py-2 font-medium text-foreground border-b border-border/40">Owner</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
@@ -542,15 +546,15 @@ export default function Playbook() {
                       ['Legal flagged items', 'Marketing, Legal, Leadership, Ops'],
                       ['Exports w/ identifiers', 'Restricted; audited'],
                     ].map(([type, owner], i) => (
-                      <tr key={type} className={cn('border-b border-border/30 last:border-0', i % 2 === 1 && 'bg-muted/20')}>
-                        <td className="px-4 py-3 font-medium text-foreground">{type}</td>
-                        <td className="px-4 py-3">{owner}</td>
+                      <tr key={type} className={cn('border-b border-border/20 last:border-0', i % 2 === 1 && 'bg-muted/15')}>
+                        <td className="px-4 py-2 font-medium text-foreground">{type}</td>
+                        <td className="px-4 py-2">{owner}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </SectionCard>
+            </SectionBlock>
 
           </div>
 
@@ -558,9 +562,9 @@ export default function Playbook() {
           {showScrollTop && (
             <button
               onClick={() => contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="fixed bottom-6 right-6 z-50 h-10 w-10 rounded-full bg-secondary text-secondary-foreground shadow-elevated flex items-center justify-center hover:bg-secondary/90 transition-all"
+              className="fixed bottom-6 right-6 z-50 h-9 w-9 rounded-full bg-card border border-border shadow-medium flex items-center justify-center hover:bg-accent transition-colors"
             >
-              <ChevronUp className="h-5 w-5" />
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
             </button>
           )}
         </div>
@@ -571,37 +575,31 @@ export default function Playbook() {
 
 /* ── Helper Components ─────────────────────────────────────────── */
 
-function SectionCard({
-  id, icon: Icon, title, num, refs, children,
+function SectionBlock({
+  id, title, num, refs, children,
 }: {
   id: string;
-  icon: React.ElementType;
   title: string;
   num: number;
   refs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      id={id}
-      ref={(el) => { refs.current[id] = el; }}
-      className="rounded-xl border border-border/60 bg-card shadow-soft overflow-hidden"
-    >
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border/40 bg-muted/20">
-        <span className="flex items-center justify-center h-7 w-7 rounded-full bg-secondary text-secondary-foreground text-xs font-bold">{num}</span>
-        <Icon className="h-4 w-4 text-secondary" />
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+    <div id={id} ref={(el) => { refs.current[id] = el; }}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="flex items-center justify-center h-5 w-5 rounded bg-foreground/8 text-[10px] font-semibold text-muted-foreground shrink-0">{num}</span>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
-      <div className="p-6">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }
 
-function RoleBlock({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+function RoleBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className={cn('rounded-lg border p-4', accent)}>
-      <h4 className="font-semibold text-foreground mb-2 text-sm">{title}</h4>
-      <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+    <div className="rounded-lg border border-border/50 bg-muted/10 p-3.5">
+      <h4 className="font-medium text-foreground mb-1.5 text-xs">{title}</h4>
+      <ul className="list-disc pl-4 space-y-0.5 text-xs text-muted-foreground">
         {children}
       </ul>
     </div>
@@ -618,16 +616,16 @@ function ResponsePath({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-3">
-        <Badge className={cn(
-          'hover:opacity-100',
-          badge === 'promoter' && 'bg-promoter-bg text-promoter border-promoter/30',
-          badge === 'passive' && 'bg-passive-bg text-passive border-passive/30',
-          badge === 'detractor' && 'bg-detractor-bg text-detractor border-detractor/30',
+      <div className="flex items-center gap-2 mb-2">
+        <Badge variant="outline" className={cn(
+          'text-[10px]',
+          badge === 'promoter' && 'border-promoter/40 text-promoter',
+          badge === 'passive' && 'border-passive/40 text-passive',
+          badge === 'detractor' && 'border-detractor/40 text-detractor',
         )}>{label}</Badge>
-        <h4 className="font-medium text-foreground text-sm">{subtitle}</h4>
+        <h4 className="font-medium text-foreground text-xs">{subtitle}</h4>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {items.map((item) => (
           <ResponseItem key={item.id} id={item.id} text={item.text} />
         ))}
@@ -642,20 +640,20 @@ function ResponseItem({ id, text }: { id: string; text: string }) {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Response copied to clipboard');
+    toast.success('Copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="group relative bg-muted/30 hover:bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground border border-border/40 flex gap-3 transition-colors">
-      <span className="font-mono font-bold text-foreground shrink-0 text-xs mt-0.5 w-6">{id}.</span>
-      <span className="flex-1">{text}</span>
+    <div className="group relative bg-muted/20 hover:bg-muted/30 rounded-md p-2.5 text-xs text-muted-foreground border border-border/30 flex gap-2.5 transition-colors">
+      <span className="font-mono font-semibold text-foreground shrink-0 text-[10px] mt-0.5 w-5">{id}.</span>
+      <span className="flex-1 leading-relaxed">{text}</span>
       <button
         onClick={handleCopy}
         className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5"
         title="Copy response"
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-promoter" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />}
+        {copied ? <Check className="h-3 w-3 text-promoter" /> : <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />}
       </button>
     </div>
   );
