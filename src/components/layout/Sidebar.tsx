@@ -19,6 +19,7 @@ import {
   Zap,
   PanelLeftClose,
   PanelLeftOpen,
+  MessageCircle,
 } from 'lucide-react';
 import { HelpSupportMenu } from './HelpSupportMenu';
 import { cn } from '@/lib/utils';
