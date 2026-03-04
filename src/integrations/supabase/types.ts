@@ -766,6 +766,78 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_brand_access: {
+        Row: {
+          brand_id: string
+          resource_id: string
+        }
+        Insert: {
+          brand_id: string
+          resource_id: string
+        }
+        Update: {
+          brand_id?: string
+          resource_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_brand_access_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_brand_access_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          file_url: string | null
+          icon: string | null
+          id: string
+          status: string
+          title: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          icon?: string | null
+          id?: string
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          icon?: string | null
+          id?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       response_category_assignments: {
         Row: {
           assigned_at: string | null
