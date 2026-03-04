@@ -28,6 +28,7 @@ import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
 import Playbook from './pages/Playbook';
 import Resources from './pages/Resources';
+import ResourceDetail from './pages/ResourceDetail';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -103,6 +104,7 @@ const App = () => (
               <Route path="reviews" element={<Reviews />} />
               <Route path="resources" element={<Resources />} />
               <Route path="resources/playbook" element={<Playbook />} />
+              <Route path="resources/:id" element={<ResourceDetail />} />
               <Route path="playbook" element={<Navigate to="/resources/playbook" replace />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
