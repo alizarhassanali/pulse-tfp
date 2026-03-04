@@ -82,17 +82,6 @@ export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
         </PopoverContent>
       </Popover>
 
-      <Dialog open={playbookOpen} onOpenChange={setPlaybookOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Feedback Response Playbook</DialogTitle>
-            <DialogDescription>
-              Templates and guidelines for responding to NPS feedback
-            </DialogDescription>
-          </DialogHeader>
-          <PlaybookContent />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

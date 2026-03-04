@@ -100,6 +100,7 @@ const App = () => (
               <Route path="nps/events/:id/edit" element={<CreateEvent />} />
               <Route path="nps/events/:id" element={<EventDetail />} />
               <Route path="reviews" element={<Reviews />} />
+              <Route path="playbook" element={<Playbook />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
               <Route path="settings" element={<Navigate to="/settings/profile" replace />} />
