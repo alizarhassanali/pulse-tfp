@@ -376,31 +376,8 @@ export function Sidebar() {
           })}
         </nav>
         
-        {/* Help Link */}
         <div className={cn('', collapsed ? 'px-2 pb-2' : 'px-3 pb-2')}>
-          {collapsed ? (
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <a
-                  href="#"
-                  className="flex items-center justify-center h-9 w-9 rounded-lg text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors mx-auto"
-                >
-                  <HelpCircle className="h-[18px] w-[18px]" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-normal">
-                Help & Support
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <a
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground transition-colors text-sm"
-            >
-              <HelpCircle className="h-[18px] w-[18px]" />
-              <span>Help & Support</span>
-            </a>
-          )}
+          <HelpSupportMenu collapsed={collapsed} />
         </div>
 
         {/* User Profile at Bottom */}
