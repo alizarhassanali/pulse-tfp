@@ -23,10 +23,10 @@ export function HelpSupportMenu({ collapsed }: HelpSupportMenuProps) {
     },
     {
       icon: BookOpen,
-      label: 'Response Playbook',
+      label: 'Resources',
       onClick: () => {
         setPopoverOpen(false);
-        navigate('/playbook');
+        navigate('/resources');
       },
     },
   ];
