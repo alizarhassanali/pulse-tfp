@@ -19,9 +19,8 @@ import {
   Zap,
   PanelLeftClose,
   PanelLeftOpen,
-  HelpCircle,
-  MessageCircle,
 } from 'lucide-react';
+import { HelpSupportMenu } from './HelpSupportMenu';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
