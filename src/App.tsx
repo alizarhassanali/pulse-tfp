@@ -28,6 +28,7 @@ import ReviewSettings from './pages/settings/ReviewSettings';
 import UsersPage from './pages/settings/Users';
 import Playbook from './pages/Playbook';
 import Resources from './pages/Resources';
+import ResourceDetail from './pages/ResourceDetail';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
