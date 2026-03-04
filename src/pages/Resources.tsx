@@ -68,14 +68,13 @@ export default function Resources() {
       <PageHeader
         title="Resources"
         description="Playbooks, guides, and reference materials for your team."
-      >
-        {isSuperAdmin && (
+        actions={isSuperAdmin ? (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />
             Add Resource
           </Button>
-        )}
-      </PageHeader>
+        ) : undefined}
+      />
 
       {loading ? (
         <div className="text-sm text-muted-foreground py-8 text-center">Loading resources...</div>
