@@ -104,6 +104,7 @@ const App = () => (
               <Route path="reviews" element={<Reviews />} />
               <Route path="resources" element={<Resources />} />
               <Route path="resources/playbook" element={<Playbook />} />
+              <Route path="resources/:id" element={<ResourceDetail />} />
               <Route path="playbook" element={<Navigate to="/resources/playbook" replace />} />
               <Route path="contacts" element={<AllContacts />} />
               <Route path="contacts/unsubscribe" element={<Unsubscribed />} />
