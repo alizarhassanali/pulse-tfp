@@ -365,6 +365,7 @@ export default function CreateEvent() {
               buttons: convertToButtons(loadedThankYouConfig?.detractors)
             },
           },
+          googleReviewReminder: eventConfig?.google_review_reminder || createDefaultFormData().googleReviewReminder,
           translations,
         });
       } catch (error: any) {
