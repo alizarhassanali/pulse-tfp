@@ -96,6 +96,16 @@ interface EventFormData {
     passives: { message: string; buttons: ThankYouButton[] };
     detractors: { message: string; buttons: ThankYouButton[] };
   };
+
+  // Google Review Reminder (Step 4)
+  googleReviewReminder: {
+    enabled: boolean;
+    delayHours: number;
+    channel: 'email' | 'sms' | 'both';
+    emailSubject: string;
+    emailBody: string;
+    smsBody: string;
+  };
   
   // Translations (per-language content)
   translations: Record<string, LanguageContent>;
