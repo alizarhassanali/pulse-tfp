@@ -194,9 +194,9 @@ const createDefaultFormData = (): EventFormData => ({
     enabled: false,
     delayHours: 24,
     channel: 'email',
-    emailSubject: 'We'd love your Google Review!',
-    emailBody: 'Hi {first_name},\n\nThank you for your recent feedback about {brand_name} at {location_name}. We'd really appreciate it if you could take a moment to share your experience on Google.\n\n{google_review_link}\n\nThank you!',
-    smsBody: 'Hi {first_name}, thank you for your feedback about {brand_name}! We'd love a Google review: {google_review_link}',
+    emailSubject: 'We\'d love your Google Review!',
+    emailBody: 'Hi {first_name},\n\nThank you for your recent feedback about {brand_name} at {location_name}. We\'d really appreciate it if you could take a moment to share your experience on Google.\n\n{google_review_link}\n\nThank you!',
+    smsBody: 'Hi {first_name}, thank you for your feedback about {brand_name}! We\'d love a Google review: {google_review_link}',
   },
   translations: {
     en: createDefaultTranslation(),
