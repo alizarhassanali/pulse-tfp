@@ -448,6 +448,7 @@ export default function CreateEvent() {
           defaultLanguage: formData.defaultLanguage,
           questionsTitle: formData.questionsTitle,
           questionsIntro: formData.questionsIntro,
+          google_review_reminder: formData.googleReviewReminder,
         })),
         translations: JSON.parse(JSON.stringify(formData.translations)),
         status,
