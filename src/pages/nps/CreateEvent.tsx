@@ -1504,6 +1504,145 @@ export default function CreateEvent() {
           </CardContent>
         </Card>
       ))}
+
+      {/* Google Review Reminder - show if any score group has a google_review button */}
+      {(() => {
+        const hasGoogleReviewButton = (['promoters', 'passives', 'detractors'] as const).some(
+          (group) => formData.thankYouConfig[group].buttons.some((btn) => btn.type === 'google_review')
+        );
+        if (!hasGoogleReviewButton) return null;
+
+        const reminder = formData.googleReviewReminder;
+        const updateReminder = (updates: Partial<typeof reminder>) => {
+          setFormData((prev) => ({
+            ...prev,
+            googleReviewReminder: { ...prev.googleReviewReminder, ...updates },
+          }));
+        };
+
+        const delayOptions = [
+          { value: '1', label: '1 hour' },
+          { value: '2', label: '2 hours' },
+          { value: '4', label: '4 hours' },
+          { value: '12', label: '12 hours' },
+          { value: '24', label: '24 hours' },
+          { value: '48', label: '48 hours' },
+          { value: '72', label: '72 hours' },
+        ];
+
+        return (
+          <Card className="border-border/50 border-dashed">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Google Review Reminder</CardTitle>
+                  <CardDescription>
+                    Send a follow-up if the respondent doesn't click the Google Review button
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={reminder.enabled}
+                  onCheckedChange={(checked) => updateReminder({ enabled: checked })}
+                />
+              </div>
+            </CardHeader>
+            {reminder.enabled && (
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  This reminder is sent only if the respondent did NOT click the Google Review button on the thank you page.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Send After</Label>
+                    <Select
+                      value={String(reminder.delayHours)}
+                      onValueChange={(value) => updateReminder({ delayHours: Number(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {delayOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Channel</Label>
+                    <Select
+                      value={reminder.channel}
+                      onValueChange={(value: 'email' | 'sms' | 'both') => updateReminder({ channel: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="sms">SMS</SelectItem>
+                        <SelectItem value="both">Both (based on contact channel)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Sends via the channel the respondent was originally contacted through
+                    </p>
+                  </div>
+                </div>
+
+                {/* Email Content */}
+                {(reminder.channel === 'email' || reminder.channel === 'both') && (
+                  <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                    <Label className="text-sm font-semibold">Email Content</Label>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Subject</Label>
+                      <Input
+                        value={reminder.emailSubject}
+                        onChange={(e) => updateReminder({ emailSubject: e.target.value })}
+                        placeholder="Email subject..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Body</Label>
+                      <Textarea
+                        value={reminder.emailBody}
+                        onChange={(e) => updateReminder({ emailBody: e.target.value })}
+                        placeholder="Email body..."
+                        rows={5}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Variables: {'{first_name}'}, {'{brand_name}'}, {'{location_name}'}, {'{google_review_link}'}
+                    </p>
+                  </div>
+                )}
+
+                {/* SMS Content */}
+                {(reminder.channel === 'sms' || reminder.channel === 'both') && (
+                  <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                    <Label className="text-sm font-semibold">SMS Content</Label>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Message</Label>
+                      <Textarea
+                        value={reminder.smsBody}
+                        onChange={(e) => updateReminder({ smsBody: e.target.value })}
+                        placeholder="SMS message..."
+                        rows={3}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Variables: {'{first_name}'}, {'{brand_name}'}, {'{location_name}'}, {'{google_review_link}'}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        );
+      })()}
     </div>
   );
 
