@@ -67,7 +67,6 @@ const navigation: (NavItem | NavGroup)[] = [
     ],
   },
   { icon: Star, label: 'Reviews', href: '/reviews', section: 'reviews' },
-  { icon: FileText, label: 'Resources', href: '/resources' },
   {
     icon: Users,
     label: 'Contacts',
