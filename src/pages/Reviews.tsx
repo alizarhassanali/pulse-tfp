@@ -279,7 +279,33 @@ export default function Reviews() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
+        <div className="flex items-center gap-3">
+          {lastSyncAt && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Last synced {format(parseISO(lastSyncAt), 'MMM d, h:mm a')}</span>
+            </div>
+          )}
+          {syncSuccess && (
+            <div className="flex items-center gap-1 text-xs text-success font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Synced</span>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncNow}
+            disabled={isSyncing}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+            {isSyncing ? 'Syncing…' : 'Sync Now'}
+          </Button>
+        </div>
+      </div>
 
       {/* Row 1: Core Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
