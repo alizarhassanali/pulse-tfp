@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFilterStore } from '@/stores/filterStore';
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Search, ExternalLink, MessageSquare, MapPin, TrendingUp, TrendingDown, CalendarDays } from 'lucide-react';
+import { Star, Search, ExternalLink, MessageSquare, MapPin, TrendingUp, TrendingDown, CalendarDays, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 import { format, parseISO, subDays, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DEMO_REVIEWS } from '@/data/demo-data';
@@ -39,6 +39,23 @@ export default function Reviews() {
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [responseText, setResponseText] = useState('');
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => localStorage.getItem('reviews_last_sync'));
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
+  const handleSyncNow = useCallback(async () => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    // Simulate sync delay — replace with actual API call when integrating a review source
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    const now = new Date().toISOString();
+    localStorage.setItem('reviews_last_sync', now);
+    setLastSyncAt(now);
+    setIsSyncing(false);
+    setSyncSuccess(true);
+    toast({ title: 'Sync complete', description: 'Reviews have been synced successfully.' });
+    setTimeout(() => setSyncSuccess(false), 4000);
+  }, [toast]);
 
   const { data: dbReviews = [], isLoading } = useQuery({
     queryKey: ['reviews', selectedBrands, selectedLocations, dateRange, ratingFilter, respondedFilter, channelFilter],
@@ -262,7 +279,33 @@ export default function Reviews() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <PageHeader title="Reviews" description="Monitor and respond to reviews across all channels" />
+        <div className="flex items-center gap-3">
+          {lastSyncAt && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Last synced {format(parseISO(lastSyncAt), 'MMM d, h:mm a')}</span>
+            </div>
+          )}
+          {syncSuccess && (
+            <div className="flex items-center gap-1 text-xs text-success font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Synced</span>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncNow}
+            disabled={isSyncing}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+            {isSyncing ? 'Syncing…' : 'Sync Now'}
+          </Button>
+        </div>
+      </div>
 
       {/* Row 1: Core Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
