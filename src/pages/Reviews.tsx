@@ -39,6 +39,23 @@ export default function Reviews() {
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [responseText, setResponseText] = useState('');
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => localStorage.getItem('reviews_last_sync'));
+  const [syncSuccess, setSyncSuccess] = useState(false);
+
+  const handleSyncNow = useCallback(async () => {
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    // Simulate sync delay — replace with actual API call when integrating a review source
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    const now = new Date().toISOString();
+    localStorage.setItem('reviews_last_sync', now);
+    setLastSyncAt(now);
+    setIsSyncing(false);
+    setSyncSuccess(true);
+    toast({ title: 'Sync complete', description: 'Reviews have been synced successfully.' });
+    setTimeout(() => setSyncSuccess(false), 4000);
+  }, [toast]);
 
   const { data: dbReviews = [], isLoading } = useQuery({
     queryKey: ['reviews', selectedBrands, selectedLocations, dateRange, ratingFilter, respondedFilter, channelFilter],
