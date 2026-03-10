@@ -1731,6 +1731,23 @@ export default function CreateEvent() {
               ))}
             </div>
           </div>
+
+          {/* Google Review Reminder Summary */}
+          {formData.googleReviewReminder.enabled && (
+            <div className="border-t pt-4">
+              <p className="text-sm text-muted-foreground mb-2">Google Review Reminder</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Delay: </span>
+                  <span className="font-medium">{formData.googleReviewReminder.delayHours} hour(s)</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Channel: </span>
+                  <span className="font-medium capitalize">{formData.googleReviewReminder.channel}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
