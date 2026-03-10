@@ -195,8 +195,8 @@ const createDefaultFormData = (): EventFormData => ({
     delayHours: 24,
     channel: 'email',
     emailSubject: 'We\'d love your Google Review!',
-    emailBody: 'Hi {first_name},\n\nThank you for your recent feedback about {brand_name} at {location_name}. We\'d really appreciate it if you could take a moment to share your experience on Google.\n\n{google_review_link}\n\nThank you!',
-    smsBody: 'Hi {first_name}, thank you for your feedback about {brand_name}! We\'d love a Google review: {google_review_link}',
+    emailBody: 'Hi {first_name},\n\nThank you for visiting {brand_name} — we hope your experience was a positive one.\n\nIf you have a moment, we\'d love if you could share your thoughts on Google. Your review helps other patients find the care they need and helps us continue to improve.\n\n{google_review_link}\n\nIt only takes a minute and means a lot to our team.\n\nYou can unsubscribe from future feedback requests at any time using the link below.\n\nThank you,\nThe {brand_name} Team',
+    smsBody: 'Hi {first_name}, thank you for your recent visit to {brand_name}! If you have a moment, we\'d really appreciate a Google review — it helps other patients find us:\n\n{google_review_link}\n\nReply STOP to unsubscribe.',
   },
   translations: {
     en: createDefaultTranslation(),
