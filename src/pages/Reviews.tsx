@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChannelBadge } from '@/components/ui/channel-badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Search, ExternalLink, MessageSquare, MapPin, TrendingUp, TrendingDown, CalendarDays } from 'lucide-react';
+import { Star, Search, ExternalLink, MessageSquare, MapPin, TrendingUp, TrendingDown, CalendarDays, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 import { format, parseISO, subDays, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DEMO_REVIEWS } from '@/data/demo-data';
