@@ -417,6 +417,16 @@ export default function AllContacts() {
           else if (preferSms) preferred_channel = 'sms';
           else if (preferEmail) preferred_channel = 'email';
 
+          // Cross-validate: preferred channel requires matching contact info
+          if ((preferred_channel === 'sms' || preferred_channel === 'both') && !phone) {
+            importErrors.push({ row: i + 2, message: 'Phone is required when preferred method includes SMS' });
+            continue;
+          }
+          if ((preferred_channel === 'email' || preferred_channel === 'both') && !email) {
+            importErrors.push({ row: i + 2, message: 'Email is required when preferred method includes Email' });
+            continue;
+          }
+
           // Find location ID (from all locations query)
           let location_id = null;
           if (row.location?.trim() && brand_id) {
