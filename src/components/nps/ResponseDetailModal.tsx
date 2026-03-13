@@ -211,12 +211,7 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
                   <p className="text-sm font-medium text-muted-foreground">
                     {answer.question || `Question ${idx + 1}`}
                   </p>
-                  <p className="text-foreground">
-                    {typeof answer.answer === 'string' 
-                      ? `"${answer.answer}"`
-                      : JSON.stringify(answer.answer)
-                    }
-                  </p>
+                  <AnswerDisplay answer={answer.answer} type={answer.type} />
                 </div>
               ))}
             </div>
