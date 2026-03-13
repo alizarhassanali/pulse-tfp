@@ -9,6 +9,7 @@ import { ResponseCardSkeleton } from '@/components/ui/loading-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { ResponseDetailModal } from '@/components/nps/ResponseDetailModal';
+import { AnswerDisplay, formatAnswerForExport, getAnswerTypeLabel } from '@/components/nps/AnswerDisplay';
 import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { Input } from '@/components/ui/input';
