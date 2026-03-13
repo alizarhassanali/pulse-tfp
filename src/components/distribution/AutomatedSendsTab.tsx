@@ -158,6 +158,22 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     enabled: !!eventId,
   });
 
+  // Fetch existing CNP integration
+  const { data: cnpIntegration } = useQuery({
+    queryKey: ['cnp-integration', eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('type', 'cnp')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventId,
+  });
+
   const { data: eventLocations = [] } = useQuery({
     queryKey: ['event-locations', eventId],
     queryFn: async () => {
