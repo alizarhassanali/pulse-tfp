@@ -25,6 +25,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 import { DEMO_MANAGE_EVENTS, DEMO_CONTACTS, DEMO_INTEGRATIONS } from '@/data/demo-data';
 import { format, parseISO } from 'date-fns';
 
