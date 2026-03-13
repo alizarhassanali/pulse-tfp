@@ -16,6 +16,7 @@ import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect'
 import { InternalNotesSection } from '@/components/nps/InternalNotesSection';
 import { format, parseISO } from 'date-fns';
 import { Mail, Phone, CheckCircle, XCircle, Calendar, Building2, MapPin, MessageSquare, Tag } from 'lucide-react';
+import { AnswerDisplay } from '@/components/nps/AnswerDisplay';
 
 interface ResponseDetailModalProps {
   open: boolean;
