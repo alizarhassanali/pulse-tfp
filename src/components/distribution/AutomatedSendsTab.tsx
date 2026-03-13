@@ -113,6 +113,19 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   );
   const [smsBody, setSmsBody] = useState('Hi {first_name}, how was your visit? {survey_link}');
 
+  // Otto Onboard (CNP) state
+  const [cnpEnabled, setCnpEnabled] = useState(false);
+  const [cnpSelectedTriggers, setCnpSelectedTriggers] = useState<string[]>([]);
+  const [cnpSelectedLocations, setCnpSelectedLocations] = useState<string[]>([]);
+  const [cnpEventType, setCnpEventType] = useState('both');
+  const [cnpEmailSubject, setCnpEmailSubject] = useState("We'd appreciate your feedback");
+  const [cnpEmailBody, setCnpEmailBody] = useState(
+    'Hi {first_name},\n\nThank you for visiting {brand_name}.\n\nYour perspective matters to us. If you have a minute, we\'d appreciate you sharing feedback on your recent visit.\n\n{survey_link}\n\n{location_name}\n\nYou can unsubscribe from future feedback requests at any time using the link below.\n{unsubscribe_link}'
+  );
+  const [cnpSmsBody, setCnpSmsBody] = useState(
+    'Hi {first_name}, Thank you for your recent visit to {brand_name}. If you have a moment, we\'d appreciate hearing your thoughts: {survey_link} Reply STOP to unsubscribe.'
+  );
+
   // ─── Queries ───────────────────────────────────────────
 
   const { data: sftpIntegration, isLoading: loadingSftp } = useQuery({
