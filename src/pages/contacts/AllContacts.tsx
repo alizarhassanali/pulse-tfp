@@ -658,7 +658,7 @@ export default function AllContacts() {
         )}
       </div><DialogFooter><Button variant="outline" onClick={() => { setImportModalOpen(false); setImportFile(null); }}>Cancel</Button><Button className="btn-coral" onClick={handleImport} disabled={!importFile || importProgress.isImporting}>{importProgress.isImporting ? 'Importing...' : 'Import'}</Button></DialogFooter></DialogContent></Dialog>
 
-      <ImportHistoryModal open={importHistoryOpen} onOpenChange={setImportHistoryOpen} />
+      <ImportHistoryModal open={importHistoryOpen} onOpenChange={setImportHistoryOpen} effectiveBrandId={effectiveBrandId} />
 
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}><DialogContent className="sm:max-w-[550px]"><DialogHeader><DialogTitle>Add Contact</DialogTitle><DialogDescription>Add a new contact to your database.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
         <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>First Name *</Label><Input value={newContact.first_name} onChange={(e) => setNewContact({ ...newContact, first_name: e.target.value })} /></div><div className="space-y-2"><Label>Last Name</Label><Input value={newContact.last_name} onChange={(e) => setNewContact({ ...newContact, last_name: e.target.value })} /></div></div>
