@@ -323,6 +323,40 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     },
   });
 
+  // Save CNP configuration mutation
+  const saveCnpMutation = useMutation({
+    mutationFn: async () => {
+      const config = {
+        enabled: cnpEnabled,
+        selectedTriggers: cnpSelectedTriggers,
+        selectedLocations: cnpSelectedLocations,
+        eventType: cnpEventType,
+        emailSubject: cnpEmailSubject,
+        emailBody: cnpEmailBody,
+        smsBody: cnpSmsBody,
+      };
+      if (cnpIntegration?.id) {
+        const { error } = await supabase
+          .from('integrations')
+          .update({ config, status: cnpEnabled ? 'active' : 'inactive', updated_at: new Date().toISOString() })
+          .eq('id', cnpIntegration.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('integrations').insert({
+          event_id: eventId, type: 'cnp', config, status: cnpEnabled ? 'active' : 'inactive',
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cnp-integration', eventId] });
+      toast({ title: 'Otto Onboard Configuration Saved' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error saving configuration', description: String(error), variant: 'destructive' });
+    },
+  });
+
   // ─── Effects ───────────────────────────────────────────
 
   useEffect(() => {
