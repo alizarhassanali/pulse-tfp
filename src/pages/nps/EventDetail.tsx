@@ -268,22 +268,18 @@ export default function EventDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="distribution" className="flex items-center gap-2">
             <Send className="h-4 w-4" />
-            Send Now
+            Send
           </TabsTrigger>
           <TabsTrigger value="automated" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
-            Automated Sends
-          </TabsTrigger>
-          <TabsTrigger value="share" className="flex items-center gap-2">
-            <QrCode className="h-4 w-4" />
-            Share & QR
+            Automate
           </TabsTrigger>
         </TabsList>
 
-        {/* Distribution Tab - Send via Messaging */}
+        {/* Send Tab - with sub-tabs */}
         <TabsContent value="distribution">
           {eventData.status === 'draft' ? (
             <Card className="shadow-soft border-border/50">
@@ -307,29 +303,41 @@ export default function EventDetail() {
               </CardContent>
             </Card>
           ) : (
-            <SendWizard
-              contacts={contacts}
-              eventId={eventId || ''}
-              eventName={eventData.name}
-              eventStatus={eventData.status}
-              eventBrandId={eventData.brand_id}
-              throttleDays={eventData.throttle_days || 90}
-            />
+            <Tabs defaultValue="send-now" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="send-now" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Send Now
+                </TabsTrigger>
+                <TabsTrigger value="share-qr" className="flex items-center gap-2">
+                  <QrCode className="h-4 w-4" />
+                  Share & QR
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="send-now">
+                <SendWizard
+                  contacts={contacts}
+                  eventId={eventId || ''}
+                  eventName={eventData.name}
+                  eventStatus={eventData.status}
+                  eventBrandId={eventData.brand_id}
+                  throttleDays={eventData.throttle_days || 90}
+                />
+              </TabsContent>
+              <TabsContent value="share-qr">
+                <ShareLinkTab eventId={eventId || ''} />
+              </TabsContent>
+            </Tabs>
           )}
         </TabsContent>
 
-        {/* Automated Sends Tab */}
+        {/* Automate Tab */}
         <TabsContent value="automated">
           <AutomatedSendsTab
             eventId={eventId || ''}
             events={events}
             brandId={eventData?.brand_id}
           />
-        </TabsContent>
-
-        {/* Share & QR Tab */}
-        <TabsContent value="share">
-          <ShareLinkTab eventId={eventId || ''} />
         </TabsContent>
 
       </Tabs>
