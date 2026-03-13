@@ -366,7 +366,7 @@ export default function NPSQuestions() {
     const dataToExport = type === 'current' ? filteredResponses : displayData;
     
     // Create CSV content (tags are now event-specific, so we skip category names in export for now)
-    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given'];
+    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Question Type', 'Answer', 'Email', 'Consent Given', 'Feedback Tags'];
     const rows = dataToExport.flatMap((response) => {
       const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.trim();
       const date = response.completed_at ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy') : '';
@@ -382,7 +382,7 @@ export default function NPSQuestions() {
       
       const answers = Array.isArray(response.answers) ? response.answers : [];
       if (answers.length === 0) {
-        return [[name, date, score, scoreCategory, channel, '', '', email, consent, responseTagNames]];
+        return [[name, date, score, scoreCategory, channel, '', '', '', email, consent, responseTagNames]];
       }
       
       return answers.map((answer: any) => [
@@ -392,7 +392,8 @@ export default function NPSQuestions() {
         scoreCategory,
         channel,
         answer.question || '',
-        typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer),
+        getAnswerTypeLabel(answer.answer, answer.type),
+        formatAnswerForExport(answer.answer),
         email,
         consent,
         responseTagNames,
