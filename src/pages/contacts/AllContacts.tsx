@@ -79,7 +79,7 @@ export default function AllContacts() {
   );
   const isVisible = (key: string) => visibleColumns.includes(key);
   
-  const { availableBrands, getLocationsForBrand } = useBrandLocationContext();
+  const { availableBrands, getLocationsForBrand, effectiveBrandId } = useBrandLocationContext();
   
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   
