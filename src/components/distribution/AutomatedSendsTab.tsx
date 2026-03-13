@@ -396,6 +396,20 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     }
   }, [webhookIntegration]);
 
+  // Initialize CNP form from saved config
+  useEffect(() => {
+    if (cnpIntegration?.config) {
+      const config = cnpIntegration.config as Record<string, any>;
+      setCnpEnabled(config.enabled ?? false);
+      setCnpSelectedTriggers(config.selectedTriggers || []);
+      setCnpSelectedLocations(config.selectedLocations || []);
+      setCnpEventType(config.eventType || 'both');
+      if (config.emailSubject) setCnpEmailSubject(config.emailSubject);
+      if (config.emailBody) setCnpEmailBody(config.emailBody);
+      if (config.smsBody) setCnpSmsBody(config.smsBody);
+    }
+  }, [cnpIntegration]);
+
   // ─── Handlers ──────────────────────────────────────────
 
   const handleSftpTest = () => {
