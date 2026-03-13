@@ -7,6 +7,7 @@ import { SftpSyncLog } from './SftpSyncHistoryModal';
 import { DEMO_SFTP_SYNC_LOGS } from '@/data/demo-data';
 import { WebhookIntegrationCard } from './WebhookIntegrationCard';
 import { SftpIntegrationCard } from './SftpIntegrationCard';
+import { OttoOnboardCard } from './OttoOnboardCard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,6 +113,19 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
   );
   const [smsBody, setSmsBody] = useState('Hi {first_name}, how was your visit? {survey_link}');
 
+  // Otto Onboard (CNP) state
+  const [cnpEnabled, setCnpEnabled] = useState(false);
+  const [cnpSelectedTriggers, setCnpSelectedTriggers] = useState<string[]>([]);
+  const [cnpSelectedLocations, setCnpSelectedLocations] = useState<string[]>([]);
+  const [cnpEventType, setCnpEventType] = useState('both');
+  const [cnpEmailSubject, setCnpEmailSubject] = useState("We'd appreciate your feedback");
+  const [cnpEmailBody, setCnpEmailBody] = useState(
+    'Hi {first_name},\n\nThank you for visiting {brand_name}.\n\nYour perspective matters to us. If you have a minute, we\'d appreciate you sharing feedback on your recent visit.\n\n{survey_link}\n\n{location_name}\n\nYou can unsubscribe from future feedback requests at any time using the link below.\n{unsubscribe_link}'
+  );
+  const [cnpSmsBody, setCnpSmsBody] = useState(
+    'Hi {first_name}, Thank you for your recent visit to {brand_name}. If you have a moment, we\'d appreciate hearing your thoughts: {survey_link} Reply STOP to unsubscribe.'
+  );
+
   // ─── Queries ───────────────────────────────────────────
 
   const { data: sftpIntegration, isLoading: loadingSftp } = useQuery({
@@ -137,6 +151,22 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
         .select('*')
         .eq('event_id', eventId)
         .eq('type', 'webhook')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventId,
+  });
+
+  // Fetch existing CNP integration
+  const { data: cnpIntegration } = useQuery({
+    queryKey: ['cnp-integration', eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('type', 'cnp')
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -293,6 +323,40 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
     },
   });
 
+  // Save CNP configuration mutation
+  const saveCnpMutation = useMutation({
+    mutationFn: async () => {
+      const config = {
+        enabled: cnpEnabled,
+        selectedTriggers: cnpSelectedTriggers,
+        selectedLocations: cnpSelectedLocations,
+        eventType: cnpEventType,
+        emailSubject: cnpEmailSubject,
+        emailBody: cnpEmailBody,
+        smsBody: cnpSmsBody,
+      };
+      if (cnpIntegration?.id) {
+        const { error } = await supabase
+          .from('integrations')
+          .update({ config, status: cnpEnabled ? 'active' : 'inactive', updated_at: new Date().toISOString() })
+          .eq('id', cnpIntegration.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('integrations').insert({
+          event_id: eventId, type: 'cnp', config, status: cnpEnabled ? 'active' : 'inactive',
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cnp-integration', eventId] });
+      toast({ title: 'Otto Onboard Configuration Saved' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error saving configuration', description: String(error), variant: 'destructive' });
+    },
+  });
+
   // ─── Effects ───────────────────────────────────────────
 
   useEffect(() => {
@@ -331,6 +395,20 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
       if (config.smsBody) setWebhookSmsBody(config.smsBody);
     }
   }, [webhookIntegration]);
+
+  // Initialize CNP form from saved config
+  useEffect(() => {
+    if (cnpIntegration?.config) {
+      const config = cnpIntegration.config as Record<string, any>;
+      setCnpEnabled(config.enabled ?? false);
+      setCnpSelectedTriggers(config.selectedTriggers || []);
+      setCnpSelectedLocations(config.selectedLocations || []);
+      setCnpEventType(config.eventType || 'both');
+      if (config.emailSubject) setCnpEmailSubject(config.emailSubject);
+      if (config.emailBody) setCnpEmailBody(config.emailBody);
+      if (config.smsBody) setCnpSmsBody(config.smsBody);
+    }
+  }, [cnpIntegration]);
 
   // ─── Handlers ──────────────────────────────────────────
 
@@ -507,6 +585,43 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
         onSave={() => saveSftpMutation.mutate()}
         onDownloadTemplate={handleDownloadSampleTemplate}
         savePending={saveSftpMutation.isPending}
+      />
+
+      <OttoOnboardCard
+        eventId={eventId}
+        brandId={brandId}
+        eventLocations={eventLocations}
+        cnpEnabled={cnpEnabled}
+        setCnpEnabled={setCnpEnabled}
+        cnpSelectedTriggers={cnpSelectedTriggers}
+        setCnpSelectedTriggers={setCnpSelectedTriggers}
+        cnpSelectedLocations={cnpSelectedLocations}
+        setCnpSelectedLocations={setCnpSelectedLocations}
+        cnpEventType={cnpEventType}
+        setCnpEventType={setCnpEventType}
+        cnpEmailSubject={cnpEmailSubject}
+        setCnpEmailSubject={setCnpEmailSubject}
+        cnpEmailBody={cnpEmailBody}
+        setCnpEmailBody={setCnpEmailBody}
+        cnpSmsBody={cnpSmsBody}
+        setCnpSmsBody={setCnpSmsBody}
+        onSave={() => saveCnpMutation.mutate()}
+        onCancel={() => {
+          // Reset to saved state
+          if (cnpIntegration?.config) {
+            const config = cnpIntegration.config as Record<string, any>;
+            setCnpEnabled(config.enabled ?? false);
+            setCnpSelectedTriggers(config.selectedTriggers || []);
+            setCnpSelectedLocations(config.selectedLocations || []);
+            setCnpEventType(config.eventType || 'both');
+          } else {
+            setCnpEnabled(false);
+            setCnpSelectedTriggers([]);
+            setCnpSelectedLocations([]);
+            setCnpEventType('both');
+          }
+        }}
+        savePending={saveCnpMutation.isPending}
       />
 
       {/* Revoke API Key Confirmation */}
