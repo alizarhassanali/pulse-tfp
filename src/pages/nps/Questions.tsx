@@ -161,6 +161,12 @@ const demoResponses = [
       {
         question: 'What did you like most about your experience?',
         answer: 'The personalized care and attention to detail. The team took the time to answer all my questions and made sure I understood every step of my treatment plan.',
+        type: 'free_response',
+      },
+      {
+        question: 'Which services did you use?',
+        answer: ['Initial Consultation', 'Lab Work', 'Follow-up Appointment'],
+        type: 'select_multiple',
       },
     ],
   },
