@@ -587,6 +587,43 @@ export function AutomatedSendsTab({ eventId, events, brandId }: AutomatedSendsTa
         savePending={saveSftpMutation.isPending}
       />
 
+      <OttoOnboardCard
+        eventId={eventId}
+        brandId={brandId}
+        eventLocations={eventLocations}
+        cnpEnabled={cnpEnabled}
+        setCnpEnabled={setCnpEnabled}
+        cnpSelectedTriggers={cnpSelectedTriggers}
+        setCnpSelectedTriggers={setCnpSelectedTriggers}
+        cnpSelectedLocations={cnpSelectedLocations}
+        setCnpSelectedLocations={setCnpSelectedLocations}
+        cnpEventType={cnpEventType}
+        setCnpEventType={setCnpEventType}
+        cnpEmailSubject={cnpEmailSubject}
+        setCnpEmailSubject={setCnpEmailSubject}
+        cnpEmailBody={cnpEmailBody}
+        setCnpEmailBody={setCnpEmailBody}
+        cnpSmsBody={cnpSmsBody}
+        setCnpSmsBody={setCnpSmsBody}
+        onSave={() => saveCnpMutation.mutate()}
+        onCancel={() => {
+          // Reset to saved state
+          if (cnpIntegration?.config) {
+            const config = cnpIntegration.config as Record<string, any>;
+            setCnpEnabled(config.enabled ?? false);
+            setCnpSelectedTriggers(config.selectedTriggers || []);
+            setCnpSelectedLocations(config.selectedLocations || []);
+            setCnpEventType(config.eventType || 'both');
+          } else {
+            setCnpEnabled(false);
+            setCnpSelectedTriggers([]);
+            setCnpSelectedLocations([]);
+            setCnpEventType('both');
+          }
+        }}
+        savePending={saveCnpMutation.isPending}
+      />
+
       {/* Revoke API Key Confirmation */}
       <AlertDialog open={!!keyToRevoke} onOpenChange={(open) => !open && setKeyToRevoke(null)}>
         <AlertDialogContent>
