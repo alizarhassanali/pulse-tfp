@@ -9,6 +9,7 @@ import { ResponseCardSkeleton } from '@/components/ui/loading-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { ResponseDetailModal } from '@/components/nps/ResponseDetailModal';
+import { AnswerDisplay, formatAnswerForExport, getAnswerTypeLabel } from '@/components/nps/AnswerDisplay';
 import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect';
 import { ContactDetailsModal } from '@/components/contacts/ContactDetailsModal';
 import { Input } from '@/components/ui/input';
@@ -90,10 +91,17 @@ const demoResponses = [
       {
         question: 'Is there anything we could improve?',
         answer: 'The wait time was a bit long. I had to wait almost 45 minutes past my scheduled appointment time, which was frustrating. The staff were friendly though.',
+        type: 'free_response',
       },
       {
         question: 'How would you rate our facilities?',
-        answer: 'Clean and modern, really impressed with the equipment.',
+        answer: 7,
+        type: 'scale',
+      },
+      {
+        question: 'What areas need improvement?',
+        answer: ['Wait time', 'Communication', 'Parking'],
+        type: 'select_multiple',
       },
     ],
   },
@@ -118,6 +126,17 @@ const demoResponses = [
       {
         question: 'Would you recommend us to a friend?',
         answer: 'Absolutely, great staff! Everyone was so welcoming and professional. Dr. Chen explained everything clearly and made me feel comfortable throughout the entire process.',
+        type: 'free_response',
+      },
+      {
+        question: 'Overall satisfaction',
+        answer: 9,
+        type: 'scale',
+      },
+      {
+        question: 'What best describes your experience?',
+        answer: 'Very Satisfied',
+        type: 'select_one',
       },
     ],
   },
@@ -142,6 +161,12 @@ const demoResponses = [
       {
         question: 'What did you like most about your experience?',
         answer: 'The personalized care and attention to detail. The team took the time to answer all my questions and made sure I understood every step of my treatment plan.',
+        type: 'free_response',
+      },
+      {
+        question: 'Which services did you use?',
+        answer: ['Initial Consultation', 'Lab Work', 'Follow-up Appointment'],
+        type: 'select_multiple',
       },
     ],
   },
@@ -365,7 +390,7 @@ export default function NPSQuestions() {
     const dataToExport = type === 'current' ? filteredResponses : displayData;
     
     // Create CSV content (tags are now event-specific, so we skip category names in export for now)
-    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Answer', 'Email', 'Consent Given'];
+    const headers = ['Name', 'Date', 'Score', 'Score Category', 'Channel', 'Question', 'Question Type', 'Answer', 'Email', 'Consent Given', 'Feedback Tags'];
     const rows = dataToExport.flatMap((response) => {
       const name = `${response.contact?.first_name || ''} ${response.contact?.last_name || ''}`.trim();
       const date = response.completed_at ? formatDate(parseISO(response.completed_at), 'MMM d, yyyy') : '';
@@ -381,7 +406,7 @@ export default function NPSQuestions() {
       
       const answers = Array.isArray(response.answers) ? response.answers : [];
       if (answers.length === 0) {
-        return [[name, date, score, scoreCategory, channel, '', '', email, consent, responseTagNames]];
+        return [[name, date, score, scoreCategory, channel, '', '', '', email, consent, responseTagNames]];
       }
       
       return answers.map((answer: any) => [
@@ -391,7 +416,8 @@ export default function NPSQuestions() {
         scoreCategory,
         channel,
         answer.question || '',
-        typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer),
+        getAnswerTypeLabel(answer.answer, answer.type),
+        formatAnswerForExport(answer.answer),
         email,
         consent,
         responseTagNames,
@@ -624,8 +650,6 @@ export default function NPSQuestions() {
                 {Array.isArray(response.answers) && response.answers.length > 0 && (
                   <div className="space-y-3">
                     {response.answers.map((answer: any, idx: number) => {
-                      const answerText = typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer);
-                      const isLong = answerText.length > 120;
                       const expandKey = `${response.id}-${idx}`;
                       const isExpanded = expandedAnswers[expandKey];
 
@@ -634,17 +658,14 @@ export default function NPSQuestions() {
                           <p className="text-sm font-medium text-muted-foreground">
                             {answer.question || `Question ${idx + 1}`}
                           </p>
-                          <p className="text-foreground">
-                            "{isExpanded || !isLong ? answerText : truncateText(answerText)}"
-                            {isLong && (
-                              <button
-                                onClick={() => toggleAnswerExpand(response.id, idx)}
-                                className="ml-2 text-primary hover:underline text-sm font-medium"
-                              >
-                                {isExpanded ? 'Show Less' : 'Read More'}
-                              </button>
-                            )}
-                          </p>
+                          <AnswerDisplay
+                            answer={answer.answer}
+                            type={answer.type}
+                            compact
+                            maxLength={120}
+                            expanded={isExpanded}
+                            onToggleExpand={() => toggleAnswerExpand(response.id, idx)}
+                          />
                         </div>
                       );
                     })}

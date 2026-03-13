@@ -16,6 +16,7 @@ import { FeedbackCategorySelect } from '@/components/nps/FeedbackCategorySelect'
 import { InternalNotesSection } from '@/components/nps/InternalNotesSection';
 import { format, parseISO } from 'date-fns';
 import { Mail, Phone, CheckCircle, XCircle, Calendar, Building2, MapPin, MessageSquare, Tag } from 'lucide-react';
+import { AnswerDisplay } from '@/components/nps/AnswerDisplay';
 
 interface ResponseDetailModalProps {
   open: boolean;
@@ -210,12 +211,7 @@ export function ResponseDetailModal({ open, onOpenChange, response }: ResponseDe
                   <p className="text-sm font-medium text-muted-foreground">
                     {answer.question || `Question ${idx + 1}`}
                   </p>
-                  <p className="text-foreground">
-                    {typeof answer.answer === 'string' 
-                      ? `"${answer.answer}"`
-                      : JSON.stringify(answer.answer)
-                    }
-                  </p>
+                  <AnswerDisplay answer={answer.answer} type={answer.type} />
                 </div>
               ))}
             </div>
