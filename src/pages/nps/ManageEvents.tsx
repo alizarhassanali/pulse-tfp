@@ -89,8 +89,7 @@ export default function ManageEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('integrations')
-        .select('event_id, type, status, last_used_at')
-        .eq('type', 'sftp');
+        .select('event_id, type, status, last_used_at');
       if (error) throw error;
       return data || [];
     },
@@ -98,8 +97,17 @@ export default function ManageEvents() {
 
   // Build map of event_id to SFTP integration
   const eventSftpMap = integrations.reduce((acc: Record<string, any>, integration: any) => {
-    if (integration.event_id) {
+    if (integration.event_id && integration.type === 'sftp') {
       acc[integration.event_id] = integration;
+    }
+    return acc;
+  }, {});
+
+  // Build map of event_id to all active integrations
+  const eventIntegrationsMap = integrations.reduce((acc: Record<string, any[]>, integration: any) => {
+    if (integration.event_id) {
+      if (!acc[integration.event_id]) acc[integration.event_id] = [];
+      acc[integration.event_id].push(integration);
     }
     return acc;
   }, {});
