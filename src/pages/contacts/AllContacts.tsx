@@ -346,7 +346,27 @@ export default function AllContacts() {
           }
 
           if (!firstName) {
-            importErrors.push({ row: i + 2, message: 'Missing name' });
+            importErrors.push({ row: i + 2, message: 'Missing required field: name (full_name or first_name)' });
+            continue;
+          }
+
+          // Validate email and phone - at least one is required
+          const email = row.email?.trim() || '';
+          const phone = row.phone?.trim() || '';
+          if (!email && !phone) {
+            importErrors.push({ row: i + 2, message: 'Missing required field: at least one of email or phone must be provided' });
+            continue;
+          }
+
+          // Validate email format if provided
+          if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            importErrors.push({ row: i + 2, message: `Invalid email format: "${email}"` });
+            continue;
+          }
+
+          // Validate brand is provided and exists
+          if (!row.brand?.trim()) {
+            importErrors.push({ row: i + 2, message: 'Missing required field: brand' });
             continue;
           }
 
