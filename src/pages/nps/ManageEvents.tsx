@@ -254,21 +254,17 @@ export default function ManageEvents() {
                       <CardTitle className="text-lg font-semibold font-mono">{event.name}</CardTitle>
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(event.status)}
-                        {eventSftpMap[event.id] && (
+                        {eventIntegrationsMap[event.id]?.length > 0 && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                              <Badge variant="outline" className="flex items-center gap-1 text-xs bg-accent/50 cursor-pointer" onClick={() => navigate(`/nps/events/${event.id}`, { state: { tab: 'automated' } })}>
                                 <Server className="h-3 w-3" />
-                                SFTP
+                                Automated
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>SFTP Integration: {eventSftpMap[event.id].status === 'active' ? 'Active' : 'Configured'}</p>
-                              {eventSftpMap[event.id].last_used_at && (
-                                <p className="text-xs text-muted-foreground">
-                                  Last sync: {format(parseISO(eventSftpMap[event.id].last_used_at), 'MMM d, h:mm a')}
-                                </p>
-                              )}
+                              <p>{eventIntegrationsMap[event.id].length} automation(s) configured</p>
+                              <p className="text-xs text-muted-foreground">Click to manage</p>
                             </TooltipContent>
                           </Tooltip>
                         )}
