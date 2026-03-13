@@ -126,6 +126,17 @@ const demoResponses = [
       {
         question: 'Would you recommend us to a friend?',
         answer: 'Absolutely, great staff! Everyone was so welcoming and professional. Dr. Chen explained everything clearly and made me feel comfortable throughout the entire process.',
+        type: 'free_response',
+      },
+      {
+        question: 'Overall satisfaction',
+        answer: 9,
+        type: 'scale',
+      },
+      {
+        question: 'What best describes your experience?',
+        answer: 'Very Satisfied',
+        type: 'select_one',
       },
     ],
   },
