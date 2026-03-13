@@ -269,8 +269,13 @@ export default function AllContacts() {
   const getPreferredChannelDisplay = (channel: string | null) => { switch (channel) { case 'both': return 'SMS & Email'; case 'sms': return 'SMS'; case 'email': return 'Email'; default: return channel || '-'; } };
 
   const handleDownloadTemplate = () => {
-    const headers = ['first_name', 'last_name', 'email', 'phone', 'brand', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags'];
-    const example = ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'Main Brand', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning'];
+    const selectedBrand = effectiveBrandId ? availableBrands.find(b => b.id === effectiveBrandId) : null;
+    const headers = selectedBrand
+      ? ['first_name', 'last_name', 'email', 'phone', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags']
+      : ['first_name', 'last_name', 'email', 'phone', 'brand', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags'];
+    const example = selectedBrand
+      ? ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning']
+      : ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'Main Brand', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning'];
     const csv = [headers.join(','), example.join(',')].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
