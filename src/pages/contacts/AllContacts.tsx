@@ -79,7 +79,7 @@ export default function AllContacts() {
   );
   const isVisible = (key: string) => visibleColumns.includes(key);
   
-  const { availableBrands, getLocationsForBrand } = useBrandLocationContext();
+  const { availableBrands, getLocationsForBrand, effectiveBrandId } = useBrandLocationContext();
   
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   
@@ -269,8 +269,13 @@ export default function AllContacts() {
   const getPreferredChannelDisplay = (channel: string | null) => { switch (channel) { case 'both': return 'SMS & Email'; case 'sms': return 'SMS'; case 'email': return 'Email'; default: return channel || '-'; } };
 
   const handleDownloadTemplate = () => {
-    const headers = ['first_name', 'last_name', 'email', 'phone', 'brand', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags'];
-    const example = ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'Main Brand', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning'];
+    const selectedBrand = effectiveBrandId ? availableBrands.find(b => b.id === effectiveBrandId) : null;
+    const headers = selectedBrand
+      ? ['first_name', 'last_name', 'email', 'phone', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags']
+      : ['first_name', 'last_name', 'email', 'phone', 'brand', 'location', 'preferred_sms', 'preferred_email', 'preferred_language', 'tags'];
+    const example = selectedBrand
+      ? ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning']
+      : ['John', 'Doe', 'john@example.com', '+1 555 123 4567', 'Main Brand', 'New York Office', 'TRUE', 'TRUE', 'en', 'VIP,Returning'];
     const csv = [headers.join(','), example.join(',')].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -364,9 +369,21 @@ export default function AllContacts() {
             continue;
           }
 
-          // Validate brand is provided and exists
-          if (!row.brand?.trim()) {
-            importErrors.push({ row: i + 2, message: 'Missing required field: brand' });
+          // Resolve brand ID — use global filter brand if selected, otherwise require from CSV
+          let brand_id: string | null = null;
+          const selectedBrand = effectiveBrandId ? availableBrands.find(b => b.id === effectiveBrandId) : null;
+          if (selectedBrand) {
+            brand_id = selectedBrand.id;
+          } else if (row.brand?.trim()) {
+            const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.trim().toLowerCase());
+            if (brand) {
+              brand_id = brand.id;
+            } else {
+              importErrors.push({ row: i + 2, message: `Brand not found: "${row.brand.trim()}"` });
+              continue;
+            }
+          } else {
+            importErrors.push({ row: i + 2, message: 'Missing required field: brand (no brand selected in global filter and no brand column in CSV)' });
             continue;
           }
 
@@ -378,18 +395,6 @@ export default function AllContacts() {
           else if (preferSms) preferred_channel = 'sms';
           else if (preferEmail) preferred_channel = 'email';
 
-          // Find brand ID
-          let brand_id = null;
-          if (row.brand) {
-            const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.trim().toLowerCase());
-            if (brand) {
-              brand_id = brand.id;
-            } else {
-              importErrors.push({ row: i + 2, message: `Brand not found: "${row.brand.trim()}"` });
-              continue;
-            }
-          }
-
           // Find location ID (from all locations query)
           let location_id = null;
           if (row.location?.trim() && brand_id) {
@@ -398,7 +403,8 @@ export default function AllContacts() {
             if (loc) {
               location_id = loc.id;
             } else {
-              importErrors.push({ row: i + 2, message: `Location not found: "${row.location.trim()}" for brand "${row.brand.trim()}"` });
+              const brandLabel = selectedBrand ? selectedBrand.name : row.brand?.trim();
+              importErrors.push({ row: i + 2, message: `Location not found: "${row.location.trim()}" for brand "${brandLabel}"` });
               continue;
             }
           }
@@ -625,9 +631,9 @@ export default function AllContacts() {
       <EditContactModal contactId={selectedContactId} open={editModalOpen} onOpenChange={setEditModalOpen} />
       <DuplicateDetectionModal open={duplicateModalOpen} onOpenChange={setDuplicateModalOpen} contacts={contacts} contactTagMap={contactTagMap} />
 
-      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle className="flex items-center justify-between">Import Contacts from CSV<Button variant="ghost" size="sm" onClick={() => { setImportModalOpen(false); setImportHistoryOpen(true); }} className="text-muted-foreground hover:text-foreground"><History className="h-4 w-4 mr-1" />History</Button></DialogTitle><DialogDescription>Upload a CSV file with your contacts.</DialogDescription></DialogHeader><div className="space-y-4 py-4">
+      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}><DialogContent className="sm:max-w-[500px]"><DialogHeader><DialogTitle className="flex items-center justify-between">Import Contacts from CSV<Button variant="ghost" size="sm" onClick={() => { setImportModalOpen(false); setImportHistoryOpen(true); }} className="text-muted-foreground hover:text-foreground"><History className="h-4 w-4 mr-1" />History</Button></DialogTitle><DialogDescription>{effectiveBrandId ? `Contacts will be imported into ${availableBrands.find(b => b.id === effectiveBrandId)?.name || 'the selected brand'}.` : 'Upload a CSV file with your contacts.'}</DialogDescription></DialogHeader><div className="space-y-4 py-4">
         <div className="space-y-2"><p className="text-sm"><strong>Step 1:</strong> Download the template</p><Button variant="outline" size="sm" onClick={handleDownloadTemplate}><FileDown className="h-4 w-4 mr-2" />Download Template</Button></div>
-        <div className="space-y-2"><p className="text-sm"><strong>Step 2:</strong> Fill in the following fields:</p><ul className="text-sm text-muted-foreground list-disc list-inside"><li>first_name (required)</li><li>last_name</li><li>email</li><li>phone</li><li>brand (required)</li><li>location</li><li>preferred_sms (TRUE/FALSE)</li><li>preferred_email (TRUE/FALSE)</li><li>preferred_language (en, es, fr, pt, zh, etc.)</li><li>tags (comma-separated)</li></ul><p className="text-xs text-muted-foreground mt-1">Also accepts <code>full_name</code> for backward compatibility.</p></div>
+        <div className="space-y-2"><p className="text-sm"><strong>Step 2:</strong> Fill in the following fields:</p><ul className="text-sm text-muted-foreground list-disc list-inside"><li>first_name (required)</li><li>last_name</li><li>email</li><li>phone</li>{!effectiveBrandId && <li>brand (required)</li>}<li>location</li><li>preferred_sms (TRUE/FALSE)</li><li>preferred_email (TRUE/FALSE)</li><li>preferred_language (en, es, fr, pt, zh, etc.)</li><li>tags (comma-separated)</li></ul><p className="text-xs text-muted-foreground mt-1">Also accepts <code>full_name</code> for backward compatibility.</p></div>
         <div className="space-y-2"><p className="text-sm"><strong>Step 3:</strong> Upload your file</p>
           <div className="border-2 border-dashed border-border rounded-lg p-6 text-center bg-muted/20">
             {importFile ? (
