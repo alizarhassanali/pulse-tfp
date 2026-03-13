@@ -25,7 +25,6 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 import { DEMO_MANAGE_EVENTS, DEMO_CONTACTS, DEMO_INTEGRATIONS } from '@/data/demo-data';
 import { format, parseISO } from 'date-fns';
 
@@ -269,18 +268,22 @@ export default function EventDetail() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="distribution" className="flex items-center gap-2">
             <Send className="h-4 w-4" />
             Send Now
           </TabsTrigger>
           <TabsTrigger value="automated" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
-            Automate
+            Automated Sends
+          </TabsTrigger>
+          <TabsTrigger value="share" className="flex items-center gap-2">
+            <QrCode className="h-4 w-4" />
+            Share & QR
           </TabsTrigger>
         </TabsList>
 
-        {/* Send Now Tab - SendWizard + Share & QR */}
+        {/* Distribution Tab - Send via Messaging */}
         <TabsContent value="distribution">
           {eventData.status === 'draft' ? (
             <Card className="shadow-soft border-border/50">
@@ -304,28 +307,29 @@ export default function EventDetail() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-8">
-              <SendWizard
-                contacts={contacts}
-                eventId={eventId || ''}
-                eventName={eventData.name}
-                eventStatus={eventData.status}
-                eventBrandId={eventData.brand_id}
-                throttleDays={eventData.throttle_days || 90}
-              />
-              <Separator />
-              <ShareLinkTab eventId={eventId || ''} />
-            </div>
+            <SendWizard
+              contacts={contacts}
+              eventId={eventId || ''}
+              eventName={eventData.name}
+              eventStatus={eventData.status}
+              eventBrandId={eventData.brand_id}
+              throttleDays={eventData.throttle_days || 90}
+            />
           )}
         </TabsContent>
 
-        {/* Automate Tab */}
+        {/* Automated Sends Tab */}
         <TabsContent value="automated">
           <AutomatedSendsTab
             eventId={eventId || ''}
             events={events}
             brandId={eventData?.brand_id}
           />
+        </TabsContent>
+
+        {/* Share & QR Tab */}
+        <TabsContent value="share">
+          <ShareLinkTab eventId={eventId || ''} />
         </TabsContent>
 
       </Tabs>
