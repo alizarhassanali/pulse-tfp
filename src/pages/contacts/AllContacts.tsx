@@ -319,6 +319,8 @@ export default function AllContacts() {
           file_name: importFile.name,
           total_rows: dataRows.length,
           status: 'processing',
+          brand_id: effectiveBrandId || null,
+          created_by: (await supabase.auth.getUser()).data.user?.id || null,
         })
         .select()
         .single();
