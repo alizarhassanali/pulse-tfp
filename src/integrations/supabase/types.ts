@@ -235,6 +235,44 @@ export type Database = {
         }
         Relationships: []
       }
+      cnp_triggers: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cnp_triggers_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_imports: {
         Row: {
           brand_id: string | null
