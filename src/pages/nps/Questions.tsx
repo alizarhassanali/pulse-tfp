@@ -91,10 +91,17 @@ const demoResponses = [
       {
         question: 'Is there anything we could improve?',
         answer: 'The wait time was a bit long. I had to wait almost 45 minutes past my scheduled appointment time, which was frustrating. The staff were friendly though.',
+        type: 'free_response',
       },
       {
         question: 'How would you rate our facilities?',
-        answer: 'Clean and modern, really impressed with the equipment.',
+        answer: 7,
+        type: 'scale',
+      },
+      {
+        question: 'What areas need improvement?',
+        answer: ['Wait time', 'Communication', 'Parking'],
+        type: 'select_multiple',
       },
     ],
   },
