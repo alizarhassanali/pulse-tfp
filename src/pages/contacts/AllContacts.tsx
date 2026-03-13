@@ -387,6 +387,14 @@ export default function AllContacts() {
             continue;
           }
 
+          // Parse preferred channel
+          const preferSms = row.preferred_sms?.toLowerCase() === 'true';
+          const preferEmail = row.preferred_email?.toLowerCase() === 'true' || (!row.preferred_sms && !row.preferred_email);
+          let preferred_channel = 'email';
+          if (preferSms && preferEmail) preferred_channel = 'both';
+          else if (preferSms) preferred_channel = 'sms';
+          else if (preferEmail) preferred_channel = 'email';
+
           // Find location ID (from all locations query)
           let location_id = null;
           if (row.location?.trim() && brand_id) {
@@ -395,7 +403,8 @@ export default function AllContacts() {
             if (loc) {
               location_id = loc.id;
             } else {
-              importErrors.push({ row: i + 2, message: `Location not found: "${row.location.trim()}" for brand "${row.brand.trim()}"` });
+              const brandLabel = selectedBrand ? selectedBrand.name : row.brand?.trim();
+              importErrors.push({ row: i + 2, message: `Location not found: "${row.location.trim()}" for brand "${brandLabel}"` });
               continue;
             }
           }
