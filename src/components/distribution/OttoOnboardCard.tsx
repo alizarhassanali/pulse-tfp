@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
@@ -21,16 +22,19 @@ import { cn } from '@/lib/utils';
 import {
   ChevronDown,
   Zap,
-  FileText,
   Mail,
   MessageSquare,
+  Settings2,
+  Send,
+  MapPin,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 interface OttoOnboardCardProps {
   eventId: string;
   brandId?: string;
   eventLocations: Array<{ id: string; name: string }>;
-  // CNP state
   cnpEnabled: boolean;
   setCnpEnabled: (v: boolean) => void;
   cnpSelectedTriggers: string[];
@@ -39,14 +43,12 @@ interface OttoOnboardCardProps {
   setCnpSelectedLocations: (v: string[]) => void;
   cnpEventType: string;
   setCnpEventType: (v: string) => void;
-  // Template state
   cnpEmailSubject: string;
   setCnpEmailSubject: (v: string) => void;
   cnpEmailBody: string;
   setCnpEmailBody: (v: string) => void;
   cnpSmsBody: string;
   setCnpSmsBody: (v: string) => void;
-  // Actions
   onSave: () => void;
   onCancel: () => void;
   savePending: boolean;
@@ -55,7 +57,6 @@ interface OttoOnboardCardProps {
 export function OttoOnboardCard(props: OttoOnboardCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Fetch CNP triggers from database
   const { data: cnpTriggers = [] } = useQuery({
     queryKey: ['cnp-triggers', props.brandId],
     queryFn: async () => {
@@ -88,6 +89,10 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
     );
   };
 
+  const triggerSummary = props.cnpSelectedTriggers.length > 0
+    ? `${props.cnpSelectedTriggers.length} trigger${props.cnpSelectedTriggers.length !== 1 ? 's' : ''}, ${props.cnpSelectedLocations.length} location${props.cnpSelectedLocations.length !== 1 ? 's' : ''}`
+    : 'Not configured';
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card className={cn(
@@ -107,7 +112,7 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
                 <div>
                   <CardTitle className="text-base">Otto Onboard</CardTitle>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Enable this to automatically trigger survey invitations from Otto Onboard system events
+                    Automatically trigger survey invitations from Otto Onboard system events
                   </p>
                 </div>
               </div>
@@ -116,24 +121,41 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
                   "text-xs",
                   props.cnpEnabled && "bg-success/10 text-success border-success/30"
                 )}>
-                  {props.cnpEnabled
-                    ? `${props.cnpSelectedTriggers.length} trigger${props.cnpSelectedTriggers.length !== 1 ? 's' : ''}`
-                    : 'Disabled'}
+                  {props.cnpEnabled ? 'Enabled' : 'Disabled'}
                 </Badge>
                 <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
               </div>
             </div>
+            {props.cnpEnabled && !isOpen && (
+              <p className="text-xs text-muted-foreground ml-12 mt-1">
+                {triggerSummary}
+              </p>
+            )}
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="space-y-6 pt-0">
-            {/* Enable Toggle */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-              <div>
-                <p className="font-medium text-sm">Connect this event with Otto Onboard</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Enable this to automatically trigger survey invitations from Otto Onboard system events
-                </p>
+          <CardContent className="pt-0">
+            {/* Enable Toggle Banner */}
+            <div className={cn(
+              "flex items-center justify-between p-4 rounded-lg mb-6",
+              props.cnpEnabled ? "bg-success/5 border border-success/20" : "bg-muted/30"
+            )}>
+              <div className="flex items-center gap-3">
+                {props.cnpEnabled ? (
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">
+                    {props.cnpEnabled ? 'Otto Onboard Connected' : 'Otto Onboard Disconnected'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {props.cnpEnabled
+                      ? 'Survey invitations will be triggered automatically from system events'
+                      : 'Enable to connect this event with Otto Onboard'}
+                  </p>
+                </div>
               </div>
               <Switch
                 checked={props.cnpEnabled}
@@ -142,120 +164,130 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
             </div>
 
             {props.cnpEnabled && (
-              <>
-                {/* Select Triggers */}
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Select Triggers <span className="text-destructive">*</span>
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Choose which Otto Onboard events will trigger this survey invitation
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {cnpTriggers.length > 0 ? (
-                      cnpTriggers.map((trigger: { id: string; name: string; description: string | null }) => (
-                        <label
-                          key={trigger.id}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                            props.cnpSelectedTriggers.includes(trigger.id)
-                              ? "border-primary/50 bg-primary/5"
-                              : "border-border hover:bg-muted/30"
-                          )}
-                        >
-                          <Checkbox
-                            checked={props.cnpSelectedTriggers.includes(trigger.id)}
-                            onCheckedChange={() => toggleTrigger(trigger.id)}
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                {trigger.name}
-                              </Badge>
-                              {trigger.description && (
-                                <span className="text-xs text-muted-foreground">{trigger.description}</span>
-                              )}
+              <Tabs defaultValue="configuration" className="w-full">
+                <TabsList className="w-full justify-start mb-6">
+                  <TabsTrigger value="configuration" className="gap-2">
+                    <Settings2 className="h-3.5 w-3.5" />
+                    Configuration
+                  </TabsTrigger>
+                  <TabsTrigger value="locations" className="gap-2">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Locations
+                  </TabsTrigger>
+                  <TabsTrigger value="templates" className="gap-2">
+                    <Send className="h-3.5 w-3.5" />
+                    Templates
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Configuration Tab */}
+                <TabsContent value="configuration" className="space-y-6 mt-0">
+                  {/* Select Triggers */}
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Select Triggers <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Choose which Otto Onboard events will trigger this survey invitation
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {cnpTriggers.length > 0 ? (
+                        cnpTriggers.map((trigger: { id: string; name: string; description: string | null }) => (
+                          <label
+                            key={trigger.id}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                              props.cnpSelectedTriggers.includes(trigger.id)
+                                ? "border-primary/50 bg-primary/5"
+                                : "border-border hover:bg-muted/30"
+                            )}
+                          >
+                            <Checkbox
+                              checked={props.cnpSelectedTriggers.includes(trigger.id)}
+                              onCheckedChange={() => toggleTrigger(trigger.id)}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                  {trigger.name}
+                                </Badge>
+                                {trigger.description && (
+                                  <span className="text-xs text-muted-foreground">{trigger.description}</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground text-center">
-                        No Otto Onboard triggers configured for this brand. Contact your administrator to set up trigger events.
-                      </div>
-                    )}
+                          </label>
+                        ))
+                      ) : (
+                        <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground text-center">
+                          No Otto Onboard triggers configured for this brand. Contact your administrator to set up trigger events.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Select Locations */}
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Select Locations <span className="text-destructive">*</span>
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Choose which locations will send survey invitations for this event
-                    </p>
-                  </div>
+                  {/* Event Type */}
                   <div className="space-y-2">
-                    {props.eventLocations.length > 0 ? (
-                      props.eventLocations.map((location) => (
-                        <label
-                          key={location.id}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                            props.cnpSelectedLocations.includes(location.id)
-                              ? "border-primary/50 bg-primary/5"
-                              : "border-border hover:bg-muted/30"
-                          )}
-                        >
-                          <Checkbox
-                            checked={props.cnpSelectedLocations.includes(location.id)}
-                            onCheckedChange={() => toggleLocation(location.id)}
-                          />
-                          <span className="text-sm">{location.name}</span>
-                        </label>
-                      ))
-                    ) : (
-                      <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground text-center">
-                        No locations configured for this event. Add locations in Event Setup.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Event Type */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Event Type</Label>
-                  <p className="text-xs text-muted-foreground">
-                    The type of appointments that will trigger this survey
-                  </p>
-                  <Select value={props.cnpEventType} onValueChange={props.setCnpEventType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="both">Both (Onsite & Virtual)</SelectItem>
-                      <SelectItem value="onsite">Onsite Only</SelectItem>
-                      <SelectItem value="virtual">Virtual Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Compose Message */}
-                <div className="border-t pt-6 space-y-4">
-                  <div>
-                    <h4 className="font-medium flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Compose Message
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Customize the email and SMS that will be sent automatically when triggered by Otto Onboard
+                    <Label className="text-sm font-medium">Event Type</Label>
+                    <p className="text-xs text-muted-foreground">
+                      The type of appointments that will trigger this survey
                     </p>
+                    <Select value={props.cnpEventType} onValueChange={props.setCnpEventType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="both">Both (Onsite & Virtual)</SelectItem>
+                        <SelectItem value="onsite">Onsite Only</SelectItem>
+                        <SelectItem value="virtual">Virtual Only</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </TabsContent>
 
+                {/* Locations Tab */}
+                <TabsContent value="locations" className="space-y-6 mt-0">
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Select Locations <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Choose which locations will send survey invitations for this event
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {props.eventLocations.length > 0 ? (
+                        props.eventLocations.map((location) => (
+                          <label
+                            key={location.id}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                              props.cnpSelectedLocations.includes(location.id)
+                                ? "border-primary/50 bg-primary/5"
+                                : "border-border hover:bg-muted/30"
+                            )}
+                          >
+                            <Checkbox
+                              checked={props.cnpSelectedLocations.includes(location.id)}
+                              onCheckedChange={() => toggleLocation(location.id)}
+                            />
+                            <span className="text-sm">{location.name}</span>
+                          </label>
+                        ))
+                      ) : (
+                        <div className="p-4 bg-muted/30 rounded-lg text-sm text-muted-foreground text-center">
+                          No locations configured for this event. Add locations in Event Setup.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Templates Tab */}
+                <TabsContent value="templates" className="space-y-6 mt-0">
                   {/* Email Content */}
                   <div className="space-y-3">
                     <h5 className="font-medium text-sm flex items-center gap-2">
@@ -318,18 +350,20 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
                       </div>
                     </div>
                   </div>
-                </div>
+                </TabsContent>
+              </Tabs>
+            )}
 
-                {/* Actions */}
-                <div className="flex justify-end gap-2 pt-4 border-t">
-                  <Button variant="outline" onClick={props.onCancel}>
-                    Cancel
-                  </Button>
-                  <Button className="btn-coral" onClick={props.onSave} disabled={props.savePending}>
-                    {props.savePending ? 'Saving...' : 'Save Otto Onboard Configuration'}
-                  </Button>
-                </div>
-              </>
+            {/* Actions */}
+            {props.cnpEnabled && (
+              <div className="flex justify-end gap-2 pt-4 border-t mt-6">
+                <Button variant="outline" onClick={props.onCancel}>
+                  Cancel
+                </Button>
+                <Button className="btn-coral" onClick={props.onSave} disabled={props.savePending}>
+                  {props.savePending ? 'Saving...' : 'Save Otto Onboard Configuration'}
+                </Button>
+              </div>
             )}
           </CardContent>
         </CollapsibleContent>
