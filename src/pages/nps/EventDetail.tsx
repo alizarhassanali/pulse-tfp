@@ -53,6 +53,13 @@ export default function EventDetail() {
 
   const { getBrandName, getLocationsForBrand } = useBrandLocationContext();
 
+  // Sync active tab when navigating from ManageEvents
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state?.tab]);
+
   // Load event data
   useEffect(() => {
     if (!eventId) {
