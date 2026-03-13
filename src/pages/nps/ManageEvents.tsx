@@ -89,8 +89,7 @@ export default function ManageEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('integrations')
-        .select('event_id, type, status, last_used_at')
-        .eq('type', 'sftp');
+        .select('event_id, type, status, last_used_at');
       if (error) throw error;
       return data || [];
     },
@@ -98,8 +97,17 @@ export default function ManageEvents() {
 
   // Build map of event_id to SFTP integration
   const eventSftpMap = integrations.reduce((acc: Record<string, any>, integration: any) => {
-    if (integration.event_id) {
+    if (integration.event_id && integration.type === 'sftp') {
       acc[integration.event_id] = integration;
+    }
+    return acc;
+  }, {});
+
+  // Build map of event_id to all active integrations
+  const eventIntegrationsMap = integrations.reduce((acc: Record<string, any[]>, integration: any) => {
+    if (integration.event_id) {
+      if (!acc[integration.event_id]) acc[integration.event_id] = [];
+      acc[integration.event_id].push(integration);
     }
     return acc;
   }, {});
@@ -246,21 +254,17 @@ export default function ManageEvents() {
                       <CardTitle className="text-lg font-semibold font-mono">{event.name}</CardTitle>
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusBadge(event.status)}
-                        {eventSftpMap[event.id] && (
+                        {eventIntegrationsMap[event.id]?.length > 0 && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                              <Badge variant="outline" className="flex items-center gap-1 text-xs bg-accent/50 cursor-pointer" onClick={() => navigate(`/nps/events/${event.id}`, { state: { tab: 'automated' } })}>
                                 <Server className="h-3 w-3" />
-                                SFTP
+                                Automated
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>SFTP Integration: {eventSftpMap[event.id].status === 'active' ? 'Active' : 'Configured'}</p>
-                              {eventSftpMap[event.id].last_used_at && (
-                                <p className="text-xs text-muted-foreground">
-                                  Last sync: {format(parseISO(eventSftpMap[event.id].last_used_at), 'MMM d, h:mm a')}
-                                </p>
-                              )}
+                              <p>{eventIntegrationsMap[event.id].length} automation(s) configured</p>
+                              <p className="text-xs text-muted-foreground">Click to manage</p>
                             </TooltipContent>
                           </Tooltip>
                         )}
@@ -358,16 +362,23 @@ export default function ManageEvents() {
                         className="flex-1"
                         onClick={() => {
                           if (event.status !== 'active') {
-                            // Show activation confirmation before sending
                             setActivateId(event.id);
                           } else {
-                            // Already active, go to event detail with distribution tab
                             navigate(`/nps/events/${event.id}`, { state: { tab: 'distribution' } });
                           }
                         }}
                       >
                         <Send className="h-4 w-4 mr-1" />
                         Send
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/nps/events/${event.id}`, { state: { tab: 'automated' } })}
+                      >
+                        <Server className="h-4 w-4 mr-1" />
+                        Automate
                       </Button>
                     </div>
                 </CardContent>
