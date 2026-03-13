@@ -626,8 +626,6 @@ export default function NPSQuestions() {
                 {Array.isArray(response.answers) && response.answers.length > 0 && (
                   <div className="space-y-3">
                     {response.answers.map((answer: any, idx: number) => {
-                      const answerText = typeof answer.answer === 'string' ? answer.answer : JSON.stringify(answer.answer);
-                      const isLong = answerText.length > 120;
                       const expandKey = `${response.id}-${idx}`;
                       const isExpanded = expandedAnswers[expandKey];
 
@@ -636,17 +634,14 @@ export default function NPSQuestions() {
                           <p className="text-sm font-medium text-muted-foreground">
                             {answer.question || `Question ${idx + 1}`}
                           </p>
-                          <p className="text-foreground">
-                            "{isExpanded || !isLong ? answerText : truncateText(answerText)}"
-                            {isLong && (
-                              <button
-                                onClick={() => toggleAnswerExpand(response.id, idx)}
-                                className="ml-2 text-primary hover:underline text-sm font-medium"
-                              >
-                                {isExpanded ? 'Show Less' : 'Read More'}
-                              </button>
-                            )}
-                          </p>
+                          <AnswerDisplay
+                            answer={answer.answer}
+                            type={answer.type}
+                            compact
+                            maxLength={120}
+                            expanded={isExpanded}
+                            onToggleExpand={() => toggleAnswerExpand(response.id, idx)}
+                          />
                         </div>
                       );
                     })}
