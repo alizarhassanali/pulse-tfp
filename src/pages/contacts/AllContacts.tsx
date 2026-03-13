@@ -371,6 +371,26 @@ export default function AllContacts() {
             continue;
           }
 
+          // Validate phone format if provided
+          if (phone) {
+            // Reject scientific notation (e.g. 1.23457E+12 from Excel)
+            if (/[eE]\+/.test(phone)) {
+              importErrors.push({ row: i + 2, message: `Invalid phone number (scientific notation detected): "${phone}". Format the phone column as Text in your spreadsheet.` });
+              continue;
+            }
+            // Only allow digits, +, -, spaces, parentheses, dots
+            if (/[^0-9+\-\s().]/i.test(phone)) {
+              importErrors.push({ row: i + 2, message: `Invalid phone number (contains invalid characters): "${phone}"` });
+              continue;
+            }
+            // Must have at least 7 digits
+            const digitCount = phone.replace(/\D/g, '').length;
+            if (digitCount < 7) {
+              importErrors.push({ row: i + 2, message: `Invalid phone number (too short, need at least 7 digits): "${phone}"` });
+              continue;
+            }
+          }
+
           // Resolve brand ID — use global filter brand if selected, otherwise require from CSV
           let brand_id: string | null = null;
           const selectedBrand = effectiveBrandId ? availableBrands.find(b => b.id === effectiveBrandId) : null;
