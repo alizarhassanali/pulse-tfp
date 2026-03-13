@@ -362,16 +362,23 @@ export default function ManageEvents() {
                         className="flex-1"
                         onClick={() => {
                           if (event.status !== 'active') {
-                            // Show activation confirmation before sending
                             setActivateId(event.id);
                           } else {
-                            // Already active, go to event detail with distribution tab
                             navigate(`/nps/events/${event.id}`, { state: { tab: 'distribution' } });
                           }
                         }}
                       >
                         <Send className="h-4 w-4 mr-1" />
                         Send
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/nps/events/${event.id}`, { state: { tab: 'automated' } })}
+                      >
+                        <Server className="h-4 w-4 mr-1" />
+                        Automate
                       </Button>
                     </div>
                 </CardContent>
