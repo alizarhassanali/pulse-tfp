@@ -346,7 +346,27 @@ export default function AllContacts() {
           }
 
           if (!firstName) {
-            importErrors.push({ row: i + 2, message: 'Missing name' });
+            importErrors.push({ row: i + 2, message: 'Missing required field: name (full_name or first_name)' });
+            continue;
+          }
+
+          // Validate email and phone - at least one is required
+          const email = row.email?.trim() || '';
+          const phone = row.phone?.trim() || '';
+          if (!email && !phone) {
+            importErrors.push({ row: i + 2, message: 'Missing required field: at least one of email or phone must be provided' });
+            continue;
+          }
+
+          // Validate email format if provided
+          if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            importErrors.push({ row: i + 2, message: `Invalid email format: "${email}"` });
+            continue;
+          }
+
+          // Validate brand is provided and exists
+          if (!row.brand?.trim()) {
+            importErrors.push({ row: i + 2, message: 'Missing required field: brand' });
             continue;
           }
 
@@ -361,24 +381,34 @@ export default function AllContacts() {
           // Find brand ID
           let brand_id = null;
           if (row.brand) {
-            const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.toLowerCase());
-            if (brand) brand_id = brand.id;
+            const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.trim().toLowerCase());
+            if (brand) {
+              brand_id = brand.id;
+            } else {
+              importErrors.push({ row: i + 2, message: `Brand not found: "${row.brand.trim()}"` });
+              continue;
+            }
           }
 
           // Find location ID (from all locations query)
           let location_id = null;
-          if (row.location && brand_id) {
+          if (row.location?.trim() && brand_id) {
             const { data: locs } = await supabase.from('locations').select('id, name').eq('brand_id', brand_id);
-            const loc = locs?.find(l => l.name.toLowerCase() === row.location.toLowerCase());
-            if (loc) location_id = loc.id;
+            const loc = locs?.find(l => l.name.toLowerCase() === row.location.trim().toLowerCase());
+            if (loc) {
+              location_id = loc.id;
+            } else {
+              importErrors.push({ row: i + 2, message: `Location not found: "${row.location.trim()}" for brand "${row.brand.trim()}"` });
+              continue;
+            }
           }
 
           // Insert contact
           const { data: contact, error } = await supabase.from('contacts').insert({
             first_name: firstName,
             last_name: lastName || null,
-            email: row.email || null,
-            phone: row.phone || null,
+            email: email || null,
+            phone: phone || null,
             preferred_channel,
             preferred_language: row.preferred_language || 'en',
             brand_id,
