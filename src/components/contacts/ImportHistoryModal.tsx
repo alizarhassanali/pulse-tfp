@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 interface ImportHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  effectiveBrandId?: string | null;
 }
 
 interface ImportError {
@@ -43,28 +44,39 @@ interface ImportRecord {
   error_count: number;
   errors: ImportError[];
   created_by: string | null;
+  brand_id: string | null;
+  brand_name?: string;
 }
 
-export function ImportHistoryModal({ open, onOpenChange }: ImportHistoryModalProps) {
+export function ImportHistoryModal({ open, onOpenChange, effectiveBrandId }: ImportHistoryModalProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const { data: imports, isLoading } = useQuery({
-    queryKey: ['contact-imports'],
+    queryKey: ['contact-imports', effectiveBrandId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('contact_imports')
-        .select('*')
+        .select('*, brands!contact_imports_brand_id_fkey(name)')
         .order('created_at', { ascending: false })
         .limit(50);
+      
+      if (effectiveBrandId) {
+        query = query.eq('brand_id', effectiveBrandId);
+      }
+
+      const { data, error } = await query;
       
       if (error) throw error;
       return (data || []).map(record => ({
         ...record,
-        errors: Array.isArray(record.errors) ? record.errors as unknown as ImportError[] : []
+        errors: Array.isArray(record.errors) ? record.errors as unknown as ImportError[] : [],
+        brand_name: (record as any).brands?.name || null,
       })) as ImportRecord[];
     },
     enabled: open,
   });
+
+  const showBrandColumn = !effectiveBrandId;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -103,6 +115,8 @@ export function ImportHistoryModal({ open, onOpenChange }: ImportHistoryModalPro
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const colSpan = showBrandColumn ? 6 : 5;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[80vh]">
@@ -127,6 +141,7 @@ export function ImportHistoryModal({ open, onOpenChange }: ImportHistoryModalPro
                   <TableHead className="w-[40px]"></TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>File</TableHead>
+                  {showBrandColumn && <TableHead>Brand</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Result</TableHead>
                 </TableRow>
@@ -159,6 +174,11 @@ export function ImportHistoryModal({ open, onOpenChange }: ImportHistoryModalPro
                       <TableCell className="font-medium truncate max-w-[200px]">
                         {record.file_name}
                       </TableCell>
+                      {showBrandColumn && (
+                        <TableCell className="text-muted-foreground">
+                          {record.brand_name || '—'}
+                        </TableCell>
+                      )}
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                       <TableCell className="text-right">
                         <span className="text-emerald-600 font-medium">{record.success_count}</span>
@@ -170,7 +190,7 @@ export function ImportHistoryModal({ open, onOpenChange }: ImportHistoryModalPro
                     </TableRow>
                     {expandedRow === record.id && record.errors && (
                       <TableRow key={`${record.id}-errors`}>
-                        <TableCell colSpan={5} className="bg-muted/30 p-4">
+                        <TableCell colSpan={colSpan} className="bg-muted/30 p-4">
                           <div className="space-y-2">
                             <p className="text-sm font-medium text-destructive">Error Details:</p>
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
