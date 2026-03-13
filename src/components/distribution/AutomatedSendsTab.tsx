@@ -7,6 +7,7 @@ import { SftpSyncLog } from './SftpSyncHistoryModal';
 import { DEMO_SFTP_SYNC_LOGS } from '@/data/demo-data';
 import { WebhookIntegrationCard } from './WebhookIntegrationCard';
 import { SftpIntegrationCard } from './SftpIntegrationCard';
+import { OttoOnboardCard } from './OttoOnboardCard';
 import {
   AlertDialog,
   AlertDialogAction,
