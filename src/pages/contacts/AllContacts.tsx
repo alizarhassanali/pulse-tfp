@@ -369,23 +369,12 @@ export default function AllContacts() {
             continue;
           }
 
-          // Validate brand is provided and exists
-          if (!row.brand?.trim()) {
-            importErrors.push({ row: i + 2, message: 'Missing required field: brand' });
-            continue;
-          }
-
-          // Parse preferred channel
-          const preferSms = row.preferred_sms?.toLowerCase() === 'true';
-          const preferEmail = row.preferred_email?.toLowerCase() === 'true' || (!row.preferred_sms && !row.preferred_email);
-          let preferred_channel = 'email';
-          if (preferSms && preferEmail) preferred_channel = 'both';
-          else if (preferSms) preferred_channel = 'sms';
-          else if (preferEmail) preferred_channel = 'email';
-
-          // Find brand ID
-          let brand_id = null;
-          if (row.brand) {
+          // Resolve brand ID — use global filter brand if selected, otherwise require from CSV
+          let brand_id: string | null = null;
+          const selectedBrand = effectiveBrandId ? availableBrands.find(b => b.id === effectiveBrandId) : null;
+          if (selectedBrand) {
+            brand_id = selectedBrand.id;
+          } else if (row.brand?.trim()) {
             const brand = brands.find((b: any) => b.name.toLowerCase() === row.brand.trim().toLowerCase());
             if (brand) {
               brand_id = brand.id;
@@ -393,6 +382,9 @@ export default function AllContacts() {
               importErrors.push({ row: i + 2, message: `Brand not found: "${row.brand.trim()}"` });
               continue;
             }
+          } else {
+            importErrors.push({ row: i + 2, message: 'Missing required field: brand (no brand selected in global filter and no brand column in CSV)' });
+            continue;
           }
 
           // Find location ID (from all locations query)
