@@ -925,12 +925,12 @@ export function SendWizard({
                         </div>
                         <div>
                           <CardTitle className="text-base">SMS Content</CardTitle>
-                          <CardDescription>Keep it short - 160 character limit</CardDescription>
+                          <CardDescription>Keep it short - 320 character limit</CardDescription>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge variant={smsBody.length > 160 ? 'destructive' : 'secondary'} className="font-mono">
-                          {smsBody.length}/160
+                        <Badge variant={smsBody.length > 320 ? 'destructive' : 'secondary'} className="font-mono">
+                          {smsBody.length}/320
                         </Badge>
                         <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", smsOpen && "rotate-180")} />
                       </div>
@@ -947,7 +947,7 @@ export function SendWizard({
                           value={smsBody}
                           onChange={(e) => setSmsBody(e.target.value)}
                           className="min-h-[100px] font-mono text-sm"
-                          maxLength={160}
+                          maxLength={320}
                           placeholder="Enter your SMS message..."
                         />
                         <p className="text-xs text-muted-foreground">

@@ -343,9 +343,9 @@ export function OttoOnboardCard(props: OttoOnboardCardProps) {
                         </p>
                         <span className={cn(
                           "text-xs font-mono",
-                          props.cnpSmsBody.length > 160 ? "text-destructive" : "text-muted-foreground"
+                          props.cnpSmsBody.length > 320 ? "text-destructive" : "text-muted-foreground"
                         )}>
-                          {props.cnpSmsBody.length}/160
+                          {props.cnpSmsBody.length}/320
                         </span>
                       </div>
                     </div>
