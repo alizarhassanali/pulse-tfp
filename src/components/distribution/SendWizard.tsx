@@ -929,8 +929,8 @@ export function SendWizard({
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge variant={smsBody.length > 160 ? 'destructive' : 'secondary'} className="font-mono">
-                          {smsBody.length}/160
+                        <Badge variant={smsBody.length > 320 ? 'destructive' : 'secondary'} className="font-mono">
+                          {smsBody.length}/320
                         </Badge>
                         <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform", smsOpen && "rotate-180")} />
                       </div>
