@@ -85,6 +85,14 @@ export function WebhookIntegrationCard(props: WebhookIntegrationCardProps) {
   const activeKeyCount = props.apiKeys.length;
   const isConfigured = activeKeyCount > 0;
 
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card className={cn(

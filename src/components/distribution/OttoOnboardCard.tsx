@@ -57,6 +57,14 @@ interface OttoOnboardCardProps {
 export function OttoOnboardCard(props: OttoOnboardCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
+
   const { data: cnpTriggers = [] } = useQuery({
     queryKey: ['cnp-triggers', props.brandId],
     queryFn: async () => {

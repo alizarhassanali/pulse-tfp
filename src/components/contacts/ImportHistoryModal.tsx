@@ -115,7 +115,7 @@ export function ImportHistoryModal({ open, onOpenChange, effectiveBrandId }: Imp
     setExpandedRow(expandedRow === id ? null : id);
   };
 
-  const colSpan = showBrandColumn ? 6 : 5;
+  const colSpan = showBrandColumn ? 7 : 6;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,7 +143,8 @@ export function ImportHistoryModal({ open, onOpenChange, effectiveBrandId }: Imp
                   <TableHead>File</TableHead>
                   {showBrandColumn && <TableHead>Brand</TableHead>}
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Result</TableHead>
+                  <TableHead className="text-right">Added</TableHead>
+                  <TableHead className="text-right">Errors</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -182,9 +183,14 @@ export function ImportHistoryModal({ open, onOpenChange, effectiveBrandId }: Imp
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                       <TableCell className="text-right">
                         <span className="text-emerald-600 font-medium">{record.success_count}</span>
-                        <span className="text-muted-foreground"> / {record.total_rows}</span>
-                        {record.error_count > 0 && (
-                          <span className="text-destructive ml-2">({record.error_count} errors)</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {record.error_count > 0 ? (
+                          <Badge variant="destructive" className="text-xs">
+                            {record.error_count}
+                          </Badge>
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />
                         )}
                       </TableCell>
                     </TableRow>

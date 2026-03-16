@@ -524,13 +524,19 @@ export default function AllContacts() {
       queryClient.invalidateQueries({ queryKey: ['contact-imports'] });
 
       if (importErrors.length > 0) {
+        const parts = [];
+        if (createdCount > 0) parts.push(`${createdCount} added`);
+        if (updatedCount > 0) parts.push(`${updatedCount} updated`);
         toast({
           title: `Imported ${successCount} of ${dataRows.length} contacts`,
-          description: `${importErrors.length} row(s) had errors. View import history for details.`,
+          description: `${parts.join(', ')}. ${importErrors.length} row(s) had errors. View import history for details.`,
           variant: successCount > 0 ? 'default' : 'destructive',
         });
       } else {
-        toast({ title: 'Import complete', description: `Successfully imported ${successCount} contacts.` });
+        const parts = [];
+        if (createdCount > 0) parts.push(`${createdCount} added`);
+        if (updatedCount > 0) parts.push(`${updatedCount} updated`);
+        toast({ title: 'Import complete', description: parts.join(', ') || `Successfully imported ${successCount} contacts.` });
       }
 
       setImportModalOpen(false);

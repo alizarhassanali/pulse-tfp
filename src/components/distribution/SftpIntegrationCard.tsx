@@ -109,6 +109,14 @@ export function SftpIntegrationCard(props: SftpIntegrationCardProps) {
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const isConnected = props.sftpStatus === 'connected';
 
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
+
   const scheduleLabel = props.sftpScheduleDays.length > 0
     ? `${props.sftpScheduleDays.map(d => d.slice(0, 3)).join(', ')} at ${props.sftpScheduleTime}`
     : 'No schedule';
