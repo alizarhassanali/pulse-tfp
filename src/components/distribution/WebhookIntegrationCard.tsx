@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,14 @@ export function WebhookIntegrationCard(props: WebhookIntegrationCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const activeKeyCount = props.apiKeys.length;
   const isConfigured = activeKeyCount > 0;
+
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>

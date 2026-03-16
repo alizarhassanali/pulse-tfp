@@ -332,6 +332,8 @@ export default function AllContacts() {
       setImportProgress({ current: 0, total: dataRows.length, isImporting: true });
 
       let successCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
 
       for (let i = 0; i < dataRows.length; i++) {
         try {
@@ -441,8 +443,18 @@ export default function AllContacts() {
             }
           }
 
-          // Insert contact
-          const { data: contact, error } = await supabase.from('contacts').insert({
+          // Upsert: check if contact already exists by email or phone within same brand
+          let existingContact = null;
+          if (email) {
+            const { data: byEmail } = await supabase.from('contacts').select('id').eq('brand_id', brand_id).eq('email', email).limit(1);
+            if (byEmail && byEmail.length > 0) existingContact = byEmail[0];
+          }
+          if (!existingContact && phone) {
+            const { data: byPhone } = await supabase.from('contacts').select('id').eq('brand_id', brand_id).eq('phone', phone).limit(1);
+            if (byPhone && byPhone.length > 0) existingContact = byPhone[0];
+          }
+
+          const contactData = {
             first_name: firstName,
             last_name: lastName || null,
             email: email || null,
@@ -451,26 +463,35 @@ export default function AllContacts() {
             preferred_language: row.preferred_language || 'en',
             brand_id,
             location_id,
-            status: 'active',
-          }).select().single();
+            status: 'active' as const,
+          };
 
-          if (error) {
-            importErrors.push({ row: i + 2, message: error.message });
-            continue;
+          let contact: any = null;
+          if (existingContact) {
+            // Update existing contact
+            const { data, error } = await supabase.from('contacts').update(contactData).eq('id', existingContact.id).select().single();
+            if (error) { importErrors.push({ row: i + 2, message: error.message }); continue; }
+            contact = data;
+            updatedCount++;
+          } else {
+            // Insert new contact
+            const { data, error } = await supabase.from('contacts').insert(contactData).select().single();
+            if (error) { importErrors.push({ row: i + 2, message: error.message }); continue; }
+            contact = data;
+            createdCount++;
           }
 
           // Handle tags
           if (row.tags && contact) {
             const tagNames = row.tags.split(/[,;]/).map(t => t.trim()).filter(Boolean);
             for (const tagName of tagNames) {
-              // Find or create tag
               let tag = contactTags.find((t: any) => t.name.toLowerCase() === tagName.toLowerCase());
               if (!tag) {
                 const { data: newTag } = await supabase.from('contact_tags').insert({ name: tagName }).select().single();
                 if (newTag) tag = newTag;
               }
               if (tag) {
-                await supabase.from('contact_tag_assignments').insert({ contact_id: contact.id, tag_id: tag.id });
+                await supabase.from('contact_tag_assignments').upsert({ contact_id: contact.id, tag_id: tag.id }, { onConflict: 'contact_id,tag_id' });
               }
             }
           }
@@ -503,13 +524,19 @@ export default function AllContacts() {
       queryClient.invalidateQueries({ queryKey: ['contact-imports'] });
 
       if (importErrors.length > 0) {
+        const parts = [];
+        if (createdCount > 0) parts.push(`${createdCount} added`);
+        if (updatedCount > 0) parts.push(`${updatedCount} updated`);
         toast({
           title: `Imported ${successCount} of ${dataRows.length} contacts`,
-          description: `${importErrors.length} row(s) had errors. View import history for details.`,
+          description: `${parts.join(', ')}. ${importErrors.length} row(s) had errors. View import history for details.`,
           variant: successCount > 0 ? 'default' : 'destructive',
         });
       } else {
-        toast({ title: 'Import complete', description: `Successfully imported ${successCount} contacts.` });
+        const parts = [];
+        if (createdCount > 0) parts.push(`${createdCount} added`);
+        if (updatedCount > 0) parts.push(`${updatedCount} updated`);
+        toast({ title: 'Import complete', description: parts.join(', ') || `Successfully imported ${successCount} contacts.` });
       }
 
       setImportModalOpen(false);

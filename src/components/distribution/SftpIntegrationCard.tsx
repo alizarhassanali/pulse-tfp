@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -108,6 +108,14 @@ export function SftpIntegrationCard(props: SftpIntegrationCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const isConnected = props.sftpStatus === 'connected';
+
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
 
   const scheduleLabel = props.sftpScheduleDays.length > 0
     ? `${props.sftpScheduleDays.map(d => d.slice(0, 3)).join(', ')} at ${props.sftpScheduleTime}`

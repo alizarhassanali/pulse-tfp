@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,14 @@ interface OttoOnboardCardProps {
 
 export function OttoOnboardCard(props: OttoOnboardCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const prevPending = useRef(props.savePending);
+  useEffect(() => {
+    if (prevPending.current && !props.savePending) {
+      setIsOpen(false);
+    }
+    prevPending.current = props.savePending;
+  }, [props.savePending]);
 
   const { data: cnpTriggers = [] } = useQuery({
     queryKey: ['cnp-triggers', props.brandId],
