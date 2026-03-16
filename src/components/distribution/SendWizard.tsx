@@ -925,7 +925,7 @@ export function SendWizard({
                         </div>
                         <div>
                           <CardTitle className="text-base">SMS Content</CardTitle>
-                          <CardDescription>Keep it short - 160 character limit</CardDescription>
+                          <CardDescription>Keep it short - 320 character limit</CardDescription>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
