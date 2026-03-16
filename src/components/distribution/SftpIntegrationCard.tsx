@@ -439,9 +439,9 @@ export function SftpIntegrationCard(props: SftpIntegrationCardProps) {
                             value={props.smsBody}
                             onChange={(e) => props.setSmsBody(e.target.value)}
                             className="min-h-[100px] font-mono text-sm"
-                            maxLength={160}
+                            maxLength={320}
                           />
-                          <p className="text-xs text-muted-foreground">{props.smsBody.length}/160 characters</p>
+                          <p className="text-xs text-muted-foreground">{props.smsBody.length}/320 characters</p>
                         </div>
                       </div>
                     </div>

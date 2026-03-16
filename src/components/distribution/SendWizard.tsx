@@ -947,7 +947,7 @@ export function SendWizard({
                           value={smsBody}
                           onChange={(e) => setSmsBody(e.target.value)}
                           className="min-h-[100px] font-mono text-sm"
-                          maxLength={160}
+                          maxLength={320}
                           placeholder="Enter your SMS message..."
                         />
                         <p className="text-xs text-muted-foreground">

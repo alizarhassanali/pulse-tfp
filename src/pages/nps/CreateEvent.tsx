@@ -1584,7 +1584,7 @@ export default function CreateEvent() {
                       <SelectContent>
                         <SelectItem value="email">Email</SelectItem>
                         <SelectItem value="sms">SMS</SelectItem>
-                        <SelectItem value="both">Both (based on contact channel)</SelectItem>
+                        <SelectItem value="both">Survey Submitted Channel</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">

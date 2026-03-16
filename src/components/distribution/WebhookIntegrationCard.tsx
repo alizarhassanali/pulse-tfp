@@ -436,10 +436,10 @@ export function WebhookIntegrationCard(props: WebhookIntegrationCardProps) {
                         placeholder="Hi {first_name}, how was your visit?"
                       />
                       <p className="text-xs text-muted-foreground">
-                        {props.webhookSmsBody.length}/160 characters
-                        {props.webhookSmsBody.length > 160 && (
+                        {props.webhookSmsBody.length}/320 characters
+                        {props.webhookSmsBody.length > 320 && (
                           <span className="text-destructive ml-2">
-                            (Will be split into {Math.ceil(props.webhookSmsBody.length / 160)} messages)
+                            (Will be split into {Math.ceil(props.webhookSmsBody.length / 320)} messages)
                           </span>
                         )}
                       </p>
