@@ -332,6 +332,8 @@ export default function AllContacts() {
       setImportProgress({ current: 0, total: dataRows.length, isImporting: true });
 
       let successCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
 
       for (let i = 0; i < dataRows.length; i++) {
         try {
