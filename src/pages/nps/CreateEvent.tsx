@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +36,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEMO_MANAGE_EVENTS } from '@/data/demo-data';
+import { TranslationLanguageBar } from '@/components/events/TranslationLanguageBar';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { Sparkles, RefreshCw } from 'lucide-react';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -46,16 +49,38 @@ interface ThankYouButton {
   url: string;
 }
 
-// Per-language translation content
+// Per-language translation content. Default-language values mirror the form fields;
+// other-language values are AI-translated by default and editable (becomes an override).
 interface LanguageContent {
   eventHeading: string;
   introMessage: string;
   metricQuestion: string;
+  // Step 2
+  questionsTitle?: string;
+  questionsIntro?: string;
+  questions?: Record<string, {
+    question?: string;
+    leftLabel?: string;
+    rightLabel?: string;
+    options?: string[];
+  }>;
+  // Step 3
+  consentText?: string;
+  consentHelperText?: string;
+  // Step 4
   thankYouConfig: {
-    promoters: { message: string };
-    passives: { message: string };
-    detractors: { message: string };
+    promoters: { message: string; buttons?: Record<string, { label: string }> };
+    passives: { message: string; buttons?: Record<string, { label: string }> };
+    detractors: { message: string; buttons?: Record<string, { label: string }> };
   };
+  googleReviewReminder?: {
+    emailSubject?: string;
+    emailBody?: string;
+    smsBody?: string;
+  };
+  // Tracks which field keys the user has manually edited in this language —
+  // those keys are excluded from future auto-translate runs.
+  __overrides?: string[];
 }
 
 interface EventFormData {
@@ -145,11 +170,18 @@ const createDefaultTranslation = (): LanguageContent => ({
   eventHeading: '',
   introMessage: '',
   metricQuestion: 'How likely are you to recommend [Brand] to a friend or colleague?',
+  questionsTitle: '',
+  questionsIntro: '',
+  questions: {},
+  consentText: '',
+  consentHelperText: '',
   thankYouConfig: {
-    promoters: { message: 'Thank you for your feedback! We appreciate your support.' },
-    passives: { message: 'Thank you for your feedback! We\'re always looking to improve.' },
-    detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.' },
+    promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttons: {} },
+    passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttons: {} },
+    detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttons: {} },
   },
+  googleReviewReminder: { emailSubject: '', emailBody: '', smsBody: '' },
+  __overrides: [],
 });
 
 const createDefaultFormData = (): EventFormData => ({
@@ -303,21 +335,33 @@ export default function CreateEvent() {
         const translations: Record<string, LanguageContent> = {};
         eventLanguages.forEach((lang: string) => {
           if (existingTranslations && existingTranslations[lang]) {
-            // Ensure eventHeading exists for older translations
+            // Merge stored translation with defaults so newly added fields are present
+            const stored = existingTranslations[lang];
+            const defaults = createDefaultTranslation();
             translations[lang] = {
-              eventHeading: existingTranslations[lang].eventHeading || '',
-              ...existingTranslations[lang],
+              ...defaults,
+              ...stored,
+              eventHeading: stored.eventHeading || '',
+              questions: stored.questions || {},
+              thankYouConfig: {
+                promoters: { ...defaults.thankYouConfig.promoters, ...(stored.thankYouConfig?.promoters || {}) },
+                passives: { ...defaults.thankYouConfig.passives, ...(stored.thankYouConfig?.passives || {}) },
+                detractors: { ...defaults.thankYouConfig.detractors, ...(stored.thankYouConfig?.detractors || {}) },
+              },
+              googleReviewReminder: { ...defaults.googleReviewReminder, ...(stored.googleReviewReminder || {}) },
+              __overrides: stored.__overrides || [],
             };
           } else if (lang === defaultLang) {
             // For default language, use the legacy single-language fields
             translations[lang] = {
+              ...createDefaultTranslation(),
               eventHeading: '',
               introMessage: event.intro_message || '',
               metricQuestion: event.metric_question || createDefaultFormData().metricQuestion,
               thankYouConfig: {
-                promoters: { message: loadedThankYouConfig?.promoters?.message || createDefaultFormData().thankYouConfig.promoters.message },
-                passives: { message: loadedThankYouConfig?.passives?.message || createDefaultFormData().thankYouConfig.passives.message },
-                detractors: { message: loadedThankYouConfig?.detractors?.message || createDefaultFormData().thankYouConfig.detractors.message },
+                promoters: { message: loadedThankYouConfig?.promoters?.message || createDefaultFormData().thankYouConfig.promoters.message, buttons: {} },
+                passives: { message: loadedThankYouConfig?.passives?.message || createDefaultFormData().thankYouConfig.passives.message, buttons: {} },
+                detractors: { message: loadedThankYouConfig?.detractors?.message || createDefaultFormData().thankYouConfig.detractors.message, buttons: {} },
               },
             };
           } else {
@@ -671,6 +715,221 @@ export default function CreateEvent() {
     return formData.translations[editingLanguage] || createDefaultTranslation();
   };
 
+  // ===== AI Auto-Translate =====
+  const { translate, translateDebounced, loadingLanguages } = useAutoTranslate();
+  const isDefaultLang = editingLanguage === formData.defaultLanguage;
+
+  // Mark a translation field key as manually overridden in the current editing language
+  const markOverride = (lang: string, fieldKey: string) => {
+    setFormData((prev) => {
+      const t = prev.translations[lang] || createDefaultTranslation();
+      const overrides = new Set(t.__overrides || []);
+      overrides.add(fieldKey);
+      return {
+        ...prev,
+        translations: {
+          ...prev.translations,
+          [lang]: { ...t, __overrides: Array.from(overrides) },
+        },
+      };
+    });
+  };
+
+  const isOverridden = (lang: string, fieldKey: string): boolean => {
+    return Boolean(formData.translations[lang]?.__overrides?.includes(fieldKey));
+  };
+
+  // Build the full set of source-language fields used for auto-translation.
+  // Field keys are stable strings that map back to per-language storage.
+  const buildSourceFields = (): Record<string, string> => {
+    const t = formData.translations[formData.defaultLanguage] || createDefaultTranslation();
+    const out: Record<string, string> = {};
+    if (t.eventHeading) out['eventHeading'] = t.eventHeading;
+    if (t.introMessage) out['introMessage'] = t.introMessage;
+    if (t.metricQuestion) out['metricQuestion'] = t.metricQuestion;
+    if (formData.questionsTitle) out['questionsTitle'] = formData.questionsTitle;
+    if (formData.questionsIntro) out['questionsIntro'] = formData.questionsIntro;
+    formData.questions.forEach((q) => {
+      if (q.config?.question) out[`q:${q.id}:question`] = q.config.question;
+      if (q.type === 'scale') {
+        if (q.config?.leftLabel) out[`q:${q.id}:leftLabel`] = q.config.leftLabel;
+        if (q.config?.rightLabel) out[`q:${q.id}:rightLabel`] = q.config.rightLabel;
+      }
+      if (q.type === 'select_one' || q.type === 'select_multiple') {
+        (q.config?.options || []).forEach((opt: string, idx: number) => {
+          if (opt) out[`q:${q.id}:opt:${idx}`] = opt;
+        });
+      }
+    });
+    if (formData.consentText) out['consentText'] = formData.consentText;
+    if (formData.consentHelperText) out['consentHelperText'] = formData.consentHelperText;
+    (['promoters', 'passives', 'detractors'] as const).forEach((g) => {
+      const grp = formData.thankYouConfig[g];
+      if (grp?.message) out[`ty:${g}:message`] = grp.message;
+      grp?.buttons?.forEach((b) => {
+        if (b.label) out[`ty:${g}:btn:${b.id}:label`] = b.label;
+      });
+    });
+    if (formData.googleReviewReminder.enabled) {
+      if (formData.googleReviewReminder.emailSubject) out['grr:emailSubject'] = formData.googleReviewReminder.emailSubject;
+      if (formData.googleReviewReminder.emailBody) out['grr:emailBody'] = formData.googleReviewReminder.emailBody;
+      if (formData.googleReviewReminder.smsBody) out['grr:smsBody'] = formData.googleReviewReminder.smsBody;
+    }
+    return out;
+  };
+
+  // Apply translated key/value pairs back into the per-language translations object
+  const applyTranslationsToLang = (lang: string, translated: Record<string, string>) => {
+    setFormData((prev) => {
+      const existing = prev.translations[lang] || createDefaultTranslation();
+      const overrides = new Set(existing.__overrides || []);
+      const next: LanguageContent = {
+        ...existing,
+        questions: { ...(existing.questions || {}) },
+        thankYouConfig: {
+          promoters: { ...existing.thankYouConfig.promoters, buttons: { ...(existing.thankYouConfig.promoters.buttons || {}) } },
+          passives: { ...existing.thankYouConfig.passives, buttons: { ...(existing.thankYouConfig.passives.buttons || {}) } },
+          detractors: { ...existing.thankYouConfig.detractors, buttons: { ...(existing.thankYouConfig.detractors.buttons || {}) } },
+        },
+        googleReviewReminder: { ...(existing.googleReviewReminder || {}) },
+      };
+      for (const [key, value] of Object.entries(translated)) {
+        if (overrides.has(key)) continue; // never overwrite manual edits
+        if (key === 'eventHeading') next.eventHeading = value;
+        else if (key === 'introMessage') next.introMessage = value;
+        else if (key === 'metricQuestion') next.metricQuestion = value;
+        else if (key === 'questionsTitle') next.questionsTitle = value;
+        else if (key === 'questionsIntro') next.questionsIntro = value;
+        else if (key === 'consentText') next.consentText = value;
+        else if (key === 'consentHelperText') next.consentHelperText = value;
+        else if (key.startsWith('q:')) {
+          // q:<qid>:question | q:<qid>:leftLabel | q:<qid>:rightLabel | q:<qid>:opt:<idx>
+          const parts = key.split(':');
+          const qid = parts[1];
+          const sub = parts[2];
+          const qEntry = next.questions![qid] || {};
+          if (sub === 'question') qEntry.question = value;
+          else if (sub === 'leftLabel') qEntry.leftLabel = value;
+          else if (sub === 'rightLabel') qEntry.rightLabel = value;
+          else if (sub === 'opt') {
+            const idx = parseInt(parts[3], 10);
+            const opts = [...(qEntry.options || [])];
+            opts[idx] = value;
+            qEntry.options = opts;
+          }
+          next.questions![qid] = qEntry;
+        } else if (key.startsWith('ty:')) {
+          const parts = key.split(':');
+          const grp = parts[1] as 'promoters' | 'passives' | 'detractors';
+          if (parts[2] === 'message') {
+            next.thankYouConfig[grp].message = value;
+          } else if (parts[2] === 'btn' && parts[4] === 'label') {
+            const bid = parts[3];
+            next.thankYouConfig[grp].buttons = next.thankYouConfig[grp].buttons || {};
+            next.thankYouConfig[grp].buttons![bid] = { label: value };
+          }
+        } else if (key.startsWith('grr:')) {
+          const sub = key.slice(4);
+          if (sub === 'emailSubject') next.googleReviewReminder!.emailSubject = value;
+          else if (sub === 'emailBody') next.googleReviewReminder!.emailBody = value;
+          else if (sub === 'smsBody') next.googleReviewReminder!.smsBody = value;
+        }
+      }
+      return { ...prev, translations: { ...prev.translations, [lang]: next } };
+    });
+  };
+
+  // Trigger auto-translate for a single target language
+  const autoTranslateLang = async (targetLang: string) => {
+    if (targetLang === formData.defaultLanguage) return;
+    const fields = buildSourceFields();
+    if (Object.keys(fields).length === 0) return;
+    const result = await translate({
+      sourceLang: formData.defaultLanguage,
+      targetLang,
+      fields,
+    });
+    if (result) applyTranslationsToLang(targetLang, result);
+  };
+
+  // Re-translate a single field key for one language (manual icon button)
+  const retranslateField = async (targetLang: string, fieldKey: string, sourceValue: string) => {
+    if (!sourceValue) return;
+    const result = await translate({
+      sourceLang: formData.defaultLanguage,
+      targetLang,
+      fields: { [fieldKey]: sourceValue },
+    });
+    if (result && result[fieldKey] !== undefined) {
+      // Clear override for this field, then write the translation
+      setFormData((prev) => {
+        const existing = prev.translations[targetLang] || createDefaultTranslation();
+        const overrides = (existing.__overrides || []).filter((k) => k !== fieldKey);
+        return {
+          ...prev,
+          translations: {
+            ...prev.translations,
+            [targetLang]: { ...existing, __overrides: overrides },
+          },
+        };
+      });
+      applyTranslationsToLang(targetLang, { [fieldKey]: result[fieldKey] });
+    }
+  };
+
+  // Read a translatable value for the editing language with fallback to source
+  const readT = (fieldKey: string, sourceValue: string): string => {
+    if (isDefaultLang) return sourceValue;
+    const t = formData.translations[editingLanguage];
+    if (!t) return '';
+    if (fieldKey === 'eventHeading') return t.eventHeading ?? '';
+    if (fieldKey === 'introMessage') return t.introMessage ?? '';
+    if (fieldKey === 'metricQuestion') return t.metricQuestion ?? '';
+    if (fieldKey === 'questionsTitle') return t.questionsTitle ?? '';
+    if (fieldKey === 'questionsIntro') return t.questionsIntro ?? '';
+    if (fieldKey === 'consentText') return t.consentText ?? '';
+    if (fieldKey === 'consentHelperText') return t.consentHelperText ?? '';
+    if (fieldKey.startsWith('q:')) {
+      const parts = fieldKey.split(':');
+      const qid = parts[1];
+      const sub = parts[2];
+      const q = t.questions?.[qid];
+      if (!q) return '';
+      if (sub === 'question') return q.question ?? '';
+      if (sub === 'leftLabel') return q.leftLabel ?? '';
+      if (sub === 'rightLabel') return q.rightLabel ?? '';
+      if (sub === 'opt') return q.options?.[parseInt(parts[3], 10)] ?? '';
+    }
+    if (fieldKey.startsWith('ty:')) {
+      const parts = fieldKey.split(':');
+      const grp = parts[1] as 'promoters' | 'passives' | 'detractors';
+      if (parts[2] === 'message') return t.thankYouConfig[grp]?.message ?? '';
+      if (parts[2] === 'btn' && parts[4] === 'label') return t.thankYouConfig[grp]?.buttons?.[parts[3]]?.label ?? '';
+    }
+    if (fieldKey.startsWith('grr:')) {
+      const sub = fieldKey.slice(4);
+      if (sub === 'emailSubject') return t.googleReviewReminder?.emailSubject ?? '';
+      if (sub === 'emailBody') return t.googleReviewReminder?.emailBody ?? '';
+      if (sub === 'smsBody') return t.googleReviewReminder?.smsBody ?? '';
+    }
+    return '';
+  };
+
+  // Write a translatable value: in default lang updates the source field via setter;
+  // in non-default lang stores in translations[lang] AND marks as override.
+  const writeT = (
+    fieldKey: string,
+    value: string,
+    setSource: (v: string) => void,
+  ) => {
+    if (isDefaultLang) {
+      setSource(value);
+      return;
+    }
+    markOverride(editingLanguage, fieldKey);
+    applyTranslationsToLang(editingLanguage, { [fieldKey]: value });
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -689,22 +948,96 @@ export default function CreateEvent() {
     });
   };
   
-  // Initialize translations when languages change
+  // Initialize translations when languages change AND auto-translate any newly added language
+  const prevLangsRef = useRef<string[]>(formData.languages);
   useEffect(() => {
+    const prev = prevLangsRef.current;
+    const added = formData.languages.filter((l) => !prev.includes(l));
+    prevLangsRef.current = formData.languages;
+
     const updatedTranslations = { ...formData.translations };
     let hasChanges = false;
-    
     formData.languages.forEach((lang) => {
       if (!updatedTranslations[lang]) {
         updatedTranslations[lang] = createDefaultTranslation();
         hasChanges = true;
       }
     });
-    
     if (hasChanges) {
-      setFormData((prev) => ({ ...prev, translations: updatedTranslations }));
+      setFormData((p) => ({ ...p, translations: updatedTranslations }));
     }
+
+    // Auto-translate every newly added language (skip the default itself)
+    added
+      .filter((l) => l !== formData.defaultLanguage)
+      .forEach((l) => {
+        autoTranslateLang(l);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.languages]);
+
+  // Debounced re-translation of non-overridden fields when default-language source changes
+  useEffect(() => {
+    if (formData.languages.length <= 1) return;
+    const targets = formData.languages.filter((l) => l !== formData.defaultLanguage);
+    const sourceFields = buildSourceFields();
+    targets.forEach((lang) => {
+      const overrides = new Set(formData.translations[lang]?.__overrides || []);
+      const toTranslate: Record<string, string> = {};
+      for (const [k, v] of Object.entries(sourceFields)) {
+        if (!overrides.has(k)) toTranslate[k] = v;
+      }
+      if (Object.keys(toTranslate).length === 0) return;
+      translateDebounced(
+        `lang:${lang}`,
+        { sourceLang: formData.defaultLanguage, targetLang: lang, fields: toTranslate },
+        (result) => {
+          if (result) applyTranslationsToLang(lang, result);
+        },
+        1500,
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // Watch source-of-truth fields (default-language values)
+    formData.translations[formData.defaultLanguage]?.eventHeading,
+    formData.translations[formData.defaultLanguage]?.introMessage,
+    formData.translations[formData.defaultLanguage]?.metricQuestion,
+    formData.questionsTitle,
+    formData.questionsIntro,
+    formData.consentText,
+    formData.consentHelperText,
+    formData.thankYouConfig.promoters.message,
+    formData.thankYouConfig.passives.message,
+    formData.thankYouConfig.detractors.message,
+    formData.googleReviewReminder.emailSubject,
+    formData.googleReviewReminder.emailBody,
+    formData.googleReviewReminder.smsBody,
+  ]);
+
+  // Small UI: an inline "translated/edited" badge with a re-translate icon button.
+  const TranslateBadge = ({ fieldKey, sourceValue }: { fieldKey: string; sourceValue: string }) => {
+    if (isDefaultLang) return null;
+    const overridden = isOverridden(editingLanguage, fieldKey);
+    const loading = loadingLanguages.has(editingLanguage);
+    return (
+      <div className="flex items-center gap-1 text-[10px]">
+        <Badge variant="outline" className="gap-1 px-1.5 py-0 h-4 font-normal">
+          {overridden ? 'Edited' : <><Sparkles className="h-2.5 w-2.5" /> Auto-translated</>}
+        </Badge>
+        <button
+          type="button"
+          title="Re-translate from default language"
+          className="text-muted-foreground hover:text-primary disabled:opacity-50"
+          disabled={loading || !sourceValue}
+          onClick={() => retranslateField(editingLanguage, fieldKey, sourceValue)}
+        >
+          <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
+        </button>
+      </div>
+    );
+  };
+
 
   // Language selector component for translation editing
   const renderLanguageSelector = () => {
@@ -980,26 +1313,49 @@ export default function CreateEvent() {
   // ===== STEP 2: Follow-up Questions =====
   const renderStep2 = () => (
     <div className="space-y-6">
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Question types, 'Show for' groups, and Required toggle are shared across all languages. Only labels are translated."
+      />
+
       {/* Section Title */}
       <div className="space-y-2">
-        <Label>Section Title</Label>
+        <div className="flex items-center justify-between">
+          <Label>Section Title</Label>
+          <TranslateBadge fieldKey="questionsTitle" sourceValue={formData.questionsTitle} />
+        </div>
         <Input
           placeholder="e.g., We'd love to hear more"
-          value={formData.questionsTitle}
-          onChange={(e) => setFormData((prev) => ({ ...prev, questionsTitle: e.target.value }))}
+          value={readT('questionsTitle', formData.questionsTitle)}
+          onChange={(e) =>
+            writeT('questionsTitle', e.target.value, (v) =>
+              setFormData((prev) => ({ ...prev, questionsTitle: v })),
+            )
+          }
         />
       </div>
 
       {/* Section Introduction */}
       <div className="space-y-2">
-        <Label>Section Introduction</Label>
+        <div className="flex items-center justify-between">
+          <Label>Section Introduction</Label>
+          <TranslateBadge fieldKey="questionsIntro" sourceValue={formData.questionsIntro} />
+        </div>
         <Textarea
           placeholder="Enter an introduction message for the additional questions section..."
-          value={formData.questionsIntro}
-          onChange={(e) => setFormData((prev) => ({ ...prev, questionsIntro: e.target.value }))}
+          value={readT('questionsIntro', formData.questionsIntro)}
+          onChange={(e) =>
+            writeT('questionsIntro', e.target.value, (v) =>
+              setFormData((prev) => ({ ...prev, questionsIntro: v })),
+            )
+          }
           maxLength={500}
         />
-        <p className="text-xs text-muted-foreground">{formData.questionsIntro.length}/500</p>
+        <p className="text-xs text-muted-foreground">{readT('questionsIntro', formData.questionsIntro).length}/500</p>
       </div>
 
       {/* Questions Header */}
@@ -1074,14 +1430,17 @@ export default function CreateEvent() {
               </div>
 
               <div className="space-y-2">
-                <Label>Question Text</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Question Text</Label>
+                  <TranslateBadge fieldKey={`q:${question.id}:question`} sourceValue={question.config.question || ''} />
+                </div>
                 <Input
                   placeholder="Enter your question..."
-                  value={question.config.question || ''}
+                  value={readT(`q:${question.id}:question`, question.config.question || '')}
                   onChange={(e) =>
-                    updateQuestion(question.id, {
-                      config: { ...question.config, question: e.target.value },
-                    })
+                    writeT(`q:${question.id}:question`, e.target.value, (v) =>
+                      updateQuestion(question.id, { config: { ...question.config, question: v } }),
+                    )
                   }
                 />
               </div>
@@ -1093,6 +1452,7 @@ export default function CreateEvent() {
                     <Label>Min</Label>
                     <Input
                       type="number"
+                      disabled={!isDefaultLang}
                       value={question.config.scaleMin || 1}
                       onChange={(e) =>
                         updateQuestion(question.id, {
@@ -1105,6 +1465,7 @@ export default function CreateEvent() {
                     <Label>Max</Label>
                     <Input
                       type="number"
+                      disabled={!isDefaultLang}
                       value={question.config.scaleMax || 10}
                       onChange={(e) =>
                         updateQuestion(question.id, {
@@ -1114,26 +1475,32 @@ export default function CreateEvent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Left Label</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Left Label</Label>
+                      <TranslateBadge fieldKey={`q:${question.id}:leftLabel`} sourceValue={question.config.leftLabel || ''} />
+                    </div>
                     <Input
                       placeholder="Very Unlikely"
-                      value={question.config.leftLabel || ''}
+                      value={readT(`q:${question.id}:leftLabel`, question.config.leftLabel || '')}
                       onChange={(e) =>
-                        updateQuestion(question.id, {
-                          config: { ...question.config, leftLabel: e.target.value },
-                        })
+                        writeT(`q:${question.id}:leftLabel`, e.target.value, (v) =>
+                          updateQuestion(question.id, { config: { ...question.config, leftLabel: v } }),
+                        )
                       }
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Right Label</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Right Label</Label>
+                      <TranslateBadge fieldKey={`q:${question.id}:rightLabel`} sourceValue={question.config.rightLabel || ''} />
+                    </div>
                     <Input
                       placeholder="Very Likely"
-                      value={question.config.rightLabel || ''}
+                      value={readT(`q:${question.id}:rightLabel`, question.config.rightLabel || '')}
                       onChange={(e) =>
-                        updateQuestion(question.id, {
-                          config: { ...question.config, rightLabel: e.target.value },
-                        })
+                        writeT(`q:${question.id}:rightLabel`, e.target.value, (v) =>
+                          updateQuestion(question.id, { config: { ...question.config, rightLabel: v } }),
+                        )
                       }
                     />
                   </div>
@@ -1143,27 +1510,44 @@ export default function CreateEvent() {
               {/* Choice options */}
               {(question.type === 'select_one' || question.type === 'select_multiple') && (
                 <div className="space-y-2">
-                  <Label>Options</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Options</Label>
+                    {!isDefaultLang && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Add/remove options on the default language
+                      </span>
+                    )}
+                  </div>
                   {(question.config.options || []).map((opt: string, optIdx: number) => (
-                    <div key={optIdx} className="flex gap-2">
-                      <Input
-                        value={opt}
-                        onChange={(e) => updateQuestionOption(question.id, optIdx, e.target.value)}
-                        placeholder={`Option ${optIdx + 1}`}
-                      />
+                    <div key={optIdx} className="flex gap-2 items-center">
+                      <div className="flex-1 space-y-1">
+                        <Input
+                          value={readT(`q:${question.id}:opt:${optIdx}`, opt)}
+                          onChange={(e) =>
+                            writeT(`q:${question.id}:opt:${optIdx}`, e.target.value, (v) =>
+                              updateQuestionOption(question.id, optIdx, v),
+                            )
+                          }
+                          placeholder={`Option ${optIdx + 1}`}
+                        />
+                      </div>
+                      <TranslateBadge fieldKey={`q:${question.id}:opt:${optIdx}`} sourceValue={opt} />
                       <Button
                         variant="ghost"
                         size="icon"
+                        disabled={!isDefaultLang}
                         onClick={() => removeQuestionOption(question.id, optIdx)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addQuestionOption(question.id)}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Option
-                  </Button>
+                  {isDefaultLang && (
+                    <Button variant="outline" size="sm" onClick={() => addQuestionOption(question.id)}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Option
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -1251,6 +1635,15 @@ export default function CreateEvent() {
   // ===== STEP 3: Consents & Personal Info =====
   const renderStep3 = () => (
     <div className="space-y-6">
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Toggles and field requirements are shared across all languages. Only consent text is translated."
+      />
+
       {/* Ask for Consent */}
       <Card className="border-border/50">
         <CardHeader>
@@ -1268,18 +1661,32 @@ export default function CreateEvent() {
         {formData.collectConsent && (
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Consent Text</Label>
+              <div className="flex items-center justify-between">
+                <Label>Consent Text</Label>
+                <TranslateBadge fieldKey="consentText" sourceValue={formData.consentText} />
+              </div>
               <Textarea
-                value={formData.consentText}
-                onChange={(e) => setFormData((prev) => ({ ...prev, consentText: e.target.value }))}
+                value={readT('consentText', formData.consentText)}
+                onChange={(e) =>
+                  writeT('consentText', e.target.value, (v) =>
+                    setFormData((prev) => ({ ...prev, consentText: v })),
+                  )
+                }
                 placeholder="I consent to being contacted..."
               />
             </div>
             <div className="space-y-2">
-              <Label>Consent Helper Text</Label>
+              <div className="flex items-center justify-between">
+                <Label>Consent Helper Text</Label>
+                <TranslateBadge fieldKey="consentHelperText" sourceValue={formData.consentHelperText} />
+              </div>
               <Input
-                value={formData.consentHelperText}
-                onChange={(e) => setFormData((prev) => ({ ...prev, consentHelperText: e.target.value }))}
+                value={readT('consentHelperText', formData.consentHelperText)}
+                onChange={(e) =>
+                  writeT('consentHelperText', e.target.value, (v) =>
+                    setFormData((prev) => ({ ...prev, consentHelperText: v })),
+                  )
+                }
                 placeholder="Additional explanation about the consent..."
               />
               <p className="text-xs text-muted-foreground">
@@ -1362,17 +1769,14 @@ export default function CreateEvent() {
         Configure different thank you messages and buttons based on the respondent's score.
       </p>
 
-      {/* Language selector for translations */}
-      {formData.languages.length > 1 && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-4">
-            {renderLanguageSelector()}
-            <p className="text-xs text-muted-foreground mt-2">
-              Edit thank you messages for each language. Buttons are shared across all languages.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Button types and URLs are shared. Messages, button labels, and reminder content are translated per language."
+      />
 
       {(['promoters', 'passives', 'detractors'] as const).map((group) => (
         <Card key={group} className="border-border/50">
@@ -1387,37 +1791,26 @@ export default function CreateEvent() {
           <CardContent className="space-y-4">
             {/* Message - with translation support */}
             <div className="space-y-2">
-              <Label>
-                Message
-                {formData.languages.length > 1 && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    ({languageOptions.find(l => l.value === editingLanguage)?.label})
-                  </span>
-                )}
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label>Message</Label>
+                <TranslateBadge
+                  fieldKey={`ty:${group}:message`}
+                  sourceValue={formData.thankYouConfig[group].message}
+                />
+              </div>
               <Textarea
-                value={formData.languages.length > 1 
-                  ? (getCurrentTranslation().thankYouConfig[group]?.message || formData.thankYouConfig[group].message)
-                  : formData.thankYouConfig[group].message
+                value={readT(`ty:${group}:message`, formData.thankYouConfig[group].message)}
+                onChange={(e) =>
+                  writeT(`ty:${group}:message`, e.target.value, (v) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      thankYouConfig: {
+                        ...prev.thankYouConfig,
+                        [group]: { ...prev.thankYouConfig[group], message: v },
+                      },
+                    })),
+                  )
                 }
-                onChange={(e) => {
-                  // Update main form data
-                  setFormData((prev) => ({
-                    ...prev,
-                    thankYouConfig: {
-                      ...prev.thankYouConfig,
-                      [group]: { ...prev.thankYouConfig[group], message: e.target.value },
-                    },
-                  }));
-                  // Also update translation
-                  if (formData.languages.length > 1) {
-                    const currentTrans = getCurrentTranslation();
-                    updateTranslation('thankYouConfig', {
-                      ...currentTrans.thankYouConfig,
-                      [group]: { message: e.target.value },
-                    });
-                  }
-                }}
               />
             </div>
 
