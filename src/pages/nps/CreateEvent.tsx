@@ -335,21 +335,33 @@ export default function CreateEvent() {
         const translations: Record<string, LanguageContent> = {};
         eventLanguages.forEach((lang: string) => {
           if (existingTranslations && existingTranslations[lang]) {
-            // Ensure eventHeading exists for older translations
+            // Merge stored translation with defaults so newly added fields are present
+            const stored = existingTranslations[lang];
+            const defaults = createDefaultTranslation();
             translations[lang] = {
-              eventHeading: existingTranslations[lang].eventHeading || '',
-              ...existingTranslations[lang],
+              ...defaults,
+              ...stored,
+              eventHeading: stored.eventHeading || '',
+              questions: stored.questions || {},
+              thankYouConfig: {
+                promoters: { ...defaults.thankYouConfig.promoters, ...(stored.thankYouConfig?.promoters || {}) },
+                passives: { ...defaults.thankYouConfig.passives, ...(stored.thankYouConfig?.passives || {}) },
+                detractors: { ...defaults.thankYouConfig.detractors, ...(stored.thankYouConfig?.detractors || {}) },
+              },
+              googleReviewReminder: { ...defaults.googleReviewReminder, ...(stored.googleReviewReminder || {}) },
+              __overrides: stored.__overrides || [],
             };
           } else if (lang === defaultLang) {
             // For default language, use the legacy single-language fields
             translations[lang] = {
+              ...createDefaultTranslation(),
               eventHeading: '',
               introMessage: event.intro_message || '',
               metricQuestion: event.metric_question || createDefaultFormData().metricQuestion,
               thankYouConfig: {
-                promoters: { message: loadedThankYouConfig?.promoters?.message || createDefaultFormData().thankYouConfig.promoters.message },
-                passives: { message: loadedThankYouConfig?.passives?.message || createDefaultFormData().thankYouConfig.passives.message },
-                detractors: { message: loadedThankYouConfig?.detractors?.message || createDefaultFormData().thankYouConfig.detractors.message },
+                promoters: { message: loadedThankYouConfig?.promoters?.message || createDefaultFormData().thankYouConfig.promoters.message, buttons: {} },
+                passives: { message: loadedThankYouConfig?.passives?.message || createDefaultFormData().thankYouConfig.passives.message, buttons: {} },
+                detractors: { message: loadedThankYouConfig?.detractors?.message || createDefaultFormData().thankYouConfig.detractors.message, buttons: {} },
               },
             };
           } else {
