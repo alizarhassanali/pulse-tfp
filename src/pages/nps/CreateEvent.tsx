@@ -1769,17 +1769,14 @@ export default function CreateEvent() {
         Configure different thank you messages and buttons based on the respondent's score.
       </p>
 
-      {/* Language selector for translations */}
-      {formData.languages.length > 1 && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-4">
-            {renderLanguageSelector()}
-            <p className="text-xs text-muted-foreground mt-2">
-              Edit thank you messages for each language. Buttons are shared across all languages.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Button types and URLs are shared. Messages, button labels, and reminder content are translated per language."
+      />
 
       {(['promoters', 'passives', 'detractors'] as const).map((group) => (
         <Card key={group} className="border-border/50">
@@ -1794,37 +1791,26 @@ export default function CreateEvent() {
           <CardContent className="space-y-4">
             {/* Message - with translation support */}
             <div className="space-y-2">
-              <Label>
-                Message
-                {formData.languages.length > 1 && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    ({languageOptions.find(l => l.value === editingLanguage)?.label})
-                  </span>
-                )}
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label>Message</Label>
+                <TranslateBadge
+                  fieldKey={`ty:${group}:message`}
+                  sourceValue={formData.thankYouConfig[group].message}
+                />
+              </div>
               <Textarea
-                value={formData.languages.length > 1 
-                  ? (getCurrentTranslation().thankYouConfig[group]?.message || formData.thankYouConfig[group].message)
-                  : formData.thankYouConfig[group].message
+                value={readT(`ty:${group}:message`, formData.thankYouConfig[group].message)}
+                onChange={(e) =>
+                  writeT(`ty:${group}:message`, e.target.value, (v) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      thankYouConfig: {
+                        ...prev.thankYouConfig,
+                        [group]: { ...prev.thankYouConfig[group], message: v },
+                      },
+                    })),
+                  )
                 }
-                onChange={(e) => {
-                  // Update main form data
-                  setFormData((prev) => ({
-                    ...prev,
-                    thankYouConfig: {
-                      ...prev.thankYouConfig,
-                      [group]: { ...prev.thankYouConfig[group], message: e.target.value },
-                    },
-                  }));
-                  // Also update translation
-                  if (formData.languages.length > 1) {
-                    const currentTrans = getCurrentTranslation();
-                    updateTranslation('thankYouConfig', {
-                      ...currentTrans.thankYouConfig,
-                      [group]: { message: e.target.value },
-                    });
-                  }
-                }}
               />
             </div>
 
