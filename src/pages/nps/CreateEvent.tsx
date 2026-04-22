@@ -1430,14 +1430,17 @@ export default function CreateEvent() {
               </div>
 
               <div className="space-y-2">
-                <Label>Question Text</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Question Text</Label>
+                  <TranslateBadge fieldKey={`q:${question.id}:question`} sourceValue={question.config.question || ''} />
+                </div>
                 <Input
                   placeholder="Enter your question..."
-                  value={question.config.question || ''}
+                  value={readT(`q:${question.id}:question`, question.config.question || '')}
                   onChange={(e) =>
-                    updateQuestion(question.id, {
-                      config: { ...question.config, question: e.target.value },
-                    })
+                    writeT(`q:${question.id}:question`, e.target.value, (v) =>
+                      updateQuestion(question.id, { config: { ...question.config, question: v } }),
+                    )
                   }
                 />
               </div>
@@ -1449,6 +1452,7 @@ export default function CreateEvent() {
                     <Label>Min</Label>
                     <Input
                       type="number"
+                      disabled={!isDefaultLang}
                       value={question.config.scaleMin || 1}
                       onChange={(e) =>
                         updateQuestion(question.id, {
@@ -1461,6 +1465,7 @@ export default function CreateEvent() {
                     <Label>Max</Label>
                     <Input
                       type="number"
+                      disabled={!isDefaultLang}
                       value={question.config.scaleMax || 10}
                       onChange={(e) =>
                         updateQuestion(question.id, {
@@ -1470,26 +1475,32 @@ export default function CreateEvent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Left Label</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Left Label</Label>
+                      <TranslateBadge fieldKey={`q:${question.id}:leftLabel`} sourceValue={question.config.leftLabel || ''} />
+                    </div>
                     <Input
                       placeholder="Very Unlikely"
-                      value={question.config.leftLabel || ''}
+                      value={readT(`q:${question.id}:leftLabel`, question.config.leftLabel || '')}
                       onChange={(e) =>
-                        updateQuestion(question.id, {
-                          config: { ...question.config, leftLabel: e.target.value },
-                        })
+                        writeT(`q:${question.id}:leftLabel`, e.target.value, (v) =>
+                          updateQuestion(question.id, { config: { ...question.config, leftLabel: v } }),
+                        )
                       }
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Right Label</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Right Label</Label>
+                      <TranslateBadge fieldKey={`q:${question.id}:rightLabel`} sourceValue={question.config.rightLabel || ''} />
+                    </div>
                     <Input
                       placeholder="Very Likely"
-                      value={question.config.rightLabel || ''}
+                      value={readT(`q:${question.id}:rightLabel`, question.config.rightLabel || '')}
                       onChange={(e) =>
-                        updateQuestion(question.id, {
-                          config: { ...question.config, rightLabel: e.target.value },
-                        })
+                        writeT(`q:${question.id}:rightLabel`, e.target.value, (v) =>
+                          updateQuestion(question.id, { config: { ...question.config, rightLabel: v } }),
+                        )
                       }
                     />
                   </div>
@@ -1499,27 +1510,44 @@ export default function CreateEvent() {
               {/* Choice options */}
               {(question.type === 'select_one' || question.type === 'select_multiple') && (
                 <div className="space-y-2">
-                  <Label>Options</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Options</Label>
+                    {!isDefaultLang && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Add/remove options on the default language
+                      </span>
+                    )}
+                  </div>
                   {(question.config.options || []).map((opt: string, optIdx: number) => (
-                    <div key={optIdx} className="flex gap-2">
-                      <Input
-                        value={opt}
-                        onChange={(e) => updateQuestionOption(question.id, optIdx, e.target.value)}
-                        placeholder={`Option ${optIdx + 1}`}
-                      />
+                    <div key={optIdx} className="flex gap-2 items-center">
+                      <div className="flex-1 space-y-1">
+                        <Input
+                          value={readT(`q:${question.id}:opt:${optIdx}`, opt)}
+                          onChange={(e) =>
+                            writeT(`q:${question.id}:opt:${optIdx}`, e.target.value, (v) =>
+                              updateQuestionOption(question.id, optIdx, v),
+                            )
+                          }
+                          placeholder={`Option ${optIdx + 1}`}
+                        />
+                      </div>
+                      <TranslateBadge fieldKey={`q:${question.id}:opt:${optIdx}`} sourceValue={opt} />
                       <Button
                         variant="ghost"
                         size="icon"
+                        disabled={!isDefaultLang}
                         onClick={() => removeQuestionOption(question.id, optIdx)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" onClick={() => addQuestionOption(question.id)}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Option
-                  </Button>
+                  {isDefaultLang && (
+                    <Button variant="outline" size="sm" onClick={() => addQuestionOption(question.id)}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Option
+                    </Button>
+                  )}
                 </div>
               )}
 
