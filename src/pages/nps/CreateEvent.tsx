@@ -170,11 +170,18 @@ const createDefaultTranslation = (): LanguageContent => ({
   eventHeading: '',
   introMessage: '',
   metricQuestion: 'How likely are you to recommend [Brand] to a friend or colleague?',
+  questionsTitle: '',
+  questionsIntro: '',
+  questions: {},
+  consentText: '',
+  consentHelperText: '',
   thankYouConfig: {
-    promoters: { message: 'Thank you for your feedback! We appreciate your support.' },
-    passives: { message: 'Thank you for your feedback! We\'re always looking to improve.' },
-    detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.' },
+    promoters: { message: 'Thank you for your feedback! We appreciate your support.', buttons: {} },
+    passives: { message: 'Thank you for your feedback! We\'re always looking to improve.', buttons: {} },
+    detractors: { message: 'Thank you for your feedback. We\'re sorry to hear about your experience and will work to improve.', buttons: {} },
   },
+  googleReviewReminder: { emailSubject: '', emailBody: '', smsBody: '' },
+  __overrides: [],
 });
 
 const createDefaultFormData = (): EventFormData => ({
