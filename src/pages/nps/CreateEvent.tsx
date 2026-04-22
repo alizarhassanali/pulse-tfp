@@ -1313,26 +1313,49 @@ export default function CreateEvent() {
   // ===== STEP 2: Follow-up Questions =====
   const renderStep2 = () => (
     <div className="space-y-6">
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Question types, 'Show for' groups, and Required toggle are shared across all languages. Only labels are translated."
+      />
+
       {/* Section Title */}
       <div className="space-y-2">
-        <Label>Section Title</Label>
+        <div className="flex items-center justify-between">
+          <Label>Section Title</Label>
+          <TranslateBadge fieldKey="questionsTitle" sourceValue={formData.questionsTitle} />
+        </div>
         <Input
           placeholder="e.g., We'd love to hear more"
-          value={formData.questionsTitle}
-          onChange={(e) => setFormData((prev) => ({ ...prev, questionsTitle: e.target.value }))}
+          value={readT('questionsTitle', formData.questionsTitle)}
+          onChange={(e) =>
+            writeT('questionsTitle', e.target.value, (v) =>
+              setFormData((prev) => ({ ...prev, questionsTitle: v })),
+            )
+          }
         />
       </div>
 
       {/* Section Introduction */}
       <div className="space-y-2">
-        <Label>Section Introduction</Label>
+        <div className="flex items-center justify-between">
+          <Label>Section Introduction</Label>
+          <TranslateBadge fieldKey="questionsIntro" sourceValue={formData.questionsIntro} />
+        </div>
         <Textarea
           placeholder="Enter an introduction message for the additional questions section..."
-          value={formData.questionsIntro}
-          onChange={(e) => setFormData((prev) => ({ ...prev, questionsIntro: e.target.value }))}
+          value={readT('questionsIntro', formData.questionsIntro)}
+          onChange={(e) =>
+            writeT('questionsIntro', e.target.value, (v) =>
+              setFormData((prev) => ({ ...prev, questionsIntro: v })),
+            )
+          }
           maxLength={500}
         />
-        <p className="text-xs text-muted-foreground">{formData.questionsIntro.length}/500</p>
+        <p className="text-xs text-muted-foreground">{readT('questionsIntro', formData.questionsIntro).length}/500</p>
       </div>
 
       {/* Questions Header */}
