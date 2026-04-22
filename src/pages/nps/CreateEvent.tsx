@@ -1635,6 +1635,15 @@ export default function CreateEvent() {
   // ===== STEP 3: Consents & Personal Info =====
   const renderStep3 = () => (
     <div className="space-y-6">
+      <TranslationLanguageBar
+        languages={formData.languages}
+        defaultLanguage={formData.defaultLanguage}
+        editingLanguage={editingLanguage}
+        onChange={setEditingLanguage}
+        loadingLanguages={loadingLanguages}
+        hint="Toggles and field requirements are shared across all languages. Only consent text is translated."
+      />
+
       {/* Ask for Consent */}
       <Card className="border-border/50">
         <CardHeader>
@@ -1652,18 +1661,32 @@ export default function CreateEvent() {
         {formData.collectConsent && (
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Consent Text</Label>
+              <div className="flex items-center justify-between">
+                <Label>Consent Text</Label>
+                <TranslateBadge fieldKey="consentText" sourceValue={formData.consentText} />
+              </div>
               <Textarea
-                value={formData.consentText}
-                onChange={(e) => setFormData((prev) => ({ ...prev, consentText: e.target.value }))}
+                value={readT('consentText', formData.consentText)}
+                onChange={(e) =>
+                  writeT('consentText', e.target.value, (v) =>
+                    setFormData((prev) => ({ ...prev, consentText: v })),
+                  )
+                }
                 placeholder="I consent to being contacted..."
               />
             </div>
             <div className="space-y-2">
-              <Label>Consent Helper Text</Label>
+              <div className="flex items-center justify-between">
+                <Label>Consent Helper Text</Label>
+                <TranslateBadge fieldKey="consentHelperText" sourceValue={formData.consentHelperText} />
+              </div>
               <Input
-                value={formData.consentHelperText}
-                onChange={(e) => setFormData((prev) => ({ ...prev, consentHelperText: e.target.value }))}
+                value={readT('consentHelperText', formData.consentHelperText)}
+                onChange={(e) =>
+                  writeT('consentHelperText', e.target.value, (v) =>
+                    setFormData((prev) => ({ ...prev, consentHelperText: v })),
+                  )
+                }
                 placeholder="Additional explanation about the consent..."
               />
               <p className="text-xs text-muted-foreground">
