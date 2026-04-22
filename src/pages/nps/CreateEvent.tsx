@@ -715,6 +715,221 @@ export default function CreateEvent() {
     return formData.translations[editingLanguage] || createDefaultTranslation();
   };
 
+  // ===== AI Auto-Translate =====
+  const { translate, translateDebounced, loadingLanguages } = useAutoTranslate();
+  const isDefaultLang = editingLanguage === formData.defaultLanguage;
+
+  // Mark a translation field key as manually overridden in the current editing language
+  const markOverride = (lang: string, fieldKey: string) => {
+    setFormData((prev) => {
+      const t = prev.translations[lang] || createDefaultTranslation();
+      const overrides = new Set(t.__overrides || []);
+      overrides.add(fieldKey);
+      return {
+        ...prev,
+        translations: {
+          ...prev.translations,
+          [lang]: { ...t, __overrides: Array.from(overrides) },
+        },
+      };
+    });
+  };
+
+  const isOverridden = (lang: string, fieldKey: string): boolean => {
+    return Boolean(formData.translations[lang]?.__overrides?.includes(fieldKey));
+  };
+
+  // Build the full set of source-language fields used for auto-translation.
+  // Field keys are stable strings that map back to per-language storage.
+  const buildSourceFields = (): Record<string, string> => {
+    const t = formData.translations[formData.defaultLanguage] || createDefaultTranslation();
+    const out: Record<string, string> = {};
+    if (t.eventHeading) out['eventHeading'] = t.eventHeading;
+    if (t.introMessage) out['introMessage'] = t.introMessage;
+    if (t.metricQuestion) out['metricQuestion'] = t.metricQuestion;
+    if (formData.questionsTitle) out['questionsTitle'] = formData.questionsTitle;
+    if (formData.questionsIntro) out['questionsIntro'] = formData.questionsIntro;
+    formData.questions.forEach((q) => {
+      if (q.config?.question) out[`q:${q.id}:question`] = q.config.question;
+      if (q.type === 'scale') {
+        if (q.config?.leftLabel) out[`q:${q.id}:leftLabel`] = q.config.leftLabel;
+        if (q.config?.rightLabel) out[`q:${q.id}:rightLabel`] = q.config.rightLabel;
+      }
+      if (q.type === 'select_one' || q.type === 'select_multiple') {
+        (q.config?.options || []).forEach((opt: string, idx: number) => {
+          if (opt) out[`q:${q.id}:opt:${idx}`] = opt;
+        });
+      }
+    });
+    if (formData.consentText) out['consentText'] = formData.consentText;
+    if (formData.consentHelperText) out['consentHelperText'] = formData.consentHelperText;
+    (['promoters', 'passives', 'detractors'] as const).forEach((g) => {
+      const grp = formData.thankYouConfig[g];
+      if (grp?.message) out[`ty:${g}:message`] = grp.message;
+      grp?.buttons?.forEach((b) => {
+        if (b.label) out[`ty:${g}:btn:${b.id}:label`] = b.label;
+      });
+    });
+    if (formData.googleReviewReminder.enabled) {
+      if (formData.googleReviewReminder.emailSubject) out['grr:emailSubject'] = formData.googleReviewReminder.emailSubject;
+      if (formData.googleReviewReminder.emailBody) out['grr:emailBody'] = formData.googleReviewReminder.emailBody;
+      if (formData.googleReviewReminder.smsBody) out['grr:smsBody'] = formData.googleReviewReminder.smsBody;
+    }
+    return out;
+  };
+
+  // Apply translated key/value pairs back into the per-language translations object
+  const applyTranslationsToLang = (lang: string, translated: Record<string, string>) => {
+    setFormData((prev) => {
+      const existing = prev.translations[lang] || createDefaultTranslation();
+      const overrides = new Set(existing.__overrides || []);
+      const next: LanguageContent = {
+        ...existing,
+        questions: { ...(existing.questions || {}) },
+        thankYouConfig: {
+          promoters: { ...existing.thankYouConfig.promoters, buttons: { ...(existing.thankYouConfig.promoters.buttons || {}) } },
+          passives: { ...existing.thankYouConfig.passives, buttons: { ...(existing.thankYouConfig.passives.buttons || {}) } },
+          detractors: { ...existing.thankYouConfig.detractors, buttons: { ...(existing.thankYouConfig.detractors.buttons || {}) } },
+        },
+        googleReviewReminder: { ...(existing.googleReviewReminder || {}) },
+      };
+      for (const [key, value] of Object.entries(translated)) {
+        if (overrides.has(key)) continue; // never overwrite manual edits
+        if (key === 'eventHeading') next.eventHeading = value;
+        else if (key === 'introMessage') next.introMessage = value;
+        else if (key === 'metricQuestion') next.metricQuestion = value;
+        else if (key === 'questionsTitle') next.questionsTitle = value;
+        else if (key === 'questionsIntro') next.questionsIntro = value;
+        else if (key === 'consentText') next.consentText = value;
+        else if (key === 'consentHelperText') next.consentHelperText = value;
+        else if (key.startsWith('q:')) {
+          // q:<qid>:question | q:<qid>:leftLabel | q:<qid>:rightLabel | q:<qid>:opt:<idx>
+          const parts = key.split(':');
+          const qid = parts[1];
+          const sub = parts[2];
+          const qEntry = next.questions![qid] || {};
+          if (sub === 'question') qEntry.question = value;
+          else if (sub === 'leftLabel') qEntry.leftLabel = value;
+          else if (sub === 'rightLabel') qEntry.rightLabel = value;
+          else if (sub === 'opt') {
+            const idx = parseInt(parts[3], 10);
+            const opts = [...(qEntry.options || [])];
+            opts[idx] = value;
+            qEntry.options = opts;
+          }
+          next.questions![qid] = qEntry;
+        } else if (key.startsWith('ty:')) {
+          const parts = key.split(':');
+          const grp = parts[1] as 'promoters' | 'passives' | 'detractors';
+          if (parts[2] === 'message') {
+            next.thankYouConfig[grp].message = value;
+          } else if (parts[2] === 'btn' && parts[4] === 'label') {
+            const bid = parts[3];
+            next.thankYouConfig[grp].buttons = next.thankYouConfig[grp].buttons || {};
+            next.thankYouConfig[grp].buttons![bid] = { label: value };
+          }
+        } else if (key.startsWith('grr:')) {
+          const sub = key.slice(4);
+          if (sub === 'emailSubject') next.googleReviewReminder!.emailSubject = value;
+          else if (sub === 'emailBody') next.googleReviewReminder!.emailBody = value;
+          else if (sub === 'smsBody') next.googleReviewReminder!.smsBody = value;
+        }
+      }
+      return { ...prev, translations: { ...prev.translations, [lang]: next } };
+    });
+  };
+
+  // Trigger auto-translate for a single target language
+  const autoTranslateLang = async (targetLang: string) => {
+    if (targetLang === formData.defaultLanguage) return;
+    const fields = buildSourceFields();
+    if (Object.keys(fields).length === 0) return;
+    const result = await translate({
+      sourceLang: formData.defaultLanguage,
+      targetLang,
+      fields,
+    });
+    if (result) applyTranslationsToLang(targetLang, result);
+  };
+
+  // Re-translate a single field key for one language (manual icon button)
+  const retranslateField = async (targetLang: string, fieldKey: string, sourceValue: string) => {
+    if (!sourceValue) return;
+    const result = await translate({
+      sourceLang: formData.defaultLanguage,
+      targetLang,
+      fields: { [fieldKey]: sourceValue },
+    });
+    if (result && result[fieldKey] !== undefined) {
+      // Clear override for this field, then write the translation
+      setFormData((prev) => {
+        const existing = prev.translations[targetLang] || createDefaultTranslation();
+        const overrides = (existing.__overrides || []).filter((k) => k !== fieldKey);
+        return {
+          ...prev,
+          translations: {
+            ...prev.translations,
+            [targetLang]: { ...existing, __overrides: overrides },
+          },
+        };
+      });
+      applyTranslationsToLang(targetLang, { [fieldKey]: result[fieldKey] });
+    }
+  };
+
+  // Read a translatable value for the editing language with fallback to source
+  const readT = (fieldKey: string, sourceValue: string): string => {
+    if (isDefaultLang) return sourceValue;
+    const t = formData.translations[editingLanguage];
+    if (!t) return '';
+    if (fieldKey === 'eventHeading') return t.eventHeading ?? '';
+    if (fieldKey === 'introMessage') return t.introMessage ?? '';
+    if (fieldKey === 'metricQuestion') return t.metricQuestion ?? '';
+    if (fieldKey === 'questionsTitle') return t.questionsTitle ?? '';
+    if (fieldKey === 'questionsIntro') return t.questionsIntro ?? '';
+    if (fieldKey === 'consentText') return t.consentText ?? '';
+    if (fieldKey === 'consentHelperText') return t.consentHelperText ?? '';
+    if (fieldKey.startsWith('q:')) {
+      const parts = fieldKey.split(':');
+      const qid = parts[1];
+      const sub = parts[2];
+      const q = t.questions?.[qid];
+      if (!q) return '';
+      if (sub === 'question') return q.question ?? '';
+      if (sub === 'leftLabel') return q.leftLabel ?? '';
+      if (sub === 'rightLabel') return q.rightLabel ?? '';
+      if (sub === 'opt') return q.options?.[parseInt(parts[3], 10)] ?? '';
+    }
+    if (fieldKey.startsWith('ty:')) {
+      const parts = fieldKey.split(':');
+      const grp = parts[1] as 'promoters' | 'passives' | 'detractors';
+      if (parts[2] === 'message') return t.thankYouConfig[grp]?.message ?? '';
+      if (parts[2] === 'btn' && parts[4] === 'label') return t.thankYouConfig[grp]?.buttons?.[parts[3]]?.label ?? '';
+    }
+    if (fieldKey.startsWith('grr:')) {
+      const sub = fieldKey.slice(4);
+      if (sub === 'emailSubject') return t.googleReviewReminder?.emailSubject ?? '';
+      if (sub === 'emailBody') return t.googleReviewReminder?.emailBody ?? '';
+      if (sub === 'smsBody') return t.googleReviewReminder?.smsBody ?? '';
+    }
+    return '';
+  };
+
+  // Write a translatable value: in default lang updates the source field via setter;
+  // in non-default lang stores in translations[lang] AND marks as override.
+  const writeT = (
+    fieldKey: string,
+    value: string,
+    setSource: (v: string) => void,
+  ) => {
+    if (isDefaultLang) {
+      setSource(value);
+      return;
+    }
+    markOverride(editingLanguage, fieldKey);
+    applyTranslationsToLang(editingLanguage, { [fieldKey]: value });
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -733,22 +948,96 @@ export default function CreateEvent() {
     });
   };
   
-  // Initialize translations when languages change
+  // Initialize translations when languages change AND auto-translate any newly added language
+  const prevLangsRef = useRef<string[]>(formData.languages);
   useEffect(() => {
+    const prev = prevLangsRef.current;
+    const added = formData.languages.filter((l) => !prev.includes(l));
+    prevLangsRef.current = formData.languages;
+
     const updatedTranslations = { ...formData.translations };
     let hasChanges = false;
-    
     formData.languages.forEach((lang) => {
       if (!updatedTranslations[lang]) {
         updatedTranslations[lang] = createDefaultTranslation();
         hasChanges = true;
       }
     });
-    
     if (hasChanges) {
-      setFormData((prev) => ({ ...prev, translations: updatedTranslations }));
+      setFormData((p) => ({ ...p, translations: updatedTranslations }));
     }
+
+    // Auto-translate every newly added language (skip the default itself)
+    added
+      .filter((l) => l !== formData.defaultLanguage)
+      .forEach((l) => {
+        autoTranslateLang(l);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.languages]);
+
+  // Debounced re-translation of non-overridden fields when default-language source changes
+  useEffect(() => {
+    if (formData.languages.length <= 1) return;
+    const targets = formData.languages.filter((l) => l !== formData.defaultLanguage);
+    const sourceFields = buildSourceFields();
+    targets.forEach((lang) => {
+      const overrides = new Set(formData.translations[lang]?.__overrides || []);
+      const toTranslate: Record<string, string> = {};
+      for (const [k, v] of Object.entries(sourceFields)) {
+        if (!overrides.has(k)) toTranslate[k] = v;
+      }
+      if (Object.keys(toTranslate).length === 0) return;
+      translateDebounced(
+        `lang:${lang}`,
+        { sourceLang: formData.defaultLanguage, targetLang: lang, fields: toTranslate },
+        (result) => {
+          if (result) applyTranslationsToLang(lang, result);
+        },
+        1500,
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // Watch source-of-truth fields (default-language values)
+    formData.translations[formData.defaultLanguage]?.eventHeading,
+    formData.translations[formData.defaultLanguage]?.introMessage,
+    formData.translations[formData.defaultLanguage]?.metricQuestion,
+    formData.questionsTitle,
+    formData.questionsIntro,
+    formData.consentText,
+    formData.consentHelperText,
+    formData.thankYouConfig.promoters.message,
+    formData.thankYouConfig.passives.message,
+    formData.thankYouConfig.detractors.message,
+    formData.googleReviewReminder.emailSubject,
+    formData.googleReviewReminder.emailBody,
+    formData.googleReviewReminder.smsBody,
+  ]);
+
+  // Small UI: an inline "translated/edited" badge with a re-translate icon button.
+  const TranslateBadge = ({ fieldKey, sourceValue }: { fieldKey: string; sourceValue: string }) => {
+    if (isDefaultLang) return null;
+    const overridden = isOverridden(editingLanguage, fieldKey);
+    const loading = loadingLanguages.has(editingLanguage);
+    return (
+      <div className="flex items-center gap-1 text-[10px]">
+        <Badge variant="outline" className="gap-1 px-1.5 py-0 h-4 font-normal">
+          {overridden ? 'Edited' : <><Sparkles className="h-2.5 w-2.5" /> Auto-translated</>}
+        </Badge>
+        <button
+          type="button"
+          title="Re-translate from default language"
+          className="text-muted-foreground hover:text-primary disabled:opacity-50"
+          disabled={loading || !sourceValue}
+          onClick={() => retranslateField(editingLanguage, fieldKey, sourceValue)}
+        >
+          <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
+        </button>
+      </div>
+    );
+  };
+
 
   // Language selector component for translation editing
   const renderLanguageSelector = () => {
