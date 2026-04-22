@@ -36,6 +36,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEMO_MANAGE_EVENTS } from '@/data/demo-data';
+import { TranslationLanguageBar } from '@/components/events/TranslationLanguageBar';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { Sparkles, RefreshCw } from 'lucide-react';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -46,16 +49,38 @@ interface ThankYouButton {
   url: string;
 }
 
-// Per-language translation content
+// Per-language translation content. Default-language values mirror the form fields;
+// other-language values are AI-translated by default and editable (becomes an override).
 interface LanguageContent {
   eventHeading: string;
   introMessage: string;
   metricQuestion: string;
+  // Step 2
+  questionsTitle?: string;
+  questionsIntro?: string;
+  questions?: Record<string, {
+    question?: string;
+    leftLabel?: string;
+    rightLabel?: string;
+    options?: string[];
+  }>;
+  // Step 3
+  consentText?: string;
+  consentHelperText?: string;
+  // Step 4
   thankYouConfig: {
-    promoters: { message: string };
-    passives: { message: string };
-    detractors: { message: string };
+    promoters: { message: string; buttons?: Record<string, { label: string }> };
+    passives: { message: string; buttons?: Record<string, { label: string }> };
+    detractors: { message: string; buttons?: Record<string, { label: string }> };
   };
+  googleReviewReminder?: {
+    emailSubject?: string;
+    emailBody?: string;
+    smsBody?: string;
+  };
+  // Tracks which field keys the user has manually edited in this language —
+  // those keys are excluded from future auto-translate runs.
+  __overrides?: string[];
 }
 
 interface EventFormData {
